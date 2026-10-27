@@ -3,7 +3,7 @@
 // When you add an app page, list it in CORE and bump the CACHE number.
 // DOOM's engine and shareware WAD (doom/, about 6.5 MB) are left out of CORE so the homepage stays light;
 // they're cached the first time you press Play, and bumping CACHE also refreshes them.
-const CACHE = 'artifacts-v34';
+const CACHE = 'artifacts-v35';
 const CORE = [
   './',
   './index.html',

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="A home for small interactive apps: an optics bench, a fluid simulation, an ambient sound pad, a particle gravity toy, and whatever comes next.">
+<meta name="description" content="A home for small interactive apps: an optics bench, fluid ink, an ambient sound pad, a gravity toy, a falling-sand TV, a clay solar system, an oscilloscope, a hum-to-song sketchpad, a laser show planner, a mirror fractal and DOOM.">
 <meta name="theme-color" content="#1b1b1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -125,6 +125,7 @@ body{
         <li><a class="tile" href="earworm.html"><div class="label"><h2>Earworm</h2></div></a></li>
         <li><a class="tile" href="beamline.html"><div class="label"><h2>Beamline</h2></div></a></li>
         <li><a class="tile" href="mirrorfold.html"><div class="label"><h2>Mirrorfold</h2></div></a></li>
+        <li><a class="tile" href="doom.html"><div class="label"><h2>DOOM</h2></div></a></li>
       </ul>
     </noscript>
   </main>
@@ -142,7 +143,7 @@ const APPS = [
   {
     name: 'Spectrum Bench',
     href: 'spectrum-bench.html',
-    blurb: 'Shine light through prisms, lenses, liquid, mirrors and gratings, and watch it split into color. It can react to sound, too.',
+    blurb: 'Shine light through prisms, lenses, liquid, mirrors, gratings and even a black hole, and watch it split into color. Play music and the three Music prisms tilt and swell with the bass, mids and highs. Pinch to zoom, and send setups to TouchDesigner.',
     ground: '#0a0c10',
     accent: '#ffb340',
     titleClass: 't-bench',
@@ -151,7 +152,7 @@ const APPS = [
   {
     name: 'Resonant Ink',
     href: 'resonant-ink.html',
-    blurb: 'Stir glowing dye with your fingers. It can pulse to a song, a demo beat or the microphone.',
+    blurb: 'Stir glowing dye with your fingers, then turn it into oil paint, comic ink, chrome or neon with shader effects. It pulses to a song, a demo beat or the microphone, and your looks save as shareable presets.',
     ground: '#05060a',
     accent: '#9fdcff',
     titleClass: 't-ink',
@@ -160,7 +161,7 @@ const APPS = [
   {
     name: 'Drift Pad',
     href: 'drift-pad.html',
-    blurb: 'Tap glowing pads to play soft ambient tones on glass, steel drum, gong and more, or build your own instrument. Set some looping, or let it drift and play itself.',
+    blurb: 'Tap twenty glowing pads to play ambient tones on glass, steel drum, gong, choir and more, or build your own instrument. Set pads looping at their own lengths, or let it drift and play itself.',
     ground: '#0b0a12',
     accent: '#c9b8ff',
     titleClass: 't-pad',
@@ -169,7 +170,7 @@ const APPS = [
   {
     name: 'Gravity Wells',
     href: 'gravity-wells.html',
-    blurb: 'Every finger is a little sun. Pull thousands of sparks into orbit, push them away or stir them, then let go and watch them fly.',
+    blurb: 'Every finger is a little sun. Pull thousands of sparks into orbit, push or swirl them, tilt the device to pour them around, and let a heavy well collapse into a shockwave.',
     ground: '#04050b',
     accent: '#ffc56b',
     titleClass: 't-wells',
@@ -178,7 +179,7 @@ const APPS = [
   {
     name: 'Grainfall',
     href: 'grainfall.html',
-    blurb: 'Pour sand, water, lava, gunpowder and a dozen more materials on a clay TV in a moonlit bedroom, and watch them burn, melt, grow and explode.',
+    blurb: 'Pour sand, water, lava, gunpowder and over a dozen more materials onto a clay TV in a moonlit bedroom, and watch them burn, melt, grow and explode. Lean the device to look around the room.',
     ground: '#2e2d57',
     accent: '#a6e3cc',
     titleClass: 't-grain',
@@ -187,7 +188,7 @@ const APPS = [
   {
     name: 'Little Orrery',
     href: 'little-orrery.html',
-    blurb: 'A clay model of the solar system on a pastel plinth. Spin it, zoom in, and tap a planet to ride along with it.',
+    blurb: 'A clay solar system floating in a starfield, with dwarf planets, moons, space probes and landing sites. Spin it, tap anything to follow it, and switch to true scale for real sizes and stretched orbits.',
     ground: '#262649',
     accent: '#ffd3b0',
     titleClass: 't-orrery',
@@ -196,7 +197,7 @@ const APPS = [
   {
     name: 'X-Y Scope',
     href: 'xy-scope.html',
-    blurb: 'Draw with sound on a glowing oscilloscope: Lissajous knots, a spinning cube, your own drawings, or whatever a song draws. What you see is exactly what plays, so it can drive a real scope.',
+    blurb: 'Draw with sound on a glowing oscilloscope: Lissajous knots, a spinning cube, your own drawings or typed words. It opens on a YouTube song that draws mushrooms, and what you see is exactly what plays, so it can drive a real scope.',
     ground: '#060b08',
     accent: '#8dff72',
     titleClass: 't-scope',
@@ -205,7 +206,7 @@ const APPS = [
   {
     name: 'Earworm',
     href: 'earworm.html',
-    blurb: 'Get the song out of your head. Hum the melody, the bass and a beat one at a time, watch each turn into notes, then swap instruments and arrange the sections into a song.',
+    blurb: 'Get the song out of your head. Hum the melody, the bass and a beat one at a time, watch each turn into notes, then swap instruments, arrange the sections into a song and export it as MIDI.',
     ground: '#17151d',
     accent: '#ff7a59',
     titleClass: 't-worm',
@@ -214,7 +215,7 @@ const APPS = [
   {
     name: 'Beamline',
     href: 'beamline.html',
-    blurb: 'Plan a laser show to music. Sketch shapes, words and beam fans, line them up on the beat, and export ILDA files for a real laser.',
+    blurb: 'Plan a laser show to music. Sketch shapes, words, waveforms and beam fans, make them react to the song or drop in EDM presets, and export ILDA files for a real laser.',
     ground: '#05050a',
     accent: '#39ff7a',
     titleClass: 't-beam',
@@ -223,7 +224,7 @@ const APPS = [
   {
     name: 'Mirrorfold',
     href: 'mirrorfold.html',
-    blurb: 'Fly through fractals made of mirrors folded over and over, with glowing trails that feed back into themselves. Bend it with a finger, let it dance to sound, and bookmark the views you find.',
+    blurb: 'Fly through fractals made of mirrors folded over and over, with glowing trails that feed back into themselves. Bend it with a finger, roll a surprise look, let sound push any setting, and bookmark or share what you find.',
     ground: '#07060d',
     accent: '#ff6fd8',
     titleClass: 't-fold',
@@ -232,7 +233,7 @@ const APPS = [
   {
     name: 'DOOM',
     href: 'doom.html',
-    blurb: 'The real 1993 DOOM engine, running right here. The shareware episode is built in, or add your own WAD to play the full game, DOOM II or Freedoom. Touch controls on iPhone and iPad.',
+    blurb: 'The real 1993 DOOM engine, running right here. The shareware episode is built in, or add your own WAD for the full game, DOOM II or Freedoom, with saved games and touch controls on iPhone and iPad.',
     ground: '#0b0302',
     accent: '#ff5a1f',
     titleClass: 't-doom',
@@ -264,117 +265,133 @@ function waveColor(nm, a){
    Each preview is { init(state, w, h), frame(ctx, state, w, h, t, dt) } in CSS pixels. */
 const ARTS = {};
 
-// A white beam refracting through a slowly turning prism onto a screen, with real Snell's-law dispersion.
+// Music prisms, the bench's starter setup: one white beam through a triangle (bass), a hexagon (mids)
+// and a right-angle prism (highs) onto a screen. A made-up song tilts and swells each prism with its own
+// part, and the beam in carries the waveform. Real Snell's-law dispersion, a little exaggerated.
+// Ray tracing in 2D, shared helpers: follow one ray through convex glass shapes, refracting in and out
+// (or reflecting when it can't get out), until it meets the screen or leaves.
+const vsub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+const vdot = (a, b) => a[0] * b[0] + a[1] * b[1];
+const vnorm = (a) => { const l = Math.hypot(a[0], a[1]); return [a[0] / l, a[1] / l]; };
+function prismShape(shape, c, r, rot){
+  let angs;
+  if (shape === 'tri') angs = [-Math.PI / 2, Math.PI / 6, Math.PI * 5 / 6].map((a) => [a, r]);
+  else if (shape === 'hex') angs = [0, 1, 2, 3, 4, 5].map((i) => [i * Math.PI / 3, r]);
+  else angs = [[-Math.PI * 3 / 4, r], [-Math.PI / 4, r], [Math.PI / 2, r * .7071]];
+  const pts = angs.map(([a, rr]) => [c[0] + rr * Math.cos(a + rot), c[1] + rr * Math.sin(a + rot)]);
+  return { pts, c: [pts.reduce((v, q) => v + q[0], 0) / pts.length, pts.reduce((v, q) => v + q[1], 0) / pts.length] };
+}
+function segHit(o, d, a, b){
+  const e = vsub(b, a), den = d[0] * e[1] - d[1] * e[0];
+  if (Math.abs(den) < 1e-9) return null;
+  const ao = vsub(a, o), tt = (ao[0] * e[1] - ao[1] * e[0]) / den, u = (ao[0] * d[1] - ao[1] * d[0]) / den;
+  return (tt > 1e-6 && u >= 0 && u <= 1) ? tt : null;
+}
+function traceRay(o, d, n, polys, scr, far){
+  const path = [o];
+  for (let bounce = 0; bounce < 12; bounce++){
+    let best = null, nrm = null, onScreen = false;
+    for (const pg of polys) for (let i = 0; i < pg.pts.length; i++){
+      const a = pg.pts[i], b = pg.pts[(i + 1) % pg.pts.length], tt = segHit(o, d, a, b);
+      if (tt === null || (best !== null && tt >= best)) continue;
+      const e = vnorm(vsub(b, a)); let nn = [e[1], -e[0]];
+      if (vdot(nn, vsub([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], pg.c)) < 0) nn = [-nn[0], -nn[1]];
+      best = tt; nrm = nn;
+    }
+    const ts = scr ? segHit(o, d, scr[0], scr[1]) : null;
+    if (ts !== null && (best === null || ts < best)){ best = ts; onScreen = true; }
+    if (best === null){ path.push([o[0] + d[0] * far, o[1] + d[1] * far]); return { path, d }; }
+    const q = [o[0] + d[0] * best, o[1] + d[1] * best];
+    path.push(q);
+    if (onScreen) return { path, land: q, d };
+    const entering = vdot(d, nrm) < 0, nf = entering ? nrm : [-nrm[0], -nrm[1]], eta = entering ? 1 / n : n;
+    const ci = -vdot(nf, d), kk = 1 - eta * eta * (1 - ci * ci);
+    d = kk < 0 ? vnorm([d[0] + 2 * ci * nf[0], d[1] + 2 * ci * nf[1]])
+      : vnorm([eta * d[0] + (eta * ci - Math.sqrt(kk)) * nf[0], eta * d[1] + (eta * ci - Math.sqrt(kk)) * nf[1]]);
+    o = q;
+  }
+  return { path, d };
+}
+const glassIndex = (nm) => 1.5 + .016 / (nm * nm / 1e6);
 ARTS.prism = {
+  // shape, size, turn, distance along the beam from the last piece, and sideways offset from the beam
+  parts: [['tri', 1, 0, 2, .2], ['hex', .85, .26, 1.8, -.3], ['right', 1, Math.PI, 1.8, .2]],
   init(s, w, h){
     s.holes = [];
     for (let y = 12; y < h; y += 22) for (let x = 12; x < w; x += 22) s.holes.push(x, y);
+    // lay the pieces out along the beam at rest, so it threads all three, then fit that into the tile
+    s.dir = -.55; s.place = [];
+    let o = [0, 0], d = [Math.cos(s.dir), Math.sin(s.dir)];
+    const pts = [o];
+    for (const [shape, r, rot, D, off] of this.parts){
+      const c = [o[0] + d[0] * D - d[1] * off, o[1] + d[1] * D + d[0] * off];
+      const pg = prismShape(shape, c, r, rot);
+      const res = traceRay(o, d, glassIndex(550), [pg], null, 1);
+      s.place.push({ shape, r, rot, c });
+      pts.push(...pg.pts);
+      o = res.path[res.path.length - 2]; d = res.d;
+    }
+    const sc = [o[0] + d[0] * 1.7, o[1] + d[1] * 1.7], half = 1.1;
+    s.scr = [[sc[0] + d[1] * half, sc[1] - d[0] * half], [sc[0] - d[1] * half, sc[1] + d[0] * half]];
+    pts.push(...s.scr, [-.6, 0]);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of pts){ x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const m = 20;
+    s.k = Math.min((w - m * 2) / (x1 - x0), (h - m * 2) / (y1 - y0));
+    s.ox = (w - (x1 - x0) * s.k) / 2 - x0 * s.k; s.oy = (h - (y1 - y0) * s.k) / 2 - y0 * s.k;
   },
   frame(ctx, s, w, h, t){
-    const ground = '#0a0c10';
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = ground; ctx.fillRect(0, 0, w, h);
-    // optical-table holes
+    ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = 'rgba(221,225,231,.05)';
     for (let i = 0; i < s.holes.length; i += 2){ ctx.beginPath(); ctx.arc(s.holes[i], s.holes[i + 1], 1.1, 0, 7); ctx.fill(); }
 
-    const side = h * .5, cx = w * .4, cy = h * .4;
-    const rot = Math.sin(t * .32) * .11;
-    const R = side / Math.sqrt(3);
-    // apex, bottom-left, bottom-right
-    const [T, BL, BR] = [-Math.PI / 2, Math.PI * 5 / 6, Math.PI / 6]
-      .map((a) => [cx + R * Math.cos(a + rot), cy + R * Math.sin(a + rot)]);
+    // a pretend song at 112 bpm: a kick on every beat, a slow swell in the mids, hats on the eighths
+    const beat = t * 112 / 60, ph = beat % 1, ph8 = (beat * 2) % 1;
+    const level = [Math.exp(-ph * 5), .5 + .5 * Math.sin(beat * Math.PI / 4), Math.exp(-ph8 * 9) * (.6 + .4 * Math.sin(t * 5))];
+    const polys = s.place.map((p, i) => prismShape(p.shape, p.c, p.r * (1 + .12 * level[i]), p.rot + .07 * (level[i] - .5)));
+    const P = (q) => [s.ox + q[0] * s.k, s.oy + q[1] * s.k];
+    const line = (path) => { ctx.beginPath(); path.forEach((q, i) => { q = P(q); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); };
 
-    // incoming ray aimed at the left face, tilted for near minimum deviation
-    const P = [BL[0] + .5 * (T[0] - BL[0]), BL[1] + .5 * (T[1] - BL[1])];
-    const alpha = .43;
-    const dIn = [Math.cos(alpha), -Math.sin(alpha)];
-    const srcD = (P[0] - w * .1) / dIn[0];
-    const S = [P[0] - dIn[0] * srcD, P[1] - dIn[1] * srcD];
-
-    // geometry helpers
-    const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
-    const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
-    const norm = (a) => { const l = Math.hypot(a[0], a[1]); return [a[0] / l, a[1] / l]; };
-    function refract(d, n, eta){ // n faces against d
-      const ci = -dot(n, d), k = 1 - eta * eta * (1 - ci * ci);
-      if (k < 0) return null;
-      const ct = Math.sqrt(k);
-      return norm([eta * d[0] + (eta * ci - ct) * n[0], eta * d[1] + (eta * ci - ct) * n[1]]);
+    const d0 = [Math.cos(s.dir), Math.sin(s.dir)];
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const lands = [];
+    let first = null;
+    for (let nm = 400; nm <= 700; nm += 7.5){
+      const { path, land } = traceRay([0, 0], d0, glassIndex(nm), polys, s.scr, 30);
+      if (!first) first = path[1];
+      if (land) lands.push([P(land), nm]);
+      // the colors only part after the first prism, so the white beam in is drawn on its own below
+      line(path.slice(1));
+      ctx.strokeStyle = waveColor(nm, .045); ctx.lineWidth = 6; ctx.stroke();
+      ctx.strokeStyle = waveColor(nm, .42); ctx.lineWidth = 1.3; ctx.stroke();
     }
-    function hitSeg(o, d, a, b){
-      const e = sub(b, a), den = d[0] * e[1] - d[1] * e[0];
-      if (Math.abs(den) < 1e-9) return null;
-      const ao = sub(a, o), tt = (ao[0] * e[1] - ao[1] * e[0]) / den, u = (ao[0] * d[1] - ao[1] * d[0]) / den;
-      return (tt > 1e-6 && u >= 0 && u <= 1) ? tt : null;
+    // the white beam in, carrying the song's waveform like the bench's oscilloscope trace
+    const S = P([0, 0]), F = P(first), len = Math.hypot(F[0] - S[0], F[1] - S[1]), nx = -d0[1], ny = d0[0], amp = 2 + 5 * level[0];
+    ctx.beginPath();
+    for (let i = 0; i <= 90; i++){
+      const u = i / 90, env = Math.min(1, u * 6, (1 - u) * 6);
+      const o = amp * env * (Math.sin(u * len * .2 - t * 9) * .7 + Math.sin(u * len * .55 - t * 17) * .4 * level[2]);
+      const x = S[0] + d0[0] * u * len + nx * o, y = S[1] + d0[1] * u * len + ny * o;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
     }
-    const outward = (a, b) => { const e = norm(sub(b, a)); let n = [e[1], -e[0]]; const m = [(a[0] + b[0]) / 2 - cx, (a[1] + b[1]) / 2 - cy]; if (dot(n, m) < 0) n = [-n[0], -n[1]]; return n; };
-    const nLeft = outward(BL, T), nRight = outward(T, BR), nBase = outward(BR, BL);
-    const screenX = w - 16;
+    for (const [lw, a] of [[7, .07], [2, .9]]){ ctx.strokeStyle = 'rgba(255,255,255,' + a + ')'; ctx.lineWidth = lw; ctx.stroke(); }
+    for (const [q, nm] of lands){ ctx.fillStyle = waveColor(nm, .2); ctx.beginPath(); ctx.arc(q[0], q[1], 5, 0, 7); ctx.fill(); }
 
-    // light source box
-    ctx.save();
-    ctx.translate(S[0], S[1]); ctx.rotate(-alpha);
+    ctx.globalCompositeOperation = 'source-over';
+    for (const pg of polys){
+      line(pg.pts); ctx.closePath();
+      ctx.fillStyle = 'rgba(200,210,230,.08)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(221,232,255,.45)'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+    line(s.scr); ctx.strokeStyle = 'rgba(235,238,245,.7)'; ctx.lineWidth = 2.5; ctx.stroke();
+    // the light, with the bench's amber turning knob
+    ctx.save(); ctx.translate(S[0], S[1]); ctx.rotate(s.dir);
     ctx.fillStyle = '#191d24'; ctx.strokeStyle = 'rgba(221,225,231,.35)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-22, -7, 24, 14, 3) : ctx.rect(-22, -7, 24, 14); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#ffb340'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(-28, 0, 3.5, 0, 7); ctx.stroke();
     ctx.restore();
-
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.lineCap = 'round';
-    // white beam in
-    for (const [lw, a] of [[7, .06], [2.2, .9]]){
-      ctx.strokeStyle = 'rgba(255,255,255,' + a + ')'; ctx.lineWidth = lw;
-      ctx.beginPath(); ctx.moveTo(S[0], S[1]); ctx.lineTo(P[0], P[1]); ctx.stroke();
-    }
-
-    // dispersed rays: Cauchy dispersion, a flint-like glass, a little exaggerated so the fan reads at this size
-    const dots = [];
-    for (let nm = 400; nm <= 700; nm += 7.5){
-      const um = nm / 1000, n = 1.6 + .012 / (um * um);
-      const d1 = refract(dIn, nLeft, 1 / n);
-      if (!d1) continue;
-      let best = null, face = null;
-      for (const [a, b, nn] of [[T, BR, nRight], [BR, BL, nBase]]){
-        const tt = hitSeg(P, d1, a, b);
-        if (tt !== null && (best === null || tt < best)){ best = tt; face = nn; }
-      }
-      if (best === null) continue;
-      const Q = [P[0] + d1[0] * best, P[1] + d1[1] * best];
-      const d2 = refract(d1, [-face[0], -face[1]], n); // leaving the glass, the normal must face back inside
-      if (!d2) continue;
-      // inside the glass the colors still overlap, so draw them faintly
-      ctx.strokeStyle = waveColor(nm, .07); ctx.lineWidth = 1.6;
-      ctx.beginPath(); ctx.moveTo(P[0], P[1]); ctx.lineTo(Q[0], Q[1]); ctx.stroke();
-      // out to the screen (or the edge)
-      let L = d2[0] > 0 ? (screenX - Q[0]) / d2[0] : w;
-      const end = [Q[0] + d2[0] * L, Q[1] + d2[1] * L];
-      ctx.strokeStyle = waveColor(nm, .05); ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.moveTo(Q[0], Q[1]); ctx.lineTo(end[0], end[1]); ctx.stroke();
-      ctx.strokeStyle = waveColor(nm, .5); ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.moveTo(Q[0], Q[1]); ctx.lineTo(end[0], end[1]); ctx.stroke();
-      if (end[1] > 0 && end[1] < h) dots.push([end[1], nm]);
-    }
-    // where the colors land on the screen
-    for (const [y, nm] of dots){
-      ctx.fillStyle = waveColor(nm, .22);
-      ctx.beginPath(); ctx.arc(screenX, y, 5, 0, 7); ctx.fill();
-    }
-
-    // prism body
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.beginPath(); ctx.moveTo(T[0], T[1]); ctx.lineTo(BR[0], BR[1]); ctx.lineTo(BL[0], BL[1]); ctx.closePath();
-    ctx.fillStyle = 'rgba(170,200,255,.06)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(221,232,255,.42)'; ctx.lineWidth = 1.2; ctx.stroke();
-    // screen
-    ctx.strokeStyle = 'rgba(221,225,231,.22)'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(screenX + 3, h * .3); ctx.lineTo(screenX + 3, h * .96); ctx.stroke();
-    // the bench's amber turning knob
-    const up = [Math.cos(-Math.PI / 2 + rot), Math.sin(-Math.PI / 2 + rot)];
-    const K = [cx + up[0] * (R + 16), cy + up[1] * (R + 16)];
-    ctx.strokeStyle = 'rgba(255,179,64,.55)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(T[0], T[1]); ctx.lineTo(K[0], K[1]); ctx.stroke();
-    ctx.fillStyle = '#ffb340';
-    ctx.beginPath(); ctx.arc(K[0], K[1], 4.5, 0, 7); ctx.fill();
   }
 };
 
@@ -458,26 +475,28 @@ ARTS.ink = {
   }
 };
 
-// A small grid of pads that a wandering melody lights up one by one, each note sending out a soft ripple.
+// Twenty pads, low notes bottom left rising to the top right as in the app. A wandering melody (Drift)
+// lights them one by one, and three pads loop at their own lengths, a ring sweeping round once per loop.
 ARTS.pad = {
   init(s, w, h){
-    s.cols = 6; s.rows = 3;
+    s.cols = 5; s.rows = 4;
     s.lit = new Float32Array(s.cols * s.rows);
     s.ripples = []; s.walk = 8; s.next = .3;
+    s.loops = [{ i: 2, len: 5.3 }, { i: 11, len: 7.9 }, { i: 17, len: 11.2 }].map((l) => ({ ...l, last: -1 }));
   },
   frame(ctx, s, w, h, t, dt){
     const { cols, rows } = s;
+    const hit = (i) => { s.lit[i] = 1; s.ripples.push({ i, age: 0 }); if (s.ripples.length > 12) s.ripples.shift(); };
     if (t > s.next || s.next - t > 5){
-      s.next = t + .42 + Math.random() * .55;
+      s.next = t + .5 + Math.random() * .7;
       s.walk = Math.max(0, Math.min(cols * rows - 1, s.walk + [-2, -1, -1, 1, 1, 2, cols, -cols][Math.floor(Math.random() * 8)]));
-      s.lit[s.walk] = 1; s.ripples.push({ i: s.walk, age: 0 });
-      if (s.ripples.length > 12) s.ripples.shift();
+      hit(s.walk);
     }
+    for (const l of s.loops){ const k = Math.floor(t / l.len); if (k !== l.last){ l.last = k; hit(l.i); } }
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#0b0a12'; ctx.fillRect(0, 0, w, h);
-    const pad = Math.min(w, h) * .09, gap = Math.min(w, h) * .045;
+    const pad = Math.min(w, h) * .08, gap = Math.min(w, h) * .04;
     const cw = (w - pad * 2 - gap * (cols - 1)) / cols, ch = (h - pad * 2 - gap * (rows - 1)) / rows;
-    // note index 0 is bottom-left, rising rightward then upward, as in the app
     const cell = (i) => [pad + (i % cols) * (cw + gap), pad + (rows - 1 - Math.floor(i / cols)) * (ch + gap)];
     const hue = (i) => 190 + 145 * i / (cols * rows - 1);
     ctx.globalCompositeOperation = 'lighter';
@@ -502,6 +521,14 @@ ARTS.pad = {
       ctx.fillStyle = '#15131f'; ctx.fill();
       if (L > 0){ ctx.fillStyle = 'hsla(' + hue(i) + ',95%,68%,' + (L * L * .9).toFixed(3) + ')'; ctx.fill(); }
       ctx.strokeStyle = 'hsla(' + hue(i) + ',80%,80%,' + (.1 + L * .4).toFixed(3) + ')'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    // loop rings
+    for (const l of s.loops){
+      const [x, y] = cell(l.i), u = (t % l.len) / l.len, r = Math.min(cw, ch) * .3;
+      ctx.strokeStyle = 'hsla(' + hue(l.i) + ',90%,80%,.2)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x + cw / 2, y + ch / 2, r, 0, 6.2832); ctx.stroke();
+      ctx.strokeStyle = 'hsla(' + hue(l.i) + ',95%,82%,.85)';
+      ctx.beginPath(); ctx.arc(x + cw / 2, y + ch / 2, r, -Math.PI / 2, -Math.PI / 2 + u * 6.2832); ctx.stroke();
     }
   }
 };
@@ -580,74 +607,196 @@ ARTS.wells = {
   }
 };
 
-// Fallback for apps without their own preview: slow glows in the app's accent color.
-// A tiny falling-sand screen on the mint TV: a spout wanders and pours pastel grains that pile up, then it clears and starts over.
+// The mint clay TV in the moonlit bedroom, running a little falling-sand world: spouts pour sand, water
+// and lava; lava meeting water turns to stone and steam, plants creep into the water, then it clears.
 ARTS.grain = {
+  // empty, sand, water, lava, stone, steam, plant
+  colors: [null, ['#f2d38a', '#e8c477'], ['#6fb7ff', '#86c5ff'], ['#ff7a3a', '#ffb347'], ['#8d8aa8', '#7c7998'], ['#dfe3ff', '#c9cdf0'], ['#8fdc7a', '#74c766']],
   init(s, w, h){
-    s.gw = 40; s.gh = 30; s.g = new Uint8Array(s.gw * s.gh); s.acc = 0; s.sx = 20; s.vx = .35; s.n = 0; s.hue = 0;
+    s.gw = 48; s.gh = 36; s.g = new Uint8Array(s.gw * s.gh); s.tone = new Uint8Array(s.gw * s.gh); s.moved = new Uint8Array(s.gw * s.gh);
+    s.acc = 0; s.clock = 0; s.spouts = [{ x: 10, v: .22, m: 1 }, { x: 36, v: -.18, m: 3 }];
+    this.seed(s);
+  },
+  seed(s){
+    const { gw, gh, g } = s;
+    g.fill(0);
+    for (let x = 0; x < gw; x++) if (Math.abs(x - 24) < 7 || x < 4) g[(gh - 1) * gw + x] = 4;
+    for (const x of [6, 30, 41]) for (let y = gh - 4; y < gh - 1; y++) g[y * gw + x] = 6;
+    s.clock = 0;
+  },
+  step(s){
+    const { gw, gh, g, tone, moved } = s;
+    moved.fill(0);
+    const put = (i, j) => { g[j] = g[i]; tone[j] = tone[i]; g[i] = 0; moved[j] = 1; };
+    const swap = (i, j) => { const a = g[i], b = tone[i]; g[i] = g[j]; tone[i] = tone[j]; g[j] = a; tone[j] = b; moved[i] = moved[j] = 1; };
+    const free = (x, y) => x >= 0 && x < gw && y >= 0 && y < gh && !g[y * gw + x];
+    for (let y = gh - 1; y >= 0; y--){
+      const ltr = Math.random() < .5;
+      for (let k = 0; k < gw; k++){
+        const x = ltr ? k : gw - 1 - k, i = y * gw + x, c = g[i];
+        if (!c || moved[i]) continue;
+        const d = Math.random() < .5 ? 1 : -1;
+        if (c === 1 || c === 4){ // sand, and stone, which only drops
+          if (free(x, y + 1)) put(i, i + gw);
+          else if (y + 1 < gh && g[i + gw] === 2) swap(i, i + gw);
+          else if (c === 1 && free(x + d, y + 1)) put(i, i + gw + d);
+        } else if (c === 2 || c === 3){ // water, and slower lava
+          if (c === 3){
+            for (const j of [i - 1, i + 1, i - gw, i + gw]) if (j >= 0 && j < g.length && g[j] === 2){ g[i] = 4; g[j] = 5; moved[j] = 1; break; }
+            if (g[i] !== 3 || Math.random() < .5) continue;
+          }
+          if (free(x, y + 1)) put(i, i + gw);
+          else if (c === 3 && y + 1 < gh && g[i + gw] === 2) swap(i, i + gw);
+          else if (free(x + d, y + 1)) put(i, i + gw + d);
+          else if (free(x + d, y) && Math.random() < (c === 2 ? .9 : .3)) put(i, i + d);
+        } else if (c === 5){ // steam rises and fades
+          if (Math.random() < .03){ g[i] = 0; continue; }
+          if (free(x, y - 1)) put(i, i - gw);
+          else if (y > 0 && g[i - gw] === 2) swap(i, i - gw);
+          else if (free(x + d, y - 1)) put(i, i - gw + d);
+          else if (free(x + d, y)) put(i, i + d);
+          else if (y === 0) g[i] = 0;
+        } else if (c === 6 && Math.random() < .04){ // plants grow into water
+          const j = [i - 1, i + 1, i - gw, i + gw][Math.random() * 4 | 0];
+          if (j >= 0 && j < g.length && g[j] === 2){ g[j] = 6; tone[j] = Math.random() * 2 | 0; moved[j] = 1; }
+        }
+      }
+    }
+    // the spouts wander and change material now and then
+    for (const sp of s.spouts){
+      sp.x += sp.v; if (sp.x < 3 || sp.x > gw - 4) sp.v = -sp.v;
+      if (Math.random() < .006) sp.m = [1, 2, 3][Math.random() * 3 | 0];
+      for (const x of [Math.round(sp.x), Math.round(sp.x) + 1]) if (!g[x] && Math.random() < [0, .7, .3, .6][sp.m]){ g[x] = sp.m; tone[x] = Math.random() * 2 | 0; }
+    }
+    let n = 0; for (let i = 0; i < g.length; i++) if (g[i] && g[i] !== 5) n++;
+    if (++s.clock > 1100 || n > g.length * .6) this.seed(s);
   },
   frame(ctx, s, w, h, t, dt){
-    const { gw, gh, g } = s, cols = ['#f2d38a', '#9fd0ff', '#f7a6c4', '#a8dca0', '#ffb07a'];
     s.acc += dt;
-    while (s.acc > 1 / 40){
-      s.acc -= 1 / 40;
-      for (let y = gh - 2; y >= 0; y--) for (let x = 0; x < gw; x++){
-        const i = y * gw + x, c = g[i]; if (!c) continue;
-        const d = (Math.random() < .5) ? 1 : -1;
-        if (!g[i + gw]){ g[i + gw] = c; g[i] = 0; }
-        else if (x + d >= 0 && x + d < gw && !g[i + gw + d]){ g[i + gw + d] = c; g[i] = 0; }
-      }
-      s.sx += s.vx; if (s.sx < 4 || s.sx > gw - 5) s.vx = -s.vx;
-      if (Math.random() < .02) s.hue = (s.hue + 1) % cols.length;
-      for (const x of [Math.round(s.sx), Math.round(s.sx) + 1]) if (!g[x] && Math.random() < .8){ g[x] = s.hue + 1; s.n++; }
-      if (s.n > gw * gh * .55){ g.fill(0); s.n = 0; }
-    }
+    while (s.acc > 1 / 40){ s.acc -= 1 / 40; this.step(s); }
+    const { gw, gh, g, tone } = s;
+    ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#2e2d57'; ctx.fillRect(0, 0, w, h);
-    const glow = ctx.createRadialGradient(w * .5, h * .45, 0, w * .5, h * .45, Math.max(w, h) * .7);
-    glow.addColorStop(0, 'rgba(150,160,232,.5)'); glow.addColorStop(1, 'rgba(164,176,240,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
+    // moonlight through the blinds, and the lamp's warm pool
+    ctx.save(); ctx.translate(w * .12, -h * .1); ctx.rotate(.35);
+    ctx.fillStyle = 'rgba(190,200,255,.07)';
+    for (let i = 0; i < 6; i++) ctx.fillRect(0, i * h * .09, w * .32, h * .045);
+    ctx.restore();
+    const lamp = ctx.createRadialGradient(w * .9, h * .2, 0, w * .9, h * .2, w * .45);
+    lamp.addColorStop(0, 'rgba(255,200,150,.28)'); lamp.addColorStop(1, 'rgba(255,200,150,0)');
+    ctx.fillStyle = lamp; ctx.fillRect(0, 0, w, h);
+    // dust in the beam
+    ctx.fillStyle = 'rgba(255,240,220,.35)';
+    for (let i = 0; i < 14; i++){ const x = (w * (.05 + .07 * i) + Math.sin(t * .3 + i) * 12) % w, y = h * (.15 + .5 * ((i * .37 + t * .02) % 1)); ctx.fillRect(x, y, 1.5, 1.5); }
     // the TV: mint body, dark screen sized 4:3 inside it
-    const sh = Math.min(h * .62, w * .5 * 3 / 4), sw = sh * 4 / 3, bx = (w - sw) / 2, by = (h - sh) / 2 - h * .03, b = sh * .1;
+    const sh = Math.min(h * .64, w * .52 * 3 / 4), sw = sh * 4 / 3, bx = (w - sw) / 2, by = (h - sh) / 2 - h * .04, b = sh * .1;
+    ctx.fillStyle = 'rgba(20,18,50,.35)'; ctx.beginPath(); ctx.ellipse(w / 2, by + sh + b * 2.3, sw * .62, b * .7, 0, 0, 6.2832); ctx.fill();
     ctx.fillStyle = '#a6e3cc';
     ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx - b, by - b, sw + b * 2, sh + b * 3, b * 1.6) : ctx.rect(bx - b, by - b, sw + b * 2, sh + b * 3); ctx.fill();
     ctx.fillStyle = '#f8d3e6'; ctx.beginPath(); ctx.arc(bx + sw - b * .2, by + sh + b * 1.15, b * .38, 0, 6.2832); ctx.fill();
-    ctx.fillStyle = '#2a1f33'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, sw, sh, b * .8) : ctx.rect(bx, by, sw, sh); ctx.fill();
+    ctx.fillStyle = '#f8d3e6'; ctx.beginPath(); ctx.arc(bx + sw - b * 1.3, by + sh + b * 1.15, b * .26, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = '#1f1a2c'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, sw, sh, b * .8) : ctx.rect(bx, by, sw, sh); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, sw, sh, b * .8) : ctx.rect(bx, by, sw, sh); ctx.clip();
     const cw = sw / gw, chh = sh / gh;
-    for (let i = 0; i < g.length; i++) if (g[i]){ ctx.fillStyle = cols[g[i] - 1]; ctx.fillRect(bx + (i % gw) * cw, by + Math.floor(i / gw) * chh, cw + .5, chh + .5); }
+    for (let i = 0; i < g.length; i++){
+      const c = g[i]; if (!c) continue;
+      let col = this.colors[c][tone[i]];
+      if (c === 3 && Math.random() < .2) col = '#ffd36a';
+      ctx.globalAlpha = c === 5 ? .8 : 1;
+      ctx.fillStyle = col; ctx.fillRect(bx + (i % gw) * cw, by + Math.floor(i / gw) * chh, cw + .5, chh + .5);
+    }
+    ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(0,0,0,.18)';
     for (let y = 0; y < sh; y += 3) ctx.fillRect(bx, by + y, sw, 1);
+    const sheen = ctx.createLinearGradient(bx, by, bx + sw, by + sh);
+    sheen.addColorStop(0, 'rgba(255,255,255,.08)'); sheen.addColorStop(.4, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen; ctx.fillRect(bx, by, sw, sh);
+    ctx.restore();
   }
 };
 
-// A tilted pastel disc with a glowing sun and little planets circling at their own speeds.
+// The clay solar system floating in a starfield: glowing orbit hoops, the asteroid and Kuiper belts as
+// pebbles, Saturn's rings, the Moon around Earth, Pluto on its tilted, stretched loop, and the odd meteor.
 ARTS.orrery = {
   init(s, w, h){
     s.t0 = Math.random() * 100;
-    s.p = [['#cfc6d8', .19, .24, 3], ['#ffd4a8', .27, .62, 4], ['#9fd3ff', .33, 1, 4.5], ['#ffb09a', .4, 1.88, 3.5], ['#ffdcb8', .56, 11.86, 9], ['#fff0c2', .67, 29.46, 8], ['#bdf0e4', .8, 84, 6], ['#b3bcff', .9, 164.8, 6]];
+    // color, orbit radius (share of the model), year in Earth years, size, ring
+    s.p = [['#c9bfd6', .17, .24, 3.2], ['#f2b26e', .23, .62, 4.4], ['#6fb6e8', .3, 1, 4.6], ['#f07d55', .37, 1.88, 3.8],
+      ['#e8a06e', .52, 11.86, 10.5], ['#e9cf8c', .64, 29.46, 8.5, 'saturn'], ['#7fd6cf', .76, 84, 6.4, 'uranus'], ['#4a6ee0', .87, 164.8, 6.4]];
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    s.stars = []; for (let i = 0; i < 90; i++) s.stars.push([rnd() * w, rnd() * h, rnd() * 1.3 + .3, rnd() * 6.3]);
+    s.belt = []; for (let i = 0; i < 110; i++) s.belt.push([.43 + rnd() * .05, rnd() * 6.3, rnd() * 1.1 + .5]);
+    s.kuiper = []; for (let i = 0; i < 90; i++) s.kuiper.push([.93 + rnd() * .1, rnd() * 6.3, rnd() * 1.2 + .5]);
+    s.meteor = null;
   },
   frame(ctx, s, w, h, t, dt){
-    const cx = w / 2, cy = h * .5, R = Math.min(w * .44, h * .62), sq = .42, yr = (s.t0 + t) / 6;
+    const cx = w / 2, cy = h * .54, R = Math.min(w * .47, h * .78), sq = .36, yr = (s.t0 + t) / 7;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = '#262649'; ctx.fillRect(0, 0, w, h);
-    // the plinth, as two stacked ellipses
-    ctx.fillStyle = '#6f68b8'; ctx.beginPath(); ctx.ellipse(cx, cy + R * .07, R, R * sq, 0, 0, 6.2832); ctx.fill();
-    ctx.fillStyle = '#8f88d4'; ctx.beginPath(); ctx.ellipse(cx, cy, R, R * sq, 0, 0, 6.2832); ctx.fill();
-    ctx.strokeStyle = 'rgba(214,206,255,.55)'; ctx.lineWidth = 1;
-    for (const p of s.p){ ctx.beginPath(); ctx.ellipse(cx, cy, R * p[1], R * p[1] * sq, 0, 0, 6.2832); ctx.stroke(); }
-    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * .4);
-    glow.addColorStop(0, 'rgba(255,220,180,.7)'); glow.addColorStop(1, 'rgba(255,220,180,0)');
+    ctx.fillStyle = '#1f1d42'; ctx.fillRect(0, 0, w, h);
+    // nebula haze and a dome of stars
+    const neb = ctx.createRadialGradient(w * .42, h * .05, 0, w * .42, h * .05, h * .9);
+    neb.addColorStop(0, 'rgba(140,120,200,.55)'); neb.addColorStop(1, 'rgba(140,120,200,0)');
+    ctx.fillStyle = neb; ctx.fillRect(0, 0, w, h);
+    for (const [x, y, r, p] of s.stars){ ctx.fillStyle = 'rgba(235,230,255,' + (.35 + .3 * Math.sin(t * 1.3 + p)).toFixed(3) + ')'; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); }
+    // a meteor now and then
+    if (!s.meteor && Math.random() < dt * .25) s.meteor = { x: Math.random() * w, y: Math.random() * h * .3, age: 0 };
+    if (s.meteor){
+      const m = s.meteor; m.age += dt;
+      const x = m.x - m.age * w * .5, y = m.y + m.age * h * .35, g = ctx.createLinearGradient(x, y, x + 40, y - 28);
+      g.addColorStop(0, 'rgba(255,240,230,.85)'); g.addColorStop(1, 'rgba(255,240,230,0)');
+      ctx.strokeStyle = g; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 40, y - 28); ctx.stroke();
+      if (m.age > .9) s.meteor = null;
+    }
+    // orbit hoops, glowing
+    ctx.globalCompositeOperation = 'lighter';
+    const hoop = (rx, ry, ox, oy, rot) => { ctx.beginPath(); ctx.ellipse(cx + ox, cy + oy, rx, ry, rot, 0, 6.2832); };
+    for (const p of s.p){
+      hoop(R * p[1], R * p[1] * sq, 0, 0, 0);
+      ctx.strokeStyle = 'rgba(200,160,255,.10)'; ctx.lineWidth = 4; ctx.stroke();
+      ctx.strokeStyle = 'rgba(214,180,255,.55)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    hoop(R * .98, R * .98 * sq * .82, R * .2, -R * .03, -.12);
+    ctx.strokeStyle = 'rgba(214,180,255,.3)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    const pebbles = (list, spin) => { ctx.fillStyle = 'rgba(200,195,225,.55)'; for (const [r, a, sz] of list){ const u = a + yr * spin; ctx.beginPath(); ctx.arc(cx + Math.cos(u) * R * r, cy + Math.sin(u) * R * r * sq, sz, 0, 6.2832); ctx.fill(); } };
+    pebbles(s.belt, 1.4); pebbles(s.kuiper, .05);
+    // the sun's glow
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * .3);
+    glow.addColorStop(0, 'rgba(255,214,170,.6)'); glow.addColorStop(1, 'rgba(255,214,170,0)');
     ctx.fillStyle = glow; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-    // planets behind the sun first, then the sun, then the ones in front
-    const items = s.p.map((p, i) => { const a = yr / p[2] * 6.2832 + i * 1.7; return { p, x: cx + Math.cos(a) * R * p[1], y: cy + Math.sin(a) * R * p[1] * sq, back: Math.sin(a) < 0 }; });
-    const ball = (x, y, r, c) => { const g = ctx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r); g.addColorStop(0, '#ffffff'); g.addColorStop(.25, c); g.addColorStop(1, c); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); };
-    for (const it of items) if (it.back) ball(it.x, it.y - it.p[3], it.p[3], it.p[0]);
-    ball(cx, cy - R * .1, R * .12, '#ffe7c4');
-    for (const it of items) if (!it.back) ball(it.x, it.y - it.p[3], it.p[3], it.p[0]);
+    const ball = (x, y, r, c) => { const g = ctx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r); g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(.3, c); g.addColorStop(1, c); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); };
+    const items = s.p.map((p, i) => { const a = yr / p[2] * 6.2832 + i * 1.7; return { p, i, a, x: cx + Math.cos(a) * R * p[1], y: cy + Math.sin(a) * R * p[1] * sq, back: Math.sin(a) < 0 }; });
+    // Pluto on its tilted loop
+    const pa = yr / 248 * 6.2832 + 2;
+    items.push({ p: ['#d9a27f', 0, 0, 2.2], x: cx + R * .2 + Math.cos(pa) * R * .98 * Math.cos(-.12) - Math.sin(pa) * R * .98 * sq * .82 * Math.sin(-.12), y: cy - R * .03 + Math.cos(pa) * R * .98 * Math.sin(-.12) + Math.sin(pa) * R * .98 * sq * .82 * Math.cos(-.12), back: Math.sin(pa) < 0 });
+    const draw = (it) => {
+      const [c, , , r, ring] = it.p, x = it.x, y = it.y - r * .6;
+      if (ring){
+        ctx.strokeStyle = ring === 'saturn' ? 'rgba(238,222,180,.85)' : 'rgba(200,240,235,.6)'; ctx.lineWidth = ring === 'saturn' ? 2.2 : 1;
+        ctx.beginPath(); ring === 'saturn' ? ctx.ellipse(x, y, r * 2.1, r * .55, -.35, 0, 6.2832) : ctx.ellipse(x, y, r * .5, r * 1.6, .2, 0, 6.2832); ctx.stroke();
+      }
+      ball(x, y, r, c);
+      if (it.i === 2){ const m = t * 1.6; ball(x + Math.cos(m) * r * 2.4, y + Math.sin(m) * r * .9, 1.3, '#e8e4ef'); }
+    };
+    for (const it of items) if (it.back) draw(it);
+    ball(cx, cy - R * .06, R * .11, '#ffdcae');
+    for (const it of items) if (!it.back) draw(it);
   }
 };
 
-// A slowly turning Lissajous figure on a phosphor screen, with afterglow.
+// The phosphor screen cycling through the app's modes: a turning Lissajous knot, then the Draw tab's
+// Write spelling words in its vector font, then a spinning wireframe cube, with afterglow between them.
 ARTS.scope = {
+  // strokes on a 4 x 6 grid, y down
+  font: {
+    S: [[[4, 0], [0, 0], [0, 3], [4, 3], [4, 6], [0, 6]]],
+    T: [[[0, 0], [4, 0]], [[2, 0], [2, 6]]],
+    I: [[[1, 0], [3, 0]], [[2, 0], [2, 6]], [[1, 6], [3, 6]]],
+    M: [[[0, 6], [0, 0], [2, 3], [4, 0], [4, 6]]],
+    L: [[[0, 0], [0, 6], [4, 6]]],
+    A: [[[0, 6], [2, 0], [4, 6]], [[1, 3], [3, 3]]],
+    B: [[[0, 6], [0, 0], [3, 0], [4, 1], [4, 2], [3, 3], [0, 3]], [[3, 3], [4, 4], [4, 5], [3, 6], [0, 6]]]
+  },
   init(s){ s.ph = 0; s.fresh = true; },
   frame(ctx, s, w, h, t, dt){
     ctx.globalCompositeOperation = 'source-over';
@@ -659,18 +808,42 @@ ARTS.scope = {
       ctx.beginPath(); ctx.moveTo(cx - R, cy + i * R / 4); ctx.lineTo(cx + R, cy + i * R / 4); ctx.stroke();
     }
     s.ph += dt * .25;
-    ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (let i = 0; i <= 400; i++){
-      const u = i / 400 * 6.2832, x = cx + R * Math.sin(2 * u), y = cy - R * Math.sin(3 * u + s.ph);
-      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    const mode = Math.floor(t / 6) % 3;
+    // the beam's strokes; between strokes it darts across, faintly
+    const strokes = [], path = [];
+    strokes.push(path);
+    if (mode === 0){
+      for (let i = 0; i <= 400; i++){ const u = i / 400 * 6.2832; path.push([cx + R * Math.sin(2 * u), cy - R * Math.sin(3 * u + s.ph)]); }
+    } else if (mode === 1){
+      const sz = R * .1;
+      ['STIM', 'LAB'].forEach((word, row) => {
+        const x0 = cx - (word.length * 6 - 2) * sz / 2, y0 = cy - R * .71 + row * sz * 8.2;
+        [...word].forEach((ch, k) => { for (const st of this.font[ch]) strokes.push(st.map(([x, y]) => [x0 + (k * 6 + x) * sz, y0 + y * sz])); });
+      });
+    } else {
+      const a = t * .9, b = t * .6, V = [];
+      for (let i = 0; i < 8; i++){
+        let x = i & 1 ? 1 : -1, y = i & 2 ? 1 : -1, z = i & 4 ? 1 : -1;
+        [x, z] = [x * Math.cos(a) - z * Math.sin(a), x * Math.sin(a) + z * Math.cos(a)];
+        [y, z] = [y * Math.cos(b) - z * Math.sin(b), y * Math.sin(b) + z * Math.cos(b)];
+        const f = 2.6 / (z + 4);
+        V.push([cx + x * R * .62 * f, cy + y * R * .62 * f]);
+      }
+      for (const i of [0, 1, 3, 2, 0, 4, 5, 7, 6, 4, 5, 1, 3, 7, 6, 2]) path.push(V[i]);
     }
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const all = strokes.filter((st) => st.length);
+    ctx.beginPath(); all.forEach((st, i) => i ? ctx.lineTo(st[0][0], st[0][1]) : ctx.moveTo(st[0][0], st[0][1]));
+    ctx.strokeStyle = 'rgba(141,255,114,.06)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath();
+    for (const st of all) st.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
     ctx.strokeStyle = 'rgba(141,255,114,.18)'; ctx.lineWidth = 5; ctx.stroke();
     ctx.strokeStyle = 'rgba(141,255,114,.8)'; ctx.lineWidth = 1.4; ctx.stroke();
   }
 };
 
-// A laser projector on a hazy stage, fanning beams that sweep and change color on the beat.
+// A laser projector on a hazy stage, fanning beams that sweep and change color on the beat, while the
+// back wall cycles through looks every eight beats: a wobbling ring, a scrolling waveform, a spinning star.
 ARTS.beam = {
   init(){},
   frame(ctx, s, w, h, t){
@@ -678,7 +851,11 @@ ARTS.beam = {
     ctx.fillStyle = '#05050a'; ctx.fillRect(0, 0, w, h);
     const px = w / 2, py = h * .92, beat = t * 2, ph = beat % 1, cols = ['#39ff7a', '#00e5ff', '#ff3fb4', '#ffe600'];
     const col = cols[Math.floor(beat / 8) % cols.length], n = 9, fl = .35 + .65 * Math.exp(-ph * 3);
-    ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    // haze
+    const haze = ctx.createRadialGradient(px, py, 0, px, py, h);
+    haze.addColorStop(0, rgba(col, .1)); haze.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = haze; ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (let i = 0; i < n; i++){
       const a = -Math.PI / 2 + (i / (n - 1) - .5) * (1.5 + .5 * Math.sin(t * .9)) + .25 * Math.sin(t * 1.3 + i * .4);
       const ex = px + Math.cos(a) * h * 1.4, ey = py + Math.sin(a) * h * 1.4;
@@ -687,12 +864,20 @@ ARTS.beam = {
         ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
       }
     }
-    // a ring drawn on the back wall
-    const R = h * .2, cy = h * .3;
+    // the look on the back wall, with its own color, drawing itself on at the start of each turn
+    const look = Math.floor(beat / 8) % 3, u = (beat % 8) / 8, on = Math.min(1, u * 4), R = h * .2, cy = h * .3;
+    const lc = cols[(Math.floor(beat / 8) + 2) % cols.length], pts = [];
+    if (look === 0){
+      for (let i = 0; i <= 80; i++){ const a = i / 80 * Math.PI * 2, r = R * (1 + .08 * Math.sin(6 * a + t * 4)); pts.push([px + Math.cos(a + t) * r * 1.4, cy + Math.sin(a + t) * r * .45]); }
+    } else if (look === 1){
+      for (let i = 0; i <= 80; i++){ const x = i / 80, amp = R * .45 * (.5 + .5 * Math.exp(-ph * 4)); pts.push([px + (x - .5) * w * .7, cy + Math.sin(x * 14 - t * 6) * amp]); }
+    } else {
+      for (let i = 0; i <= 10; i++){ const a = i / 10 * Math.PI * 2 + t * 1.2, r = R * (i % 2 ? .45 : 1.05) * (1 + .1 * Math.exp(-ph * 4)); pts.push([px + Math.cos(a) * r, cy + Math.sin(a) * r * .9]); }
+    }
     ctx.beginPath();
-    for (let i = 0; i <= 80; i++){ const u = i / 80 * Math.PI * 2, r = R * (1 + .08 * Math.sin(6 * u + t * 4)); ctx.lineTo(px + Math.cos(u + t) * r * 1.4, cy + Math.sin(u + t) * r * .45); }
-    ctx.strokeStyle = rgba('#ff3fb4', .2); ctx.lineWidth = 5; ctx.stroke();
-    ctx.strokeStyle = rgba('#ff3fb4', .8); ctx.lineWidth = 1.3; ctx.stroke();
+    pts.slice(0, Math.max(2, Math.ceil(pts.length * on))).forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+    ctx.strokeStyle = rgba(lc, .2); ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = rgba(lc, .85); ctx.lineWidth = 1.3; ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#1b1d2b'; ctx.fillRect(px - 16, py, 32, h);
   }
@@ -800,7 +985,7 @@ ARTS.doomfire = {
       for (let x = 0; x < cols; x++) heat[(rows - 1) * cols + x] = base;
       for (let y = 1; y < rows; y++) for (let x = 0; x < cols; x++){
         const r = Math.random() * 3.2 | 0;
-        const v = heat[y * cols + x] - (Math.random() < .6 ? 1 : 0);
+        const v = heat[y * cols + x] - (Math.random() < .5 ? 2 : 1);
         const nx = Math.min(cols - 1, Math.max(0, x - r + 1));
         heat[(y - 1) * cols + nx] = v > 0 ? v : 0;
       }
@@ -818,6 +1003,7 @@ ARTS.doomfire = {
   }
 };
 
+// Fallback for apps without their own preview: slow glows in the app's accent color.
 ARTS.glow = {
   init(){},
   frame(ctx, s, w, h, t){
