@@ -228,7 +228,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
       <button type="button" id="z-in" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
     </div>
     <div class="perf" id="perf" hidden aria-live="off"><div id="pf-stats"></div><div class="pf-gpu" id="pf-gpu"></div>
-      <div class="pf-res" role="group" aria-label="Bench resolution"><span>Resolution</span><button type="button" data-res="1">Full</button><button type="button" data-res=".75">75%</button><button type="button" data-res=".5">50%</button></div></div>
+      <div class="pf-res" role="group" aria-label="Bench resolution"><span>Resolution</span><button type="button" data-res="1">Full</button><button type="button" data-res=".75">75%</button><button type="button" data-res=".5">50%</button></div>
+      <div class="pf-res" role="group" aria-label="Beam drawing"><span>Beams</span><button type="button" data-gl="1">GPU</button><button type="button" data-gl="0">Canvas</button></div></div>
     <div class="toast" id="toast" role="status" hidden><span id="toast-msg"></span><button type="button" id="toast-undo">Undo</button></div>
   </main>
 
@@ -328,7 +329,7 @@ function nOf(el,l){const m=MATS[el.mat]||MATS.crown,k=el.boost||1,ld=.5893,lu=l/
 // (n(λ)−1)/(n(589 nm)−1), so violet bends more than red exactly as it would in that glass. Real gravity bends every color alike.
 function gravD(el,l){if(el.mat==='none')return 1;const m={mat:el.mat,boost:el.boost};return (nOf(m,l)-1)/(nOf(m,589.3)-1);}
 function gravN(el,rho,D){if(!(rho<el.reach))return 1;const u=el.mass/rho;if(u>=1)return 1e6;const w=1-rho*rho/(el.reach*el.reach);return 1+((1+u)**3/(1-u)-1)*w*w*D;}
-const gravStep=(el,rho)=>clamp(.14*(rho-el.mass)+.6,.6,32); // finer steps where the pull changes fast
+const gravStep=(el,rho)=>clamp(.21*(rho-el.mass)+.9,.9,40); // finer steps where the pull changes fast (coarse enough to keep frames quick)
 // How far a ray passing b mm from the center turns, in degrees, traced through the same shells the bench uses (null if it falls in).
 function deflectOf(el,b,l){
   const h=Object.assign({},el,{x:0,y:0}),S=buildS([geomOf(h)]),out=[];let r={x:-el.reach-5,y:-b,dx:1,dy:0,lam:l,I:1,base:1,W:null,depth:0,med:null,sk:-1,col:null,ck:0,gi:0,d:0,key:0,b:0,hs:null,hu:0,nx:0,ny:0,k:0};
@@ -650,10 +651,12 @@ function kids(r,out){
   }
 }
 let LB=null; // the bucket bucketOf last returned, with where its path last ended (lx, ly)
-function bucketOf(map,r,a){const q=Math.max(1,Math.min(24,Math.round(a*24)));const key=(r.ck*32+q)*8+r.gi;let b=map.get(key);if(!b){b={p:new Path2D(),c:r.col,a:q/24,gm:Math.pow(2,-r.gi),lx:NaN,ly:NaN};map.set(key,b);}LB=b;return b.p;}
+// kind: 0 a beam, 1 a splat where light lands on a screen. While the GPU draws the bench (GLB.rec), a bucket's path is a
+// recorder that writes plain line pieces straight into the GPU's list instead of building a Path2D.
+function bucketOf(map,r,a,kind){const q=Math.max(1,Math.min(24,Math.round(a*24)));const key=(r.ck*32+q)*8+r.gi;let b=map.get(key);if(!b){b={p:null,c:r.col,a:q/24,gm:Math.pow(2,-r.gi),lx:NaN,ly:NaN};b.p=GLB.rec?new SegRec(b,kind|0):new Path2D();map.set(key,b);}LB=b;return b.p;}
 function screenHit(out,r,a){
   const hs=r.hs,ex=r.x+r.dx*r.b,ey=r.y+r.dy*r.b;let arr=out.hits.get(hs.el.id);if(!arr){arr=[];out.hits.set(hs.el.id,arr);}arr.push([r.hu,r.lam,r.I,r.base]);
-  const sa=clamp(a*.8,0,1);if(sa>=.02){const p=bucketOf(out.splats,r,sa);p.moveTo(ex-hs.tx*2.5,ey-hs.ty*2.5);p.lineTo(ex+hs.tx*2.5,ey+hs.ty*2.5);}
+  const sa=clamp(a*.8,0,1);if(sa>=.02){const p=bucketOf(out.splats,r,sa,1);p.moveTo(ex-hs.tx*2.5,ey-hs.ty*2.5);p.lineTo(ex+hs.tx*2.5,ey+hs.ty*2.5);}
 }
 // Draws a ray from s0 to s1 along it. In a slowed beam (sh) the same ray is followed from pulse to pulse: each pulse adds the
 // point where the ray leaves its slice, and the beam is drawn as a curve through the midpoints between those points (control
@@ -843,14 +846,15 @@ function traceDelayed(sc,geos,o){
 /* ================= Performance panel (P) ================= */
 // Frame rate, how much of each frame the ray tracing takes (the rest is mostly drawing, which the browser finishes later), how many ray pieces are drawn, the canvas size and which graphics chip the
 // browser uses. The resolution buttons draw the bench with fewer pixels, which helps most when the browser draws without the GPU.
-const PF={on:false,n:0,tr:0,fr:[],gpu:null,
+const PF={on:false,n:0,tr:0,fr:[],gpu:null,gl:false,
   frame(){const t=performance.now();this.fr.push(t);while(this.fr.length>1&&t-this.fr[0]>1000)this.fr.shift();
     if(t-(this.shown||0)>250){this.shown=t;this.show();}},
   fps(){const f=this.fr,t=performance.now();if(f.length<3||t-f[f.length-1]>600)return null;return (f.length-1)*1000/(f[f.length-1]-f[0]);},
   show(){const f=this.fps(),n=this.n.toLocaleString('en-US');
     $('pf-stats').innerHTML=`<div><b>${f==null?'–':Math.round(f)}</b> fps${f==null?' (bench is still)':''}</div>`+
       `<div>ray tracing <b>${this.tr.toFixed(1)}</b> ms${f==null?'':` of <b>${(1000/f).toFixed(0)}</b> ms per frame`}</div>`+
-      `<div>${n} ray pieces · ${canvas.width}×${canvas.height} px</div>`;},
+      `<div>${n} ray pieces · ${canvas.width}×${canvas.height} px</div>`+
+      `<div>beams drawn by <b>${this.gl?'the GPU (WebGL)':'canvas paths'}</b>${GLP.want&&GLB.ok===false?(GLB.soft?' (the GPU path is off without hardware acceleration)':' (WebGL unavailable)'):''}</div>`;},
   gpuName(){if(this.gpu!==null)return this.gpu;let s='';
     try{const c=document.createElement('canvas'),gl=c.getContext('webgl');if(!gl)s='';else{const x=gl.getExtension('WEBGL_debug_renderer_info');s=x?gl.getParameter(x.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);const l=gl.getExtension('WEBGL_lose_context');if(l)l.loseContext();}}catch(e){}
     return this.gpu=s;},
@@ -859,8 +863,99 @@ const PF={on:false,n:0,tr:0,fr:[],gpu:null,
     $('pf-gpu').innerHTML=soft?'<span class="pf-warn">No GPU: the browser is drawing in software. Turn on hardware acceleration in its settings.</span>':'GPU: '+g.replace(/^ANGLE \((.*)\)$/,'$1').replace(/</g,'&lt;');
     syncRes();this.fr=[];this.show();draw();}
 };
-function syncRes(){document.querySelectorAll('#perf [data-res]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.res===pixF)));}
+function syncRes(){document.querySelectorAll('#perf [data-res]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.res===pixF)));document.querySelectorAll('#perf [data-gl]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.gl==='1')===GLP.want)));}
+document.querySelectorAll('#perf [data-gl]').forEach(b=>b.addEventListener('click',()=>{GLP.want=b.dataset.gl==='1';syncRes();saveUiSoon();request();}));
 document.querySelectorAll('#perf [data-res]').forEach(b=>b.addEventListener('click',()=>{pixF=+b.dataset.res;syncRes();resize();saveUiSoon();}));
+
+/* ================= GPU beams (WebGL2) ================= */
+// The beams are thousands of short line pieces. Stroking them as canvas paths kept the CPU busy for most of every frame, so
+// on the main bench each piece goes to the GPU as one quad, drawn twice (a soft glow, then a sharp core) with additive
+// light, the same 'lighter' mix the canvas used. The result is laid onto the bench canvas in one copy. Where the light
+// from rays of one color overlaps it now adds up (a focus reads brighter), and the glow falls off softly instead of
+// ending in a hard band. Without WebGL2 the bench draws as before.
+const GLP={want:true}; // the performance panel can switch back to canvas drawing, to compare
+const GLB={rec:false,ok:null,gl:null,cv:null,n:0,cap:0,buf:null};
+const SEGF=9; // floats per piece: x0 y0 x1 y1, r g b, alpha, glow weight (+10 when it is a splat)
+function glSeg(x0,y0,x1,y1,b,kind){
+  if(x0===x1&&y0===y1&&!kind)return;
+  if(GLB.n>=GLB.cap){const nb=new Float32Array(Math.max(4096,GLB.cap*2)*SEGF);if(GLB.buf)nb.set(GLB.buf);GLB.buf=nb;GLB.cap=nb.length/SEGF;}
+  const o=GLB.n++*SEGF,B=GLB.buf,c=b.c;B[o]=x0;B[o+1]=y0;B[o+2]=x1;B[o+3]=y1;B[o+4]=c[0]/255;B[o+5]=c[1]/255;B[o+6]=c[2]/255;B[o+7]=b.a;B[o+8]=b.gm+(kind?10:0);
+}
+// Stands in for a Path2D: the trace calls moveTo, lineTo and quadraticCurveTo on it, and each piece is written down.
+class SegRec{
+  constructor(b,kind){this.b=b;this.k=kind;this.x=0;this.y=0;}
+  moveTo(x,y){this.x=x;this.y=y;}
+  lineTo(x,y){glSeg(this.x,this.y,x,y,this.b,this.k);this.x=x;this.y=y;}
+  quadraticCurveTo(qx,qy,x,y){const x0=this.x,y0=this.y,L=Math.hypot(qx-x0,qy-y0)+Math.hypot(x-qx,y-qy),n=clamp(Math.ceil(L*scale/6),1,8);
+    let px=x0,py=y0;for(let i=1;i<=n;i++){const t=i/n,u=1-t,nx=u*u*x0+2*u*t*qx+t*t*x,ny=u*u*y0+2*u*t*qy+t*t*y;glSeg(px,py,nx,ny,this.b,this.k);px=nx;py=ny;}
+    this.x=x;this.y=y;}
+}
+const GL_VS=`#version 300 es
+in vec2 corner;in vec4 seg;in vec3 col;in vec2 aw;
+uniform vec2 res;uniform vec3 xf;uniform float dpr,pass;
+out vec3 vC;out float vA,vD,vT,vL,vH,vK;
+void main(){
+  float kind=aw.y>=10.?1.:0.,gm=aw.y-kind*10.;
+  vec2 p0=seg.xy*xf.x+xf.yz,p1=seg.zw*xf.x+xf.yz,d=p1-p0;float L=length(d);vec2 u=L>1e-4?d/L:vec2(1.,0.),n=vec2(-u.y,u.x);
+  float w=(pass<.5?(kind>.5?22.:8.)*1.35:(kind>.5?6.:1.5))*dpr; // the soft glow reaches a little wider than the old flat band
+  vA=pass<.5?aw.x*gm*(kind>.5?.12:.16):aw.x*(kind>.5?sqrt(gm):1.); // splats from many rays add up, so each is fainter
+  float h=w*.5+1.,e=kind>.5?h:0.;
+  vec2 p=p0+u*mix(-e,L+e,corner.x)+n*h*corner.y;
+  vC=col;vD=h*corner.y;vT=mix(-e,L+e,corner.x);vL=L;vH=w*.5;vK=kind;
+  gl_Position=vec4(p.x/res.x*2.-1.,1.-p.y/res.y*2.,0.,1.);
+}`;
+const GL_FS=`#version 300 es
+precision highp float;
+in vec3 vC;in float vA,vD,vT,vL,vH,vK;uniform float pass;out vec4 o;
+void main(){
+  float dist=vK>.5?length(vec2(max(0.,max(-vT,vT-vL)),vD)):abs(vD);
+  float a;
+  if(pass<.5){float x=clamp(dist/max(vH,.5),0.,1.);a=vA*1.5/1.35*(1.-x*x);} // soft glow, same total light as the old flat band
+  else a=vA*clamp(vH+.5-dist,0.,1.)*min(1.,vH*2.);
+  o=vec4(vC*a,a);
+}`;
+function glInit(){
+  GLB.ok=false;
+  try{
+    const cv=document.createElement('canvas'),gl=cv.getContext('webgl2',{premultipliedAlpha:true,antialias:false,alpha:true,preserveDrawingBuffer:false,powerPreference:'high-performance'});
+    if(!gl)return false;
+    // A browser without hardware acceleration runs WebGL in software, which is slower than canvas paths: keep those.
+    const dbg=gl.getExtension('WEBGL_debug_renderer_info'),rn=dbg?gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL):'';
+    if(/swiftshader|llvmpipe|basic render|software/i.test(rn)&&!/[?&]gl=force/.test(location.search)){GLB.soft=true;return false;}
+    const sh=(t,src)=>{const x=gl.createShader(t);gl.shaderSource(x,src);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(x));return x;};
+    const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,GL_VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,GL_FS));gl.linkProgram(pr);
+    if(!gl.getProgramParameter(pr,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(pr));
+    gl.useProgram(pr);
+    const vao=gl.createVertexArray();gl.bindVertexArray(vao);
+    const qb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,qb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,-1,1,-1,0,1,1,1]),gl.STATIC_DRAW);
+    const lc=gl.getAttribLocation(pr,'corner');gl.enableVertexAttribArray(lc);gl.vertexAttribPointer(lc,2,gl.FLOAT,false,0,0);
+    const ib=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,ib);
+    const at=(name,size,off)=>{const l=gl.getAttribLocation(pr,name);gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,size,gl.FLOAT,false,SEGF*4,off*4);gl.vertexAttribDivisor(l,1);};
+    at('seg',4,0);at('col',3,4);at('aw',2,7);
+    gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.disable(gl.DEPTH_TEST);
+    GLB.u={res:gl.getUniformLocation(pr,'res'),xf:gl.getUniformLocation(pr,'xf'),dpr:gl.getUniformLocation(pr,'dpr'),pass:gl.getUniformLocation(pr,'pass')};
+    GLB.gl=gl;GLB.cv=cv;GLB.ib=ib;GLB.ibCap=0;
+    cv.addEventListener('webglcontextlost',e=>{e.preventDefault();GLB.ok=false;});
+    cv.addEventListener('webglcontextrestored',()=>{GLB.ok=null;request();});
+    GLB.ok=true;
+  }catch(e){GLB.ok=false;}
+  return GLB.ok;
+}
+const glOn=()=>GLB.ok===null?glInit():GLB.ok;
+// Draws the recorded pieces with the GPU and lays them onto g (already cleared and holding the background and screens).
+function glFlush(g,v){
+  const gl=GLB.gl,cv=GLB.cv,W2=g.canvas.width,H2=g.canvas.height;
+  if(cv.width!==W2||cv.height!==H2){cv.width=W2;cv.height=H2;}
+  gl.viewport(0,0,W2,H2);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+  if(GLB.n){
+    gl.bindBuffer(gl.ARRAY_BUFFER,GLB.ib);const data=GLB.buf.subarray(0,GLB.n*SEGF);
+    if(GLB.ibCap<data.length){gl.bufferData(gl.ARRAY_BUFFER,GLB.buf.byteLength,gl.DYNAMIC_DRAW);GLB.ibCap=GLB.buf.length;}
+    gl.bufferSubData(gl.ARRAY_BUFFER,0,data);
+    gl.uniform2f(GLB.u.res,W2,H2);gl.uniform3f(GLB.u.xf,v.dpr*v.scale,v.dpr*v.cx,v.dpr*v.cy);gl.uniform1f(GLB.u.dpr,v.dpr*(v.lw||1));
+    for(const pass of [0,1]){gl.uniform1f(GLB.u.pass,pass);gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,GLB.n);}
+  }
+  g.save();g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='lighter';g.drawImage(cv,0,0);g.restore();
+}
 
 /* ================= Rendering ================= */
 const stage=$('stage'),canvas=$('bench'),ctx=canvas.getContext('2d');
@@ -969,18 +1064,22 @@ function drawEl(g,el,geo,px){
 function drawScreen(g,geo,px){const [A,B]=geo.ends;g.strokeStyle='#30353e';g.lineWidth=8*px;pathLine(g,A,B);g.strokeStyle='#c7cbd1';g.lineWidth=4*px;pathLine(g,A,B);}
 
 function render(g,sc,v,o){
+  const useGL=!!o.main&&GLP.want&&glOn();GLB.rec=useGL;GLB.n=0;
   const t0=performance.now(),geos=sc.map(geomOf),T=o.delay?traceDelayed(sc,geos,o):trace(sc,o.bright,geos,o.wave||null),px=(o.lw||1)/v.scale;
+  GLB.rec=false;PF.gl=useGL;
   if(o.main)PF.tr=performance.now()-t0;
   if(o.main&&!o.delay)lastMaxD=Math.max(300,T.maxD);
   g.setTransform(v.dpr*v.scale,0,0,v.dpr*v.scale,v.dpr*v.cx,v.dpr*v.cy);
   g.lineCap='round';g.lineJoin='round';
   sc.forEach((el,i)=>{if(el.type==='screen')drawScreen(g,geos[i],px);});
+  if(useGL)glFlush(g,v);else{
   g.globalCompositeOperation='lighter';
   g.lineWidth=8*px;for(const b of T.beams.values()){g.strokeStyle=rgba(b.c,b.a*.16*b.gm);g.stroke(b.p);}
   g.lineWidth=1.5*px;for(const b of T.beams.values()){g.strokeStyle=rgba(b.c,b.a);g.stroke(b.p);}
   g.lineWidth=22*px;for(const b of T.splats.values()){g.strokeStyle=rgba(b.c,b.a*.12*b.gm);g.stroke(b.p);}
   g.lineWidth=6*px;for(const b of T.splats.values()){g.strokeStyle=rgba(b.c,b.a);g.stroke(b.p);}
-  g.globalCompositeOperation='source-over';
+  g.globalCompositeOperation='source-over';}
+  g.setTransform(v.dpr*v.scale,0,0,v.dpr*v.scale,v.dpr*v.cx,v.dpr*v.cy);
   sc.forEach((el,i)=>{if(el.type!=='screen')drawEl(g,el,geos[i],px);});
   T.geos=geos;return T;
 }
@@ -2031,12 +2130,12 @@ function loadCurrent(){
 /* ================= View, dock size and hidden interface ================= */
 // Remembered on this device apart from the bench, so setup codes stay as they were.
 const UIKEY='spectrum-bench-ui';let uiT=0;
-function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW,res:pixF}));}catch(e){}},400);}
+function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW,res:pixF,gl:GLP.want}));}catch(e){}},400);}
 const ui={dockH:0,dockW:0};
 function applyDock(){const r=document.documentElement.style;ui.dockH?r.setProperty('--dock-h',ui.dockH+'px'):r.removeProperty('--dock-h');ui.dockW?r.setProperty('--dock-w',ui.dockW+'px'):r.removeProperty('--dock-w');}
 try{const u=JSON.parse(localStorage.getItem(UIKEY)||'null');if(u&&typeof u==='object'){
   if(isFinite(u.zoom))zoom=clamp(+u.zoom,ZMIN,ZMAX);if(isFinite(u.vx))vx=clamp(+u.vx,-3000,3000);if(isFinite(u.vy))vy=clamp(+u.vy,-3000,3000);
-  if([1,.75,.5].includes(+u.res))pixF=+u.res;if(u.dockH>0)ui.dockH=+u.dockH;if(u.dockW>0)ui.dockW=+u.dockW;applyDock();}}catch(e){}
+  if([1,.75,.5].includes(+u.res))pixF=+u.res;if(u.gl===false)GLP.want=false;if(u.dockH>0)ui.dockH=+u.dockH;if(u.dockW>0)ui.dockW=+u.dockW;applyDock();}}catch(e){}
 // The handle sits in the gap between the bench and the dock: below the bench on phones, beside it on wider screens.
 const split=$('split'),dock=$('dock');
 const isWide=()=>{const a=stage.getBoundingClientRect(),b=dock.getBoundingClientRect();return b.left>=a.right-1;};
