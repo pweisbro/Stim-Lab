@@ -94,6 +94,41 @@ input[type="file"] { font: inherit; max-width: 100%; }
 .hookup h2 { margin: 0; font-family: var(--display); font-size: 18px; letter-spacing: .1em; text-transform: uppercase; }
 .hookup ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; max-width: 75ch; }
 .hookup .warn { color: var(--warn); }
+/* Corner buttons on the screen, the hidden Look panel, and fullscreen */
+.fx { position: absolute; inset: 0; pointer-events: none; }
+#vignette { background: radial-gradient(ellipse at center, transparent 45%, #000 100%); opacity: 0; }
+#scan { background: repeating-linear-gradient(to bottom, rgba(0,0,0,.55) 0 1px, transparent 1px 3px); opacity: 0; }
+.scr-btns { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; transition: opacity .4s; z-index: 2; }
+.scr-btn { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; cursor: pointer; background: rgba(20,28,24,.55); color: #c9d3cb; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.scr-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.scr-btn[aria-pressed="true"] { color: var(--beam, #8dff72); }
+.scr-btn:focus-visible { outline: 2px solid #f0b43c; outline-offset: 1px; }
+.screen.idle .scr-btns { opacity: 0; }
+.screen.idle { cursor: none; }
+.look { position: absolute; top: 50px; right: 8px; width: min(290px, calc(100% - 16px)); max-height: calc(100% - 58px); overflow: auto; overscroll-behavior: contain;
+  z-index: 2; padding: 12px; border-radius: 10px; display: grid; gap: 10px; background: rgba(10,16,13,.78); color: #c9d3cb;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-family: var(--mono); font-size: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+.look h2 { margin: 0; font-family: var(--display); font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: #e6ece7; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.look h2 button { font: 600 12px var(--display); letter-spacing: .1em; text-transform: uppercase; background: transparent; color: #c9d3cb; border: 1px solid #5b6a60; border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+.look .row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 40px; align-items: center; gap: 8px; }
+.look .row > span:first-child { font-family: var(--display); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+.look .row output { text-align: right; font-variant-numeric: tabular-nums; }
+.look input[type="range"] { accent-color: var(--beam, #8dff72); }
+.look .opts { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 2 / 4; }
+.look .opts button { font: 11px var(--mono); padding: 4px 7px; border-radius: 4px; border: 1px solid #5b6a60; background: transparent; color: #c9d3cb; cursor: pointer; }
+.look .opts button[aria-pressed="true"] { background: #c9d3cb; color: #0b120e; }
+.look .sw { width: 22px; height: 22px; padding: 0 !important; border-radius: 50% !important; border: 2px solid transparent !important; }
+.look .sw[aria-pressed="true"] { border-color: #fff !important; }
+.look input[type="color"] { width: 26px; height: 22px; padding: 0; border: 1px solid #5b6a60; border-radius: 4px; background: none; cursor: pointer; }
+.look .note { margin: 0; color: #8e9c92; font-size: 11px; }
+body.full { overflow: hidden; }
+body.full .screen { position: fixed; inset: 0; z-index: 50; aspect-ratio: auto; border-radius: 0; box-shadow: none; background: var(--scr-bg, #060b08); }
+body.full .screen canvas { inset: auto; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(100vw, 100dvh); height: min(100vw, 100dvh); }
+body.full .scr-btns { top: max(10px, env(safe-area-inset-top, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); }
+body.full .look { top: calc(max(10px, env(safe-area-inset-top, 0px)) + 44px); right: max(10px, env(safe-area-inset-right, 0px)); max-height: calc(100% - 70px); }
+#scr-power { display: none; }
+body.full #scr-power { display: grid; }
 @media (prefers-reduced-motion: reduce) { .btn, .tab { transition: none; } }
 </style>
 </head>
@@ -111,6 +146,14 @@ input[type="file"] { font: inherit; max-width: 100%; }
       <div class="screen">
         <canvas id="grat" aria-hidden="true"></canvas>
         <canvas id="beam" role="img" aria-label="X-Y oscilloscope display"></canvas>
+        <div class="fx" id="vignette"></div>
+        <div class="fx" id="scan"></div>
+        <div class="scr-btns">
+          <button class="scr-btn" id="scr-power" type="button" aria-label="Start sound" title="Start or stop sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/></svg></button>
+          <button class="scr-btn" id="look-btn" type="button" aria-pressed="false" aria-label="Look: colors and effects" title="Colors and effects (C)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.6 0-1.2-1-1.5-1-2.6 0-.9.7-1.6 1.7-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15.5" cy="7.5" r="1.1"/></svg></button>
+          <button class="scr-btn" id="full-btn" type="button" aria-pressed="false" aria-label="Fullscreen" title="Fullscreen (F)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+        </div>
+        <div class="look" id="look" hidden></div>
       </div>
       <div class="readout" id="readout"></div>
       <div class="beam-row">
@@ -535,6 +578,8 @@ input[type="file"] { font: inherit; max-width: 100%; }
     }
     $('power').textContent = playing ? 'Stop sound' : 'Start sound';
     $('power').classList.toggle('on', playing);
+    $('scr-power').setAttribute('aria-label', playing ? 'Stop sound' : 'Start sound');
+    $('scr-power').setAttribute('aria-pressed', String(playing));
   }
   $('power').addEventListener('click', () => setPower(!playing));
 
@@ -750,42 +795,124 @@ input[type="file"] { font: inherit; max-width: 100%; }
       gc.beginPath(); gc.moveTo(p, W / 2 - t); gc.lineTo(p, W / 2 + t); gc.stroke();
       gc.beginPath(); gc.moveTo(W / 2 - t, p); gc.lineTo(W / 2 + t, p); gc.stroke();
     }
-    g.fillStyle = '#060b08'; g.fillRect(0, 0, W, W);
+    g.fillStyle = L.bg; g.fillRect(0, 0, W, W);
   }
   new ResizeObserver(resize).observe(beam);
 
-  const BUCKETS = 8;
-  const paths = Array.from({ length: BUCKETS }, () => []);
+  // ---------- look: colors and effects, from one table ----------
+  // Each entry is a setting on the hidden Look panel (the palette button on the screen, or C). They're kept on
+  // this device. Gain, afterglow and intensity are the Display sliders, mirrored here.
+  const LOOK_KEY = 'xy-scope-look';
+  const BEAMS = [['#8dff72', 'Green phosphor'], ['#ffb43c', 'Amber'], ['#d6e6ff', 'Blue-white'], ['#3ff2ff', 'Cyan'],
+                 ['#ff4fd8', 'Magenta'], ['#ff5a3c', 'Red'], ['#b18cff', 'Violet'], ['#ffffff', 'White']];
+  const LOOK = [
+    { key: 'color', label: 'Color', kind: 'opts', def: 'solid', opts: [['solid', 'Solid'], ['rainbow', 'Rainbow'], ['speed', 'Speed'], ['angle', 'Angle'], ['pulse', 'Hue drift']] },
+    { key: 'beam', label: 'Beam', kind: 'color', def: '#8dff72', swatches: BEAMS },
+    { key: 'hue', label: 'Hue speed', kind: 'range', def: 0.3, min: 0, max: 3, step: 0.05, fmt: v => v.toFixed(2), show: l => l.color !== 'solid' },
+    { key: 'spread', label: 'Spread', kind: 'range', def: 1, min: 0.1, max: 4, step: 0.05, fmt: v => '×' + v.toFixed(1), show: l => l.color === 'rainbow' || l.color === 'angle' },
+    { key: 'bg', label: 'Screen', kind: 'color', def: '#060b08', swatches: [['#060b08', 'Phosphor black'], ['#000000', 'Black'], ['#0a0816', 'Night blue'], ['#14060e', 'Wine'], ['#1b1d22', 'Slate']] },
+    { key: 'zoom', label: 'Gain', kind: 'range', S: true, min: 0.25, max: 3, step: 0.05, fmt: v => '×' + v.toFixed(2) },
+    { key: 'persist', label: 'Afterglow', kind: 'range', S: true, min: 0, max: 0.97, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+    { key: 'glow', label: 'Intensity', kind: 'range', S: true, min: 0.2, max: 3, step: 0.05, fmt: v => '×' + v.toFixed(2) },
+    { key: 'thick', label: 'Thickness', kind: 'range', def: 1, min: 0.3, max: 5, step: 0.05, fmt: v => '×' + v.toFixed(1) },
+    { key: 'halo', label: 'Halo', kind: 'range', def: 1, min: 0, max: 4, step: 0.05, fmt: v => '×' + v.toFixed(1) },
+    { key: 'mirror', label: 'Mirror', kind: 'opts', def: 'off', opts: [['off', 'Off'], ['x', 'Sideways'], ['y', 'Up-down'], ['xy', 'Four-way'], ['k6', 'Kaleido 6']] },
+    { key: 'rot', label: 'Rotate', kind: 'range', def: 0, min: -180, max: 180, step: 1, fmt: v => Math.round(v) + '°' },
+    { key: 'turn', label: 'Spin', kind: 'range', def: 0, min: -90, max: 90, step: 1, fmt: v => Math.round(v) + '°/s' },
+    { key: 'flicker', label: 'Flicker', kind: 'range', def: 0, min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+    { key: 'scan', label: 'Scanlines', kind: 'range', def: 0, min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+    { key: 'vignette', label: 'Vignette', kind: 'range', def: 0, min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+    { key: 'grid', label: 'Graticule', kind: 'range', def: 1, min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' }
+  ];
+  const L = {};
+  for (const d of LOOK) if (!d.S) L[d.key] = d.def;
+  try { Object.assign(L, JSON.parse(localStorage.getItem(LOOK_KEY) || '{}')); } catch (e) {}
+  for (const d of LOOK) if (d.kind === 'opts' && !d.opts.some(o => o[0] === L[d.key])) L[d.key] = d.def;
+  const saveLook = () => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(L)); } catch (e) {} };
+  const rgbOf = hex => { const n = parseInt(String(hex).replace('#', ''), 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  function hsl(h, sat, lig) {  // → [r, g, b]
+    h = ((h % 360) + 360) % 360 / 60; const c = (1 - Math.abs(2 * lig - 1)) * sat, x = c * (1 - Math.abs(h % 2 - 1)), m = lig - c / 2;
+    const [r, g2, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+    return [r + m, g2 + m, b + m].map(v => Math.round(v * 255));
+  }
+  function hueOfHex(hex) {
+    const [r, g2, b] = rgbOf(hex).map(v => v / 255), mx = Math.max(r, g2, b), mn = Math.min(r, g2, b), d = mx - mn;
+    if (!d) return 120;
+    const h = mx === r ? (g2 - b) / d % 6 : mx === g2 ? (b - r) / d + 2 : (r - g2) / d + 4;
+    return h * 60;
+  }
+  function applyLookCss() {
+    const root = document.documentElement.style;
+    root.setProperty('--beam', L.beam); root.setProperty('--scr-bg', L.bg);
+    screenEl.style.background = L.bg;
+    grat.style.opacity = L.grid;
+    $('scan').style.opacity = L.scan;
+    $('vignette').style.opacity = L.vignette;
+  }
+
+  const BUCKETS = 8, HUES = 16;
+  const paths = Array.from({ length: BUCKETS * HUES }, () => []);
+  let spinAngle = 0, lastT = performance.now();
   function draw(xs, ys, n, message) {
+    const now = performance.now(), dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+    spinAngle = (spinAngle + L.turn * dt) % 360;
+    const bg = rgbOf(L.bg);
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'source-over';
-    g.fillStyle = `rgba(6,11,8,${(1 - S.persist).toFixed(3)})`;
+    g.fillStyle = `rgba(${bg[0]},${bg[1]},${bg[2]},${(1 - S.persist).toFixed(3)})`;
     g.fillRect(0, 0, W, W);
     if (message) {
-      g.fillStyle = '#8dff72'; g.font = `${Math.round(W / 26)}px "IBM Plex Mono", monospace`;
+      g.fillStyle = L.beam; g.font = `${Math.round(W / 26)}px "IBM Plex Mono", monospace`;
       g.textAlign = 'center'; g.fillText(message, W / 2, W / 2);
       return;
     }
-    const half = W / 2, k = half / 4 * 4 * S.zoom * 0.95, lw = Math.max(1.2, W / 420);
+    const half = W / 2, k = half / 4 * 4 * S.zoom * 0.95, lw = Math.max(1.2, W / 420) * L.thick;
+    const solid = L.color === 'solid', t = now / 1000, hue0 = hueOfHex(L.beam) + t * L.hue * 60;
     for (const p of paths) p.length = 0;
     let px = half + xs[0] * k, py = half - ys[0] * k;
     for (let i = 1; i < n; i++) {
       const x = half + xs[i] * k, y = half - ys[i] * k;
       const len = Math.hypot(x - px, y - py) / lw;
-      const a = Math.min(1, S.glow * 1.6 / (1 + len * 0.35));
+      const a = Math.min(1, S.glow * 1.6 / (1 + len * 0.35 * L.thick));
       const b = Math.min(BUCKETS - 1, Math.floor(a * BUCKETS));
-      paths[b].push(px, py, x, y);
+      let h = 0;
+      if (!solid) {
+        const hue = L.color === 'rainbow' ? hue0 + (x + W - y) / W * 180 * L.spread
+          : L.color === 'speed' ? hue0 + Math.min(1, len / 30) * 270
+          : L.color === 'angle' ? hue0 + (Math.atan2(y - half, x - half) / Math.PI * 180) * L.spread
+          : hue0;
+        h = Math.floor((((hue % 360) + 360) % 360) / 360 * HUES) % HUES;
+      }
+      paths[h * BUCKETS + b].push(px, py, x, y);
       px = x; py = y;
     }
+    const base = rgbOf(L.beam), fl = L.flicker ? 1 - L.flicker * (0.35 * Math.random() + 0.25 * Math.sin(t * 50)) : 1;
+    const cols = solid ? [base] : Array.from({ length: HUES }, (_, j) => hsl((j + 0.5) / HUES * 360, 1, 0.55));
+    const copies = L.mirror === 'x' ? [[1, 1, 0], [-1, 1, 0]]
+      : L.mirror === 'y' ? [[1, 1, 0], [1, -1, 0]]
+      : L.mirror === 'xy' ? [[1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0]]
+      : L.mirror === 'k6' ? [0, 1, 2].flatMap(j => [[1, 1, j * 120], [-1, 1, j * 120]])
+      : [[1, 1, 0]];
     g.globalCompositeOperation = 'lighter';
     g.lineCap = 'round';
-    for (let b = 0; b < BUCKETS; b++) {
-      const arr = paths[b]; if (!arr.length) continue;
-      const alpha = ((b + 0.5) / BUCKETS) * 0.55;
-      g.beginPath();
-      for (let i = 0; i < arr.length; i += 4) { g.moveTo(arr[i], arr[i + 1]); g.lineTo(arr[i + 2], arr[i + 3]); }
-      g.strokeStyle = `rgba(141,255,114,${alpha.toFixed(3)})`; g.lineWidth = lw * 2.6; g.globalAlpha = 0.25; g.stroke();
-      g.globalAlpha = 1; g.lineWidth = lw; g.stroke();
+    for (const [sx, sy, extra] of copies) {
+      const r = (L.rot + spinAngle + extra) * Math.PI / 180, c = Math.cos(r), sn = Math.sin(r);
+      // rotate about the centre, then mirror
+      g.setTransform(c * sx, sn * sx, -sn * sy, c * sy, half - half * (c * sx - sn * sy), half - half * (sn * sx + c * sy));
+      for (let hb = 0; hb < (solid ? 1 : HUES); hb++) {
+        const [cr, cg, cb] = cols[hb];
+        for (let b = 0; b < BUCKETS; b++) {
+          const arr = paths[hb * BUCKETS + b]; if (!arr.length) continue;
+          const alpha = ((b + 0.5) / BUCKETS) * 0.55 * fl;
+          g.beginPath();
+          for (let i = 0; i < arr.length; i += 4) { g.moveTo(arr[i], arr[i + 1]); g.lineTo(arr[i + 2], arr[i + 3]); }
+          g.strokeStyle = `rgba(${cr},${cg},${cb},${alpha.toFixed(3)})`;
+          if (L.halo > 0) { g.lineWidth = lw * (1 + 1.6 * L.halo); g.globalAlpha = Math.min(0.5, 0.25 * L.halo); g.stroke(); }
+          g.globalAlpha = 1; g.lineWidth = lw; g.stroke();
+        }
+      }
     }
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'source-over';
   }
 
@@ -921,8 +1048,115 @@ input[type="file"] { font: inherit; max-width: 100%; }
     else if (S.mode === 'shape') ro.innerHTML = `<span>Shape <b>${SHAPES[S.shape].label}</b></span><span>Trace rate <b>${S.sf} Hz</b></span><span>Note <b>${note(S.sf)}</b></span>`;
     else ro.innerHTML = `<span>Source <b>${cap ? cap.label.replace(/[<>&]/g, '') : song ? 'file' : 'none'}</b></span><span>Song <b>${Math.round(S.song * 100)}%</b></span><span>Shape overlay <b>${Math.round(S.overlay * 100)}%</b> ${SHAPES[S.shape].label}</span>`;
     applyLevels();
+    syncLook();
   }
 
+  // ---------- Look panel ----------
+  const lookEl = $('look'), lookCtl = {};
+  function buildLook() {
+    const head = document.createElement('h2');
+    head.innerHTML = '<span>Look</span>';
+    const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = 'Reset';
+    reset.addEventListener('click', () => {
+      for (const d of LOOK) if (!d.S) L[d.key] = d.def;
+      setVal('zoom', 1); setVal('persist', 0.75); setVal('glow', 1);
+      saveLook(); applyLookCss(); syncLook();
+    });
+    head.appendChild(reset); lookEl.appendChild(head);
+    for (const d of LOOK) {
+      const row = document.createElement('div'); row.className = 'row';
+      const name = document.createElement('span'); name.textContent = d.label; row.appendChild(name);
+      const set = v => {
+        if (d.S) { setVal(d.key, v); return; }
+        L[d.key] = v; saveLook(); applyLookCss(); syncLook();
+      };
+      if (d.kind === 'range') {
+        const r = document.createElement('input');
+        Object.assign(r, { type: 'range', min: d.min, max: d.max, step: d.step }); r.setAttribute('aria-label', d.label);
+        const o = document.createElement('output');
+        r.addEventListener('input', () => set(Number(r.value)));
+        r.addEventListener('dblclick', () => { if (!d.S) set(d.def); });
+        row.append(r, o);
+        lookCtl[d.key] = { row, sync: v => { r.value = v; o.textContent = d.fmt(Number(v)); } };
+      } else if (d.kind === 'opts') {
+        const box = document.createElement('div'); box.className = 'opts';
+        const bs = d.opts.map(([v, lab]) => {
+          const b = document.createElement('button'); b.type = 'button'; b.textContent = lab;
+          b.addEventListener('click', () => set(v)); box.appendChild(b); return [v, b];
+        });
+        row.appendChild(box);
+        lookCtl[d.key] = { row, sync: v => bs.forEach(([x, b]) => b.setAttribute('aria-pressed', String(x === v))) };
+      } else {
+        const box = document.createElement('div'); box.className = 'opts';
+        const bs = d.swatches.map(([v, lab]) => {
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.title = lab; b.setAttribute('aria-label', lab);
+          b.style.background = v; b.addEventListener('click', () => set(v)); box.appendChild(b); return [v, b];
+        });
+        const pick = document.createElement('input'); pick.type = 'color'; pick.setAttribute('aria-label', d.label + ' color');
+        pick.addEventListener('input', () => set(pick.value));
+        box.appendChild(pick); row.appendChild(box);
+        lookCtl[d.key] = { row, sync: v => { pick.value = v; bs.forEach(([x, b]) => b.setAttribute('aria-pressed', String(x.toLowerCase() === String(v).toLowerCase()))); } };
+      }
+      lookEl.appendChild(row);
+    }
+    const note = document.createElement('p'); note.className = 'note';
+    note.textContent = 'Only changes the picture here, not the sound. Kept on this device. Press C to show or hide, F for fullscreen.';
+    lookEl.appendChild(note);
+  }
+  function syncLook() {
+    if (!lookEl.childElementCount) return;
+    for (const d of LOOK) {
+      const c = lookCtl[d.key];
+      c.sync(d.S ? S[d.key] : L[d.key]);
+      c.row.hidden = !!(d.show && !d.show(L));
+    }
+  }
+  function toggleLook(on = lookEl.hidden) {
+    lookEl.hidden = !on;
+    $('look-btn').setAttribute('aria-pressed', String(on));
+    wake();
+  }
+  $('look-btn').addEventListener('click', () => toggleLook());
+  for (const el of [lookEl, document.querySelector('.scr-btns')]) el.addEventListener('pointerdown', e => e.stopPropagation());
+
+  // ---------- fullscreen ----------
+  // The screen fills the display. Where the browser allows it the page goes properly fullscreen too; on iPhone,
+  // and as a home-screen app, the screen just covers the page. The buttons fade after a few still seconds.
+  const fsEl = document.documentElement;
+  const nativeFs = !!(fsEl.requestFullscreen || fsEl.webkitRequestFullscreen);
+  const fsActive = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function setFull(on) {
+    document.body.classList.toggle('full', on);
+    $('full-btn').setAttribute('aria-pressed', String(on));
+    $('full-btn').setAttribute('aria-label', on ? 'Exit fullscreen' : 'Fullscreen');
+    if (on && nativeFs && !fsActive()) {
+      try { const r = (fsEl.requestFullscreen || fsEl.webkitRequestFullscreen).call(fsEl); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+    } else if (!on && fsActive()) {
+      try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {}
+    }
+    wake();
+  }
+  $('full-btn').addEventListener('click', () => setFull(!document.body.classList.contains('full')));
+  for (const ev of ['fullscreenchange', 'webkitfullscreenchange'])
+    document.addEventListener(ev, () => { if (!fsActive() && document.body.classList.contains('full')) setFull(false); });
+  $('scr-power').addEventListener('click', () => setPower(!playing));
+  let idleTimer = 0;
+  function wake() {
+    screenEl.classList.remove('idle');
+    clearTimeout(idleTimer);
+    if (document.body.classList.contains('full') && lookEl.hidden) idleTimer = setTimeout(() => screenEl.classList.add('idle'), 2500);
+  }
+  for (const ev of ['pointermove', 'pointerdown']) screenEl.addEventListener(ev, wake);
+  window.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && e.target.type !== 'range') return;
+    const k = e.key.toLowerCase();
+    if (k === 'f') { e.preventDefault(); setFull(!document.body.classList.contains('full')); }
+    else if (k === 'c') { e.preventDefault(); toggleLook(); }
+    else if (k === 'escape') { if (!lookEl.hidden) toggleLook(false); else if (document.body.classList.contains('full')) setFull(false); }
+  });
+
+  buildLook();
+  applyLookCss();
   refresh();
   requestAnimationFrame(frame);
 })();
