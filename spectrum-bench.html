@@ -80,6 +80,14 @@ h1{margin:0;font-family:var(--display);font-weight:600;font-size:21px;line-heigh
 #bench:focus-visible{box-shadow:inset 0 0 0 2px var(--amber)}
 .hint{position:absolute;left:12px;right:150px;bottom:9px;font:400 11px/1.4 var(--data);color:rgba(221,225,231,.42);pointer-events:none}
 .hint-short{display:none}
+.perf{position:absolute;top:10px;left:10px;z-index:3;min-width:220px;max-width:min(300px,calc(100% - 20px));box-sizing:border-box;padding:8px 10px 6px;border-radius:10px;background:rgba(14,16,21,.9);border:1px solid var(--rule-hi);font:400 11px/1.55 var(--data);color:var(--text)}
+.perf b{font-weight:500;color:var(--amber)}
+.perf .pf-gpu{color:var(--muted);overflow-wrap:anywhere}
+.perf .pf-warn{color:#ff8a6a}
+.perf .pf-res{display:flex;align-items:center;gap:4px;margin-top:6px}
+.perf .pf-res span{color:var(--muted);margin-right:2px}
+.perf .pf-res button{border:1px solid var(--rule-hi);background:transparent;color:var(--text);font:500 11px/1 var(--data);padding:6px 8px;border-radius:6px;min-height:28px}
+.perf .pf-res button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
 @media (max-width:540px){.hint-long{display:none}.hint-short{display:inline}}
 .toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;max-width:calc(100% - 24px);padding:6px 6px 6px 14px;border-radius:10px;background:rgba(25,29,36,.96);border:1px solid var(--rule-hi);font-size:14px;box-shadow:0 8px 28px rgba(0,0,0,.45);z-index:3}
 .toast span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -219,6 +227,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
       <button type="button" id="z-reset" aria-label="Reset zoom and position" title="Reset view (0)">100%</button>
       <button type="button" id="z-in" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
     </div>
+    <div class="perf" id="perf" hidden aria-live="off"><div id="pf-stats"></div><div class="pf-gpu" id="pf-gpu"></div>
+      <div class="pf-res" role="group" aria-label="Bench resolution"><span>Resolution</span><button type="button" data-res="1">Full</button><button type="button" data-res=".75">75%</button><button type="button" data-res=".5">50%</button></div></div>
     <div class="toast" id="toast" role="status" hidden><span id="toast-msg"></span><button type="button" id="toast-undo">Undo</button></div>
   </main>
 
@@ -649,6 +659,7 @@ function screenHit(out,r,a){
 // point where the ray leaves its slice, and the beam is drawn as a curve through the midpoints between those points (control
 // point at each one), so a bending beam is one smooth curve instead of a chain of straight pieces.
 function drawPart(beams,r,a,s0,s1,sh,RW){
+  PF.n++;
   const p=bucketOf(beams,r,a),deco=RW&&RW.ctr.n<RW.ctr.max,Xx=r.x+r.dx*s1,Xy=r.y+r.dy*s1,cont=s1<r.b,keyed=!!sh&&r.key>0;
   const pv0=keyed&&s0>0?sh.prev.get(r.key):null,pv=pv0&&Math.hypot(pv0.px-Xx,pv0.py-Xy)<sh.jump?pv0:null; // a sudden jump (the beam swept across an edge) starts a fresh curve
   if(keyed&&!deco){LB.lx=NaN;
@@ -829,9 +840,31 @@ function traceDelayed(sc,geos,o){
   return{beams:out.beams,splats:out.splats,hits:out.hits,maxD};
 }
 
+/* ================= Performance panel (P) ================= */
+// Frame rate, how much of each frame the ray tracing takes (the rest is mostly drawing, which the browser finishes later), how many ray pieces are drawn, the canvas size and which graphics chip the
+// browser uses. The resolution buttons draw the bench with fewer pixels, which helps most when the browser draws without the GPU.
+const PF={on:false,n:0,tr:0,fr:[],gpu:null,
+  frame(){const t=performance.now();this.fr.push(t);while(this.fr.length>1&&t-this.fr[0]>1000)this.fr.shift();
+    if(t-(this.shown||0)>250){this.shown=t;this.show();}},
+  fps(){const f=this.fr,t=performance.now();if(f.length<3||t-f[f.length-1]>600)return null;return (f.length-1)*1000/(f[f.length-1]-f[0]);},
+  show(){const f=this.fps(),n=this.n.toLocaleString('en-US');
+    $('pf-stats').innerHTML=`<div><b>${f==null?'–':Math.round(f)}</b> fps${f==null?' (bench is still)':''}</div>`+
+      `<div>ray tracing <b>${this.tr.toFixed(1)}</b> ms${f==null?'':` of <b>${(1000/f).toFixed(0)}</b> ms per frame`}</div>`+
+      `<div>${n} ray pieces · ${canvas.width}×${canvas.height} px</div>`;},
+  gpuName(){if(this.gpu!==null)return this.gpu;let s='';
+    try{const c=document.createElement('canvas'),gl=c.getContext('webgl');if(!gl)s='';else{const x=gl.getExtension('WEBGL_debug_renderer_info');s=x?gl.getParameter(x.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);const l=gl.getExtension('WEBGL_lose_context');if(l)l.loseContext();}}catch(e){}
+    return this.gpu=s;},
+  toggle(){this.on=!this.on;$('perf').hidden=!this.on;clearInterval(this.iv);if(!this.on)return;this.iv=setInterval(()=>this.show(),500);
+    const g=this.gpuName(),soft=!g||/swiftshader|llvmpipe|basic render|software/i.test(g);
+    $('pf-gpu').innerHTML=soft?'<span class="pf-warn">No GPU: the browser is drawing in software. Turn on hardware acceleration in its settings.</span>':'GPU: '+g.replace(/^ANGLE \((.*)\)$/,'$1').replace(/</g,'&lt;');
+    syncRes();this.fr=[];this.show();draw();}
+};
+function syncRes(){document.querySelectorAll('#perf [data-res]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.res===pixF)));}
+document.querySelectorAll('#perf [data-res]').forEach(b=>b.addEventListener('click',()=>{pixF=+b.dataset.res;syncRes();resize();saveUiSoon();}));
+
 /* ================= Rendering ================= */
 const stage=$('stage'),canvas=$('bench'),ctx=canvas.getContext('2d');
-let W=1,H=1,dpr=1,scale=1,cx=0,cy=0,bgc=null;
+let W=1,H=1,dpr=1,bdpr=1,pixF=1,scale=1,cx=0,cy=0,bgc=null; // bdpr: the bench canvas's pixels per CSS pixel, dpr times the chosen resolution
 // The view: base fits a 600 mm square in the stage; zoom multiplies it, and (vx,vy) is the bench point at the stage's center.
 let base=1,zoom=1,vx=0,vy=0;const ZMIN=.25,ZMAX=6;
 const toScreen=(x,y)=>[cx+x*scale,cy+y*scale];
@@ -841,7 +874,7 @@ const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
 function buildBg(){
   if(!bgc)bgc=document.createElement('canvas');
   if(bgc.width!==canvas.width||bgc.height!==canvas.height){bgc.width=canvas.width;bgc.height=canvas.height;}
-  const g=bgc.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  const g=bgc.getContext('2d');g.setTransform(bdpr,0,0,bdpr,0,0);
   const grd=g.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.hypot(W,H)*.62);
   grd.addColorStop(0,'#11141b');grd.addColorStop(1,'#07080b');
   g.fillStyle=grd;g.fillRect(0,0,W,H);
@@ -936,7 +969,8 @@ function drawEl(g,el,geo,px){
 function drawScreen(g,geo,px){const [A,B]=geo.ends;g.strokeStyle='#30353e';g.lineWidth=8*px;pathLine(g,A,B);g.strokeStyle='#c7cbd1';g.lineWidth=4*px;pathLine(g,A,B);}
 
 function render(g,sc,v,o){
-  const geos=sc.map(geomOf),T=o.delay?traceDelayed(sc,geos,o):trace(sc,o.bright,geos,o.wave||null),px=(o.lw||1)/v.scale;
+  const t0=performance.now(),geos=sc.map(geomOf),T=o.delay?traceDelayed(sc,geos,o):trace(sc,o.bright,geos,o.wave||null),px=(o.lw||1)/v.scale;
+  if(o.main)PF.tr=performance.now()-t0;
   if(o.main&&!o.delay)lastMaxD=Math.max(300,T.maxD);
   g.setTransform(v.dpr*v.scale,0,0,v.dpr*v.scale,v.dpr*v.cx,v.dpr*v.cy);
   g.lineCap='round';g.lineJoin='round';
@@ -956,7 +990,7 @@ const knobWorld=(el,geo)=>el.type==='light'?22:geo.r;
 function knobPos(el,geo){const [sx,sy]=toScreen(el.x,el.y),d=knobWorld(el,geo)*scale+16;return [sx+geo.F.ux*d,sy+geo.F.uy*d];}
 function focusMark(p,hollow){const [x,y]=toScreen(p[0],p[1]);ctx.beginPath();ctx.arc(x,y,4,0,TAU);if(hollow){ctx.strokeStyle='#ffb340';ctx.lineWidth=1.5;ctx.stroke();}else{ctx.fillStyle='#ffb340';ctx.fill();}ctx.fillStyle='#ffb340';ctx.font='500 10px "IBM Plex Mono",ui-monospace,monospace';ctx.textAlign='left';ctx.fillText('F',x+7,y-6);}
 function drawSelection(el,geo){
-  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.setTransform(bdpr,0,0,bdpr,0,0);ctx.lineCap='round';ctx.lineJoin='round';
   const S=p=>toScreen(p[0],p[1]),[kx,ky]=knobPos(el,geo),F=geo.F;
   let tail=null;
   if(el.type==='prism'||el.type==='liquid'||el.type==='hole'){
@@ -987,7 +1021,9 @@ function draw(){
   const cMin=slowestC(sc);if(cMin>0)recordHist(sc);
   DELAYING=cMin>0&&NOW-lastChange<=lastMaxD/cMin+.25;
   if(!DELAYING&&PULSES.size)PULSES.clear(); // steady again: the next change sets out from the bench as it stands
-  last=render(ctx,sc,{dpr,scale,cx,cy},{bright:br,lw:1,wave:null,delay:DELAYING,main:true});
+  PF.n=0;
+  last=render(ctx,sc,{dpr:bdpr,scale,cx,cy},{bright:br,lw:1,wave:null,delay:DELAYING,main:true});
+  if(PF.on)PF.frame();
   if(sel){const i=scene.indexOf(sel);if(i>=0)drawSelection(sc[i],last.geos[i]);}
   if(sel&&sel.type==='screen')drawStrip();
 }
@@ -995,8 +1031,8 @@ let raf=0;function request(){if(loopRaf)return;if(hasFlow()||anySlow()){loopRaf=
 const hasFlow=()=>scene.some(e=>e.type==='liquid'&&e.flow>0);
 function resize(){
   const r=stage.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);
-  dpr=Math.min(2,window.devicePixelRatio||1);
-  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  dpr=Math.min(2,window.devicePixelRatio||1);bdpr=dpr*pixF;
+  canvas.width=Math.round(W*bdpr);canvas.height=Math.round(H*bdpr);
   base=Math.min(W,H)/600;applyView();placeSplit();
 }
 function applyView(){
@@ -1995,12 +2031,12 @@ function loadCurrent(){
 /* ================= View, dock size and hidden interface ================= */
 // Remembered on this device apart from the bench, so setup codes stay as they were.
 const UIKEY='spectrum-bench-ui';let uiT=0;
-function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW}));}catch(e){}},400);}
+function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW,res:pixF}));}catch(e){}},400);}
 const ui={dockH:0,dockW:0};
 function applyDock(){const r=document.documentElement.style;ui.dockH?r.setProperty('--dock-h',ui.dockH+'px'):r.removeProperty('--dock-h');ui.dockW?r.setProperty('--dock-w',ui.dockW+'px'):r.removeProperty('--dock-w');}
 try{const u=JSON.parse(localStorage.getItem(UIKEY)||'null');if(u&&typeof u==='object'){
   if(isFinite(u.zoom))zoom=clamp(+u.zoom,ZMIN,ZMAX);if(isFinite(u.vx))vx=clamp(+u.vx,-3000,3000);if(isFinite(u.vy))vy=clamp(+u.vy,-3000,3000);
-  if(u.dockH>0)ui.dockH=+u.dockH;if(u.dockW>0)ui.dockW=+u.dockW;applyDock();}}catch(e){}
+  if([1,.75,.5].includes(+u.res))pixF=+u.res;if(u.dockH>0)ui.dockH=+u.dockH;if(u.dockW>0)ui.dockW=+u.dockW;applyDock();}}catch(e){}
 // The handle sits in the gap between the bench and the dock: below the bench on phones, beside it on wider screens.
 const split=$('split'),dock=$('dock');
 const isWide=()=>{const a=stage.getBoundingClientRect(),b=dock.getBoundingClientRect();return b.left>=a.right-1;};
@@ -2034,6 +2070,7 @@ document.addEventListener('keydown',e=>{
   const t=e.target;if(t&&t.closest&&t.closest('input,textarea,select,[contenteditable]'))return;
   switch(e.key){
     case 'h':case 'H':setUiHidden(!document.body.classList.contains('ui-hidden'));break;
+    case 'p':case 'P':PF.toggle();break;
     case '+':case '=':stepZoom(1.25);break;
     case '-':case '_':stepZoom(1/1.25);break;
     case '0':resetView();break;
