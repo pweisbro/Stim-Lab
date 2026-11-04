@@ -80,6 +80,9 @@ header p { flex-basis: 100%; margin: 0; color: var(--ink-soft); max-width: 62ch;
 .ctl label { font-family: var(--display); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; }
 .ctl output { font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
 input[type="range"] { width: 100%; accent-color: var(--knob); }
+.ctl .btn.small { font-size: 13px; padding: 5px 12px; }
+#pc:not([hidden]) { display: grid; gap: 12px; }
+#in-dev { min-width: 0; width: 100%; text-overflow: ellipsis; }
 select { font: inherit; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--ink-soft); background: var(--panel); color: var(--ink); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font-family: var(--mono); font-size: 12px; padding: 5px 9px; border-radius: 4px; border: 1px solid var(--ink); background: var(--panel); color: var(--ink); cursor: pointer; }
@@ -170,6 +173,13 @@ input[type="file"] { font: inherit; max-width: 100%; }
         <div class="yt" id="yt"></div>
         <div class="tool-row" id="cap-row" hidden><button class="btn" id="cap" type="button">Show on scope</button></div>
         <p class="hint" id="yt-hint"></p>
+        <div id="pc" hidden>
+          <h3>Computer sound</h3>
+          <div class="tool-row" id="pc-row"><button class="btn" id="cap-pc" type="button">Show everything the PC plays</button></div>
+          <p class="hint" id="pc-hint"></p>
+          <div class="ctl"><label for="in-dev">Input</label><select id="in-dev"><option value="">Default input</option></select><button class="btn ghost small" id="cap-in" type="button">Listen</button></div>
+          <p class="hint" id="in-hint"></p>
+        </div>
         <h3>Stereo file</h3>
         <input type="file" id="file" accept="audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.flac,.ogg,.opus">
         <div class="mono" id="file-name">No file loaded. Try a normal song first, then an oscilloscope-music track.</div>
@@ -400,6 +410,7 @@ input[type="file"] { font: inherit; max-width: 100%; }
     sum.connect(split); split.connect(anX, 0); split.connect(anY, 1);
     // Captured tab sound (a YouTube video) goes to the screen only: you already hear it from the video.
     const capIn = ctx.createGain(); capIn.connect(split);
+    capIn.channelCount = 2; capIn.channelCountMode = 'explicit'; capIn.channelInterpretation = 'speakers';  // a mono input lands on both axes
     A = { ctx, proc, procGain, songGain, master, anX, anY, capIn,
           bx: new Float32Array(2048), by: new Float32Array(2048) };
     applyLevels();
@@ -554,38 +565,112 @@ input[type="file"] { font: inherit; max-width: 100%; }
   }
   function ytHint(extra) {
     $('cap-row').hidden = !canCapture;
-    $('cap').textContent = cap ? 'Stop showing' : 'Show on scope';
+    $('cap').textContent = cap && cap.kind === 'tab' ? 'Stop showing' : 'Show on scope';
     $('yt-hint').textContent = (extra ? extra + ' ' : '') + (canCapture
       ? 'Play the video, then tap Show on scope and pick this tab with "Also share tab audio" on. The scope draws what the video plays; YouTube\'s compression softens the picture a little.'
       : 'iPhone and iPad don\'t let a page read a YouTube video\'s sound, so the video plays here but can\'t drive the scope. To see a track on the scope, load its audio as a file below, or open this page in Chrome or Edge on a computer.');
   }
-  async function startCapture() {
+  // ---------- computer sound ----------
+  // Two ways to put whatever the computer is playing (Spotify, a game, another browser) on the scope: share the
+  // whole screen with its system audio (Chrome and Edge on Windows), or listen to an input that carries the
+  // playback, such as Windows' Stereo Mix, VB-CABLE's CABLE Output, or BlackHole on a Mac.
+  const canListen = !isIOS && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  const PLAYBACK_INPUT = /stereo mix|what u hear|wave out|loopback|cable output|voicemeeter out|blackhole|soundflower|loopback audio|monitor of/i;
+  const NO_DSP = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+  let inputsKnown = false;
+  function pcHint(extra, inExtra) {
+    $('pc').hidden = !canListen;
+    $('pc-row').hidden = !canCapture;
+    $('cap-pc').textContent = cap && cap.kind === 'screen' ? 'Stop showing' : 'Show everything the PC plays';
+    $('cap-in').textContent = cap && cap.kind === 'input' ? 'Stop' : 'Listen';
+    $('pc-hint').textContent = (extra ? extra + ' ' : '') + (canCapture
+      ? 'For the sound coming out of this computer\'s speakers or headphones, from any app. Tap it, choose "Entire screen", turn on "Also share system audio" and press Share. Works in Chrome and Edge on Windows; on a Mac, use an input below instead.'
+      : '');
+    const opts = [...$('in-dev').options];
+    const tap = opts.find(o => PLAYBACK_INPUT.test(o.textContent));
+    $('in-hint').textContent = (inExtra ? inExtra + ' ' : '') + (tap
+      ? '"' + tap.textContent.replace(' · what the PC plays', '') + '" carries what the PC plays. Pick it and tap Listen.'
+      : inputsKnown
+        ? 'None of these inputs carries what the PC plays. On Windows, open Sound settings > More sound settings > Recording, right-click the list, tick Show Disabled Devices and enable Stereo Mix; or install the free VB-CABLE and send the PC\'s sound to CABLE Input. On a Mac, install BlackHole. Then come back here.'
+        : 'Or listen to an input. Tap Listen once and allow it to see every input by name; inputs that carry what the PC plays, like Stereo Mix or CABLE Output, are marked.');
+  }
+  async function listInputs(keep) {
+    let devs = [];
+    try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); } catch (e) {}
+    const named = devs.filter(d => d.label);
+    if (!named.length) return;
+    inputsKnown = true;
+    const sel = $('in-dev'), was = keep || sel.value;
+    const items = named.filter(d => d.deviceId !== 'communications')
+      .map(d => ({ id: d.deviceId === 'default' ? '' : d.deviceId, label: d.deviceId === 'default' ? 'Default input (' + d.label.replace(/^Default - /, '') + ')' : d.label, tap: PLAYBACK_INPUT.test(d.label) }));
+    items.sort((x, y) => (y.tap - x.tap));
+    sel.replaceChildren(...items.map(d => { const o = document.createElement('option'); o.value = d.id; o.textContent = d.label + (d.tap ? ' · what the PC plays' : ''); return o; }));
+    const first = items.find(d => d.tap && d.id);
+    sel.value = items.some(d => d.id === was) && (was || !first) ? was : first ? first.id : '';
+    pcHint();
+  }
+  function useStream(stream, kind, label) {
+    stopCapture();
+    const src = A.ctx.createMediaStreamSource(stream);
+    src.connect(A.capIn);
+    cap = { stream, src, kind, label };
+    stream.getTracks().forEach(t => t.addEventListener('ended', stopCapture));
+  }
+  async function startCapture(kind) {
     if (!A) setupAudio();
+    const tab = kind === 'tab', say = tab ? ytHint : pcHint;
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false },
+      const stream = await navigator.mediaDevices.getDisplayMedia(tab ? {
+        video: true, audio: { ...NO_DSP, suppressLocalAudioPlayback: false },
         preferCurrentTab: true, selfBrowserSurface: 'include', systemAudio: 'include'
+      } : {
+        video: true, audio: { ...NO_DSP, suppressLocalAudioPlayback: false },
+        systemAudio: 'include', monitorTypeSurfaces: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'exclude'
       });
       if (!stream.getAudioTracks().length) {
         stream.getTracks().forEach(t => t.stop());
-        ytHint('No sound came through. Pick this tab and turn on "Also share tab audio".');
+        say(tab ? 'No sound came through. Pick this tab and turn on "Also share tab audio".'
+          : 'No sound came through. Choose "Entire screen" and turn on "Also share system audio" (only Windows offers it; on a Mac, use an input below).');
         return;
       }
-      const src = A.ctx.createMediaStreamSource(stream);
-      src.connect(A.capIn);
-      cap = { stream, src };
-      stream.getTracks().forEach(t => t.addEventListener('ended', stopCapture));
+      useStream(stream, kind, tab ? 'YouTube' : 'PC sound');
       await setPower(true);
-      ytHint(); refresh();
-    } catch (e) { ytHint(e && e.name === 'NotAllowedError' ? '' : "This browser couldn't share the tab's sound."); }
+      ytHint(); pcHint(); refresh();
+    } catch (e) { say(e && e.name === 'NotAllowedError' ? '' : tab ? "This browser couldn't share the tab's sound." : "This browser couldn't share the computer's sound."); }
+  }
+  async function startInput() {
+    if (!A) setupAudio();
+    const id = $('in-dev').value;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { ...NO_DSP, channelCount: { ideal: 2 }, ...(id ? { deviceId: { exact: id } } : {}) }
+      });
+      const track = stream.getAudioTracks()[0];
+      useStream(stream, 'input', (track && track.label) || 'input');
+      await listInputs(id);
+      await setPower(true);
+      const tap = PLAYBACK_INPUT.test(cap.label);
+      ytHint(); pcHint('', 'Listening to "' + cap.label + '".' + (tap ? '' : ' That looks like a microphone, not the PC\'s playback; pick a marked input if there is one.'));
+      refresh();
+    } catch (e) {
+      pcHint('', e && e.name === 'NotAllowedError' ? 'The browser wasn\'t allowed to use inputs. Allow it in the address bar\'s site settings, then tap Listen again.' : 'That input couldn\'t be opened.');
+    }
   }
   function stopCapture() {
     if (!cap) return;
     const c = cap; cap = null;
     c.src.disconnect(); c.stream.getTracks().forEach(t => t.stop());
-    ytHint(); refresh();
+    ytHint(); pcHint(); refresh();
   }
-  $('cap').addEventListener('click', () => cap ? stopCapture() : startCapture());
+  $('cap').addEventListener('click', () => cap && cap.kind === 'tab' ? stopCapture() : startCapture('tab'));
+  $('cap-pc').addEventListener('click', () => cap && cap.kind === 'screen' ? stopCapture() : startCapture('screen'));
+  $('cap-in').addEventListener('click', () => cap && cap.kind === 'input' ? stopCapture() : startInput());
+  $('in-dev').addEventListener('change', () => { if (cap && cap.kind === 'input') startInput(); else pcHint(); });
+  if (canListen) {
+    navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener('devicechange', () => listInputs());
+    listInputs();
+  }
+  pcHint();
   $('yt-form').addEventListener('submit', e => { e.preventDefault(); if (loadVideo($('yt-url').value)) $('yt-url').blur(); });
   let savedVideo = null;
   try { savedVideo = localStorage.getItem(YT_KEY); } catch (e) {}
@@ -834,7 +919,7 @@ input[type="file"] { font: inherit; max-width: 100%; }
     if (S.mode === 'gen') ro.innerHTML = `<span>CH1 X <b>${S.xf} Hz ${S.wx}</b></span><span>CH2 Y <b>${(S.yf + S.detune).toFixed(2)} Hz ${S.wy}</b></span><span>Ratio <b>${ratio}</b></span>`;
     else if (S.mode === 'draw') ro.innerHTML = `<span>Strokes <b>${strokes.length}</b></span><span>Trace rate <b>${S.sf} Hz</b></span><span>Note <b>${note(S.sf)}</b></span>`;
     else if (S.mode === 'shape') ro.innerHTML = `<span>Shape <b>${SHAPES[S.shape].label}</b></span><span>Trace rate <b>${S.sf} Hz</b></span><span>Note <b>${note(S.sf)}</b></span>`;
-    else ro.innerHTML = `<span>Source <b>${cap ? 'YouTube' : song ? 'file' : 'none'}</b></span><span>Song <b>${Math.round(S.song * 100)}%</b></span><span>Shape overlay <b>${Math.round(S.overlay * 100)}%</b> ${SHAPES[S.shape].label}</span>`;
+    else ro.innerHTML = `<span>Source <b>${cap ? cap.label.replace(/[<>&]/g, '') : song ? 'file' : 'none'}</b></span><span>Song <b>${Math.round(S.song * 100)}%</b></span><span>Shape overlay <b>${Math.round(S.overlay * 100)}%</b> ${SHAPES[S.shape].label}</span>`;
     applyLevels();
   }
 
