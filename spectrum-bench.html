@@ -210,8 +210,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .look-head svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 .look .lab{margin-bottom:6px}
 .bgs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.bgs button,.uis button{border:1px solid var(--rule);background:transparent;border-radius:8px;padding:5px;display:grid;gap:5px;text-align:left;color:var(--text);font:500 12px/1.1 var(--body);min-height:44px}
-.bgs button[aria-pressed="true"],.uis button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
+.bgs button{border:1px solid var(--rule);background:transparent;border-radius:8px;padding:5px;display:grid;gap:5px;text-align:left;color:var(--text);font:500 12px/1.1 var(--body);min-height:44px}
+.bgs button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
 .bgs i{display:block;height:30px;border-radius:5px;border:1px solid rgba(255,255,255,.06)}
 .bg-board{background:radial-gradient(circle,#05060a 1.4px,transparent 1.8px) 0 0/9px 9px,radial-gradient(#141821,#07080b)}
 .bg-void{background:radial-gradient(#0d0f14,#050608)}
@@ -219,81 +219,48 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .bg-stars{background:radial-gradient(circle at 20% 30%,#fff 0 .7px,transparent 1px),radial-gradient(circle at 70% 60%,#cfd8ff 0 .8px,transparent 1.1px),radial-gradient(circle at 45% 80%,#fff 0 .5px,transparent .9px),radial-gradient(circle at 85% 20%,#ffe6d2 0 .6px,transparent 1px),#05060c}
 .bg-nebula{background:radial-gradient(circle at 30% 35%,rgba(140,70,220,.55),transparent 60%),radial-gradient(circle at 75% 65%,rgba(0,150,210,.4),transparent 55%),#0b0816}
 .bg-dusk{background:radial-gradient(circle,rgba(200,200,255,.16) 1px,transparent 1.4px) 0 0/9px 9px,radial-gradient(#30305a,#1a1a33)}
-.uis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-.uis button{padding:8px 9px;gap:3px}
-.uis small{font:400 11.5px/1.3 var(--body);color:var(--muted)}
 .look .note{font-size:12px}
 
-/* ===== Interface style: Glass. The bench fills the whole screen and the controls float over it on frosted panels. ===== */
-[data-ui="glass"] .stage{border-color:transparent;background:transparent;overflow:visible}
-[data-ui="glass"] #bench{position:fixed;inset:0;z-index:0}
-[data-ui="glass"] .top,[data-ui="glass"] .dock{position:relative;z-index:2;background:rgba(15,17,23,.62);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgba(255,255,255,.09);border-radius:16px}
-[data-ui="glass"] .top{padding:6px}
-[data-ui="glass"] .top .ghost{border-color:rgba(255,255,255,.1);border-radius:10px}
-[data-ui="glass"] .brand{padding-right:6px}
-[data-ui="glass"] .add{background:rgba(15,17,23,.55);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom-color:rgba(255,255,255,.07)}
-[data-ui="glass"] .add button{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.07);border-radius:10px}
-[data-ui="glass"] .row-main,[data-ui="glass"] select,[data-ui="glass"] input[type=text],[data-ui="glass"] textarea,[data-ui="glass"] .seg{background:rgba(255,255,255,.05)}
-[data-ui="glass"] .hint{display:none}
-[data-ui="glass"] .zoom{background:rgba(15,17,23,.55);border-color:rgba(255,255,255,.09);border-radius:11px}
+/* ===== Interface: Glass + Rail. The bench fills the whole screen; the header, the parts rail and the settings panel float over it on frosted glass.
+   Drag a part off the rail onto the bench to place it (a tap still drops one in the middle). ===== */
+[data-ui~="glass"] .stage{border-color:transparent;background:transparent;overflow:visible}
+[data-ui~="glass"] #bench{position:fixed;inset:0;z-index:0}
+[data-ui~="glass"] .top,[data-ui~="glass"] .dock{position:relative;z-index:2;background:rgba(15,17,23,.62);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgba(255,255,255,.09);border-radius:16px}
+[data-ui~="glass"] .top{padding:6px}
+[data-ui~="glass"] .top .ghost{border-color:rgba(255,255,255,.1);border-radius:10px}
+[data-ui~="glass"] .brand{padding-right:6px}
+[data-ui~="glass"] .add{background:rgba(15,17,23,.55);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom-color:rgba(255,255,255,.07)}
+[data-ui~="glass"] .add button{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.07);border-radius:10px}
+[data-ui~="glass"] .row-main,[data-ui~="glass"] select,[data-ui~="glass"] input[type=text],[data-ui~="glass"] textarea,[data-ui~="glass"] .seg{background:rgba(255,255,255,.05)}
+[data-ui~="glass"] .hint{display:none}
+[data-ui~="glass"] .zoom{background:rgba(15,17,23,.55);border-color:rgba(255,255,255,.09);border-radius:11px}
 
-/* ===== Interface style: Hairline. Sharp corners, no filled boxes, thin rules and mono labels; the bench gets the room. ===== */
-[data-ui="hairline"]{--rule:#20242b;--rule-hi:#363c46;--panel:#0a0c10;--panel-2:#0a0c10}
-[data-ui="hairline"] .app{gap:0;padding-block:8px 10px}
-[data-ui="hairline"] .top{padding-bottom:8px}
-[data-ui="hairline"] h1{font-weight:500;letter-spacing:.32em;font-size:17px}
-[data-ui="hairline"] .hair{height:1px}
-[data-ui="hairline"] .stage{border-radius:0;border-width:1px 0}
-[data-ui="hairline"] .dock{border-radius:0;border-width:0 0 1px;background:transparent}
-[data-ui="hairline"] .ghost,[data-ui="hairline"] .solid,[data-ui="hairline"] select,[data-ui="hairline"] input[type=text],[data-ui="hairline"] textarea,[data-ui="hairline"] .row-main,[data-ui="hairline"] .icon-btn,[data-ui="hairline"] .empty,[data-ui="hairline"] .thumb,[data-ui="hairline"] .chart,[data-ui="hairline"] .strip,[data-ui="hairline"] .zoom,[data-ui="hairline"] .zoom button,[data-ui="hairline"] .toast,[data-ui="hairline"] .perf,[data-ui="hairline"] .look,[data-ui="hairline"] .bgs button,[data-ui="hairline"] .uis button,[data-ui="hairline"] .bgs i{border-radius:2px}
-[data-ui="hairline"] .top .ghost{border-color:transparent}
-[data-ui="hairline"] .top .ghost:hover{border-color:var(--rule-hi)}
-[data-ui="hairline"] .seg{border-radius:2px;padding:0;gap:0;background:transparent}
-[data-ui="hairline"] .seg button{border-radius:0}
-[data-ui="hairline"] .seg button[aria-pressed="true"]{background:transparent;color:var(--amber);box-shadow:inset 0 -2px 0 var(--amber)}
-[data-ui="hairline"] .add{grid-template-columns:repeat(8,minmax(0,1fr));gap:0;padding:4px 0;background:var(--bench);border-bottom:1px solid var(--rule)}
-[data-ui="hairline"] .add button{background:transparent;border:0;border-radius:2px;min-height:46px;font:500 8.5px/1 var(--data);letter-spacing:.04em;color:var(--muted)}
-[data-ui="hairline"] .add button:hover{color:var(--text)}
-[data-ui="hairline"] .add svg{stroke-width:1.2}
-[data-ui="hairline"] .lab{font:500 10.5px/1.2 var(--data);letter-spacing:.12em}
-[data-ui="hairline"] .insp{padding:14px 2px 18px}
-[data-ui="hairline"] .insp-head h2{font-weight:500;letter-spacing:.24em;font-size:15px}
-[data-ui="hairline"] input[type=range]::-webkit-slider-runnable-track{height:1px}
-[data-ui="hairline"] input[type=range]::-webkit-slider-thumb{width:13px;height:13px;margin-top:-6px;border-radius:1px;border:0;transform:rotate(45deg)}
-[data-ui="hairline"] input[type=range].spectrum::-webkit-slider-runnable-track{height:2px}
-[data-ui="hairline"] input[type=range]::-moz-range-track{height:1px}
-[data-ui="hairline"] input[type=range]::-moz-range-thumb{border-radius:1px;border:0}
-[data-ui="hairline"] .tog input{border-radius:2px;height:20px;width:36px}
-[data-ui="hairline"] .tog input::after{border-radius:1px;width:14px;height:14px}
-[data-ui="hairline"] .hint{color:rgba(221,225,231,.3)}
-@media (min-width:880px), (orientation:landscape) and (min-width:620px){
-  [data-ui="hairline"] .app{gap:0}
-  [data-ui="hairline"] .stage{border-width:1px 1px 1px 0}
-  [data-ui="hairline"] .dock{border-width:1px 0 1px 0;padding-left:16px}
-  [data-ui="hairline"] .add{grid-template-columns:repeat(5,minmax(0,1fr))}
-}
-@media (max-width:440px){[data-ui="hairline"] .add{grid-template-columns:repeat(5,minmax(0,1fr))}}
 
-/* ===== Interface style: Rail. The parts become an icon rail beside the bench (a strip under it on phones); the panel holds only settings. ===== */
-[data-ui="rail"] .app{grid-template-rows:auto minmax(0,1fr) auto minmax(0,min(var(--dock-h,38%),70%))}
-[data-ui="rail"] .add{position:static;grid-template-columns:none;display:flex;gap:4px;padding:5px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;border:1px solid var(--rule);border-radius:12px;background:var(--panel)}
-[data-ui="rail"] .add::-webkit-scrollbar{display:none}
-[data-ui="rail"] .add button{flex:none;width:54px;min-height:50px;background:transparent;border-color:transparent}
-[data-ui="rail"] .add button:hover{background:var(--panel-2);border-color:var(--rule)}
-[data-ui="rail"] .add svg{width:22px;height:22px}
-[data-ui="rail"] .dock{background:var(--panel)}
+[data-ui~="rail"] .app{grid-template-rows:auto minmax(0,1fr) auto minmax(0,min(var(--dock-h,38%),70%))}
+[data-ui~="rail"] .add{position:static;grid-template-columns:none;display:flex;gap:4px;padding:5px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;border:1px solid var(--rule);border-radius:12px;background:var(--panel)}
+[data-ui~="rail"] .add::-webkit-scrollbar{display:none}
+[data-ui~="rail"] .add button{flex:none;width:54px;min-height:50px;background:transparent;border-color:transparent}
+[data-ui~="rail"] .add button:hover{background:var(--panel-2);border-color:var(--rule)}
+[data-ui~="rail"] .add svg{width:22px;height:22px}
+[data-ui~="rail"] .dock{background:var(--panel)}
 @media (min-width:880px), (orientation:landscape) and (min-width:620px){
-  [data-ui="rail"] .app{grid-template-columns:64px minmax(0,1fr) min(var(--dock-w,clamp(290px,34vw,356px)),60vw);grid-template-rows:auto minmax(0,1fr)}
-  [data-ui="rail"] .add{grid-column:1;grid-row:2;flex-direction:column;overflow-x:hidden;overflow-y:auto}
-  [data-ui="rail"] .add button{width:100%}
-  [data-ui="rail"] .stage{grid-column:2}
-  [data-ui="rail"] .dock{grid-column:3}
+  [data-ui~="rail"] .app{grid-template-columns:64px minmax(0,1fr) min(var(--dock-w,clamp(290px,34vw,356px)),60vw);grid-template-rows:auto minmax(0,1fr)}
+  [data-ui~="rail"] .add{grid-column:1;grid-row:2;flex-direction:column;overflow-x:hidden;overflow-y:auto}
+  [data-ui~="rail"] .add button{width:100%}
+  [data-ui~="rail"] .stage{grid-column:2}
+  [data-ui~="rail"] .dock{grid-column:3}
 }
 .ui-hidden .add{display:none}
+[data-ui~="glass"][data-ui~="rail"] .add{position:relative;z-index:2;background:rgba(15,17,23,.62);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgba(255,255,255,.09);border-radius:16px}
+[data-ui~="rail"] .add button{touch-action:pan-x;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:grab}
+[data-ui~="glass"][data-ui~="rail"] .add button{background:transparent;border-color:transparent}
+[data-ui~="glass"][data-ui~="rail"] .add button:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.08)}
+@media (min-width:880px), (orientation:landscape) and (min-width:620px){[data-ui~="rail"] .add button{touch-action:pan-y}}
+.add-ghost{position:fixed;z-index:20;left:0;top:0;width:52px;height:52px;margin:-26px 0 0 -26px;display:grid;place-items:center;border-radius:14px;border:1px solid var(--amber);background:rgba(15,17,23,.8);color:var(--amber);pointer-events:none;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.add-ghost svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:440px){
-  [data-ui="glass"] .top{padding:4px;gap:6px}
-  [data-ui="glass"] h1{letter-spacing:.08em}
-  [data-ui="hairline"] h1{letter-spacing:.16em}
+  [data-ui~="glass"] .top{padding:4px;gap:6px}
+  [data-ui~="glass"] h1{letter-spacing:.08em}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -309,7 +276,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <div class="top-acts">
       <button type="button" class="ghost lib-btn" id="b-snd" aria-pressed="false" aria-label="Sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h2M7 8v8M11 4v16M15 8v8M19 10v4M21 12h0"/></svg><span>Sound</span></button>
       <button type="button" class="ghost lib-btn" id="b-lib" aria-pressed="false" aria-label="Setups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5L12 3l9 4.5L12 12z"/><path d="M3 12l9 4.5L21 12"/><path d="M3 16.5L12 21l9-4.5"/></svg><span>Setups</span></button>
-      <button type="button" class="ghost hide-btn" id="b-look" aria-pressed="false" aria-label="Look: background and interface" title="Look: background and interface (C)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.7 0-1 .8-1.6 1.9-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/></svg></button>
+      <button type="button" class="ghost hide-btn" id="b-look" aria-pressed="false" aria-label="Look: bench background" title="Bench background (C)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.7 0-1 .8-1.6 1.9-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/></svg></button>
       <button type="button" class="ghost hide-btn" id="b-hide" aria-label="Hide interface" title="Hide interface (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.1c.5-.1.9-.1 1.4-.1 5 0 9 6 9 6a16.8 16.8 0 0 1-3.2 3.7M6.6 6.6A16.8 16.8 0 0 0 3 12s4 6 9 6c1.5 0 2.9-.4 4.2-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
     </div>
   </header>
@@ -328,8 +295,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <div class="look" id="look" role="dialog" aria-label="Look" hidden>
       <div class="look-head"><h2>Look</h2><button type="button" id="look-x" aria-label="Close Look"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
       <div><div class="lab"><span>Background</span></div><div class="bgs" id="look-bg" role="group" aria-label="Background"></div></div>
-      <div><div class="lab"><span>Interface</span></div><div class="uis" id="look-ui" role="group" aria-label="Interface style"></div></div>
-      <p class="note">Only changes how this device shows the bench. Setups and setup codes stay the same.</p>
+      <p class="note">Only changes how this device shows the bench. Setups and setup codes stay the same. Drag a part from the rail onto the bench to place it.</p>
     </div>
     <div class="toast" id="toast" role="status" hidden><span id="toast-msg"></span><button type="button" id="toast-undo">Undo</button></div>
   </main>
@@ -1836,13 +1802,50 @@ canvas.addEventListener('keydown',e=>{
   }
   if(used){e.preventDefault();changed();}
 });
-document.querySelector('.add').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-add]');if(!b)return;
-  const t=b.dataset.add,n=scene.length%6,o={x:(n-2.5)*16,y:(n-2.5)*12};
+function newPiece(t,at){
+  const n=scene.length%6,o={x:(n-2.5)*16,y:(n-2.5)*12};
   if(t==='light'){o.x=-200/Math.max(1,zoom);o.y=(n-2.5)*20;}
   if(t==='tx'){const sc=sel&&sel.type==='screen'?sel:scene.find(e=>e.type==='screen');if(sc)o.ch=sc.ch;}
-  o.x=Math.round(o.x+vx);o.y=Math.round(o.y+vy); // lands in the middle of what's on screen
-  const el=mk(t,o);scene.push(el);sel=el;renderInspector();$('dock').scrollTop=0;changed();
+  if(at){o.x=Math.round(at[0]);o.y=Math.round(at[1]);}else{o.x=Math.round(o.x+vx);o.y=Math.round(o.y+vy);} // a tap lands it in the middle of what's on screen
+  return mk(t,o);
+}
+function placed(el){sel=el;renderInspector();$('dock').scrollTop=0;changed();}
+// Press a part on the rail and drag it onto the bench: it appears under your finger, beams and all, and stays where you let go.
+// Dragging along the rail still scrolls it; drag across (out toward the bench) to pick a part up. A plain tap adds it in the middle.
+let addDrag=null,skipClick=false;
+const addBarEl=document.querySelector('.add');
+function overBench(x,y){const t=document.elementFromPoint(x,y);return t===canvas;}
+addBarEl.addEventListener('pointerdown',e=>{
+  const b=e.target.closest('button[data-add]');if(!b||e.button>0)return;
+  addDrag={b,t:b.dataset.add,id:e.pointerId,x0:e.clientX,y0:e.clientY,on:false,el:null,ghost:null,mouse:e.pointerType==='mouse'};
+});
+function addDragMove(e){
+  const d=addDrag;if(!d||e.pointerId!==d.id)return;
+  if(!d.on){const dx=e.clientX-d.x0,dy=e.clientY-d.y0;if(Math.hypot(dx,dy)<8)return;
+    const across=isWide()?Math.abs(dx)>Math.abs(dy):Math.abs(dy)>Math.abs(dx);if(!across&&!d.mouse){addDrag=null;return;}
+    d.on=true;try{d.b.setPointerCapture(e.pointerId);}catch(_){}
+    d.ghost=document.createElement('div');d.ghost.className='add-ghost';d.ghost.innerHTML=d.b.querySelector('svg').outerHTML;document.body.append(d.ghost);}
+  e.preventDefault();
+  const inside=overBench(e.clientX,e.clientY);
+  if(inside){const r=canvas.getBoundingClientRect(),w=toWorld(e.clientX-r.left,e.clientY-r.top);
+    if(!d.el){d.el=newPiece(d.t,w);scene.push(d.el);sel=d.el;}else{d.el.x=Math.round(w[0]);d.el.y=Math.round(w[1]);}
+    d.ghost.hidden=true;request();}
+  else{if(d.el){scene.splice(scene.indexOf(d.el),1);if(sel===d.el)sel=null;d.el=null;request();}
+    d.ghost.hidden=false;d.ghost.style.transform=`translate(${e.clientX}px,${e.clientY}px)`;}
+}
+function addDragEnd(e){
+  const d=addDrag;if(!d||e.pointerId!==d.id)return;addDrag=null;
+  if(!d.on)return;skipClick=true;setTimeout(()=>skipClick=false,0);
+  if(d.ghost)d.ghost.remove();
+  if(d.el&&e.type==='pointerup')placed(d.el);
+  else if(d.el){scene.splice(scene.indexOf(d.el),1);if(sel===d.el)sel=null;request();}
+}
+window.addEventListener('pointermove',addDragMove,{passive:false});
+window.addEventListener('pointerup',addDragEnd);
+window.addEventListener('pointercancel',addDragEnd);
+addBarEl.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-add]');if(!b||skipClick)return;
+  const el=newPiece(b.dataset.add);scene.push(el);placed(el);
 });
 
 /* ================= Undo toast ================= */
@@ -2418,38 +2421,34 @@ function loadCurrent(){
 /* ================= View, dock size and hidden interface ================= */
 // Remembered on this device apart from the bench, so setup codes stay as they were.
 const UIKEY='spectrum-bench-ui';let uiT=0;
-function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW,res:pixF,gl:GLP.want,bg:bgKind,look:uiStyle}));}catch(e){}},400);}
-const ui={dockH:0,dockW:0};let uiStyle='bench';
-const UIS=[['bench','Classic','The original: boxed panels'],['glass','Glass','Bench fills the screen, frosted panels'],['hairline','Hairline','Sharp corners, thin lines, no boxes'],['rail','Rail','Parts on a rail beside the bench']];
+function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW,res:pixF,gl:GLP.want,bg:bgKind}));}catch(e){}},400);}
+const ui={dockH:0,dockW:0};const uiStyle='glass rail'; // one interface now: Glass + Rail (Peter's pick, Nov 2026)
 function applyDock(){const r=document.documentElement.style;ui.dockH?r.setProperty('--dock-h',ui.dockH+'px'):r.removeProperty('--dock-h');ui.dockW?r.setProperty('--dock-w',ui.dockW+'px'):r.removeProperty('--dock-w');}
 try{const u=JSON.parse(localStorage.getItem(UIKEY)||'null');if(u&&typeof u==='object'){
   if(isFinite(u.zoom))zoom=clamp(+u.zoom,ZMIN,ZMAX);if(isFinite(u.vx))vx=clamp(+u.vx,-3000,3000);if(isFinite(u.vy))vy=clamp(+u.vy,-3000,3000);
   if([1,.75,.5].includes(+u.res))pixF=+u.res;if(u.gl===false)GLP.want=false;if(u.dockH>0)ui.dockH=+u.dockH;if(u.dockW>0)ui.dockW=+u.dockW;applyDock();
-  if(BGS.some(b=>b.k===u.bg))bgKind=u.bg;if(UIS.some(x=>x[0]===u.look))uiStyle=u.look;}}catch(e){}
-// Look panel (palette button or C): the bench background and the interface style. Only this device's view changes.
+  if(BGS.some(b=>b.k===u.bg))bgKind=u.bg;}}catch(e){}
+// Look panel (palette button or C): the bench background. Only this device's view changes.
 const addBar=document.querySelector('.add'),appEl=document.querySelector('.app');
 function applyUiStyle(){
   document.documentElement.dataset.ui=uiStyle;
-  if(uiStyle==='rail'){if(addBar.parentNode!==appEl)appEl.insertBefore(addBar,$('split'));}
-  else{const d=$('dock');if(addBar.parentNode!==d)d.insertBefore(addBar,d.firstChild);}
-  const tm=document.querySelector('meta[name=theme-color]');if(tm)tm.content=uiStyle==='glass'?'#000000':'#0a0c10';
+  if(addBar.parentNode!==appEl)appEl.insertBefore(addBar,$('split'));
+  const tm=document.querySelector('meta[name=theme-color]');if(tm)tm.content='#000000';
 }
 function renderLook(){
   $('look-bg').innerHTML=BGS.map(b=>`<button type="button" data-bg="${b.k}" aria-pressed="${b.k===bgKind}"><i class="bg-${b.k}"></i>${b.name}</button>`).join('');
-  $('look-ui').innerHTML=UIS.map(([k,n,d])=>`<button type="button" data-look="${k}" aria-pressed="${k===uiStyle}"><span>${n}</span><small>${d}</small></button>`).join('');
 }
 function setLook(open){const L=$('look');L.hidden=!open;$('b-look').setAttribute('aria-pressed',String(open));if(open)renderLook();}
 $('b-look').addEventListener('click',()=>setLook($('look').hidden));
 $('look-x').addEventListener('click',()=>setLook(false));
 $('look-bg').addEventListener('click',e=>{const b=e.target.closest('[data-bg]');if(!b)return;bgKind=b.dataset.bg;renderLook();buildBg();request();saveUiSoon();});
-$('look-ui').addEventListener('click',e=>{const b=e.target.closest('[data-look]');if(!b)return;uiStyle=b.dataset.look;applyUiStyle();renderLook();requestAnimationFrame(resize);saveUiSoon();});
 applyUiStyle();
 // The handle sits in the gap between the bench and the dock: below the bench on phones, beside it on wider screens.
 const split=$('split'),dock=$('dock');
 const isWide=()=>{const a=stage.getBoundingClientRect(),b=dock.getBoundingClientRect();return b.left>=a.right-1;};
 function placeSplit(){
   if(document.body.classList.contains('ui-hidden'))return;
-  const a=(uiStyle==='rail'&&!isWide()?document.querySelector('.add'):stage).getBoundingClientRect(),b=dock.getBoundingClientRect(),wide=isWide(),S=split.style;split.classList.toggle('wide',wide);
+  const a=(!isWide()?document.querySelector('.add'):stage).getBoundingClientRect(),b=dock.getBoundingClientRect(),wide=isWide(),S=split.style;split.classList.toggle('wide',wide);
   if(wide){const g=b.left-a.right;S.left=(a.right+g/2-12)+'px';S.top=(a.top+a.height/2-32)+'px';S.width='24px';S.height='64px';}
   else{const g=b.top-a.bottom;S.top=(a.bottom+g/2-12)+'px';S.left=(a.left+a.width/2-32)+'px';S.width='64px';S.height='24px';}
 }
