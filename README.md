@@ -6,11 +6,13 @@ Open https://pweisbro.github.io/Stim-Lab/ in Safari, then use **Share → Add to
 
 ## Apps
 
-### Spectrum Bench
+### Ray Garden
 
-`spectrum-bench.html` is a playable optics bench: light sources, prisms, lenses, a flowing clear liquid, flat and curved mirrors, diffraction gratings, color filters, beam splitters, slits, screens, black holes, amplifiers, color shifters and transmitters.
+`spectrum-bench.html` (called Spectrum Bench until November 2026; the file name, saved benches and `SB1:` setup codes are unchanged, so old links and home-screen icons still work) is a playable optics bench: light sources, prisms, lenses, a flowing clear liquid, flat and curved mirrors, diffraction gratings, color filters, beam splitters, slits, screens, black holes, amplifiers, color shifters and transmitters.
 
 Pinch or scroll to zoom the bench (the **−/100%/+** buttons do the same, and **100%** resets the view) and drag empty bench to pan. The handle between the bench and the controls resizes them. The eye button at the top hides every control so the bench fills the screen; the faint eye in the corner, or the **H** key, brings them back. Zoom, position and panel size are remembered on the device, not in setup codes.
+
+The palette button (or the **C** key) opens **Look**. **Background** paints the bench as Breadboard (the original tapped plate), Void, Drafting (fine blue grid lines), Starfield and Nebula (both drift slowly as you pan) or Dusk (the pastel night of the clay apps). **Interface** switches the whole layout between Classic, Glass (the bench fills the screen and the controls float over it on frosted panels), Hairline (sharp corners, thin rules, mono labels, no boxes) and Rail (the parts sit on an icon rail beside the bench, or a strip under it on phones). Both are remembered on the device and never change a setup.
 
 On a computer, the **P** key opens a small performance panel: frames per second, how long the ray tracing takes of each frame, how many ray pieces are drawn, the bench's size in pixels, and which graphics chip the browser is using (with a warning if it is drawing without the GPU). Its **Resolution** buttons (Full, 75%, 50%) draw the bench with fewer pixels, which is the quickest way to win frame rate on a slow machine. The choice is remembered on the device.
 
@@ -36,7 +38,7 @@ Beyond the basic sliders there are forces (buoyancy, a whirlpool, animated turbu
 
 The **Effects** tab holds bloom (toned down by default, with intensity and threshold sliders) and ten GLSL shader styles that run over the finished image: Cel (toon shading with ink outlines), Oil paint (Kuwahara filter), Watercolor, Halftone, Pixel, Dither, CRT, Emboss, Neon edges and Chrome (liquid metal). Each has a strength and size slider plus its own settings.
 
-Sixteen built-in presets cover the range, including Comic, Mercury, Arcade and Gallery for the shader styles. **Presets** in the controls lets you save your own looks by name and send them as preset codes: one line of text starting with `RI1:` that holds every setting, audio included, the same way Spectrum Bench shares setups. Paste a code into the same tab to load it. On iPhone, **Share…** sends the code through the share sheet.
+Sixteen built-in presets cover the range, including Comic, Mercury, Arcade and Gallery for the shader styles. **Presets** in the controls lets you save your own looks by name and send them as preset codes: one line of text starting with `RI1:` that holds every setting, audio included, the same way Ray Garden shares setups. Paste a code into the same tab to load it. On iPhone, **Share…** sends the code through the share sheet.
 
 Resonant Ink can also go on the Home Screen as its own app, with its own icon: open https://pweisbro.github.io/Stim-Lab/resonant-ink.html in Safari, tap **Share → Add to Home Screen** and keep **Open as Web App** on. It opens straight into the tank, full screen, and works offline after the first visit (songs you load still play from the device).
 
@@ -98,7 +100,7 @@ Sections (A, B, C…) each hold their own notes; tap the current one to rename, 
 
 Drag to bend the mirrors (or switch the arrows button to move around instead), pinch to zoom and turn, and tap to hide the controls. Twelve presets cover the range, and **Surprise me** rolls a new look, rerolling anything that comes out nearly black or washed out. The controls have tabs for the mirrors, color, trails, motion and view, about forty settings in all.
 
-**Sound** listens to the microphone or a song file. Its **sound changes** let loudness, bass, mids, treble, the beat, or one of two slow built-in waves push any setting by an amount you choose, and they are saved with each look. **Saved** keeps bookmarks with a thumbnail on the device, and setup codes (one line starting `MF1:`) carry a look to another device, the same way Spectrum Bench shares setups.
+**Sound** listens to the microphone or a song file. Its **sound changes** let loudness, bass, mids, treble, the beat, or one of two slow built-in waves push any setting by an amount you choose, and they are saved with each look. **Saved** keeps bookmarks with a thumbnail on the device, and setup codes (one line starting `MF1:`) carry a look to another device, the same way Ray Garden shares setups.
 
 To add a setting, add one entry to `PARAMS` near the top of the script: it gets a slider, a shader uniform `u_<key>`, a place in bookmarks and codes, and a spot on the sound target list.
 
