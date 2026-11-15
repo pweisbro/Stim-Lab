@@ -108,6 +108,14 @@ The shareware episode (Knee-Deep in the Dead, `doom/doom1.wad`) is built in. **A
 
 Keyboard and mouse on a computer (WASD, mouse or arrows to turn, click or Space to fire, E to use; click the game to grab the mouse), a gamepad, or touch controls on iPhone and iPad: the left thumb walks and turns (push it all the way to run), the right side has Fire, Use, strafe, next weapon and map, and the top row has Menu, Enter, Y and N. The keyboard button brings up the on-screen keyboard for save names and cheats. Music is off in this build; sound effects play. The engine and WAD (about 6.5 MB) download the first time you press Play and then work offline.
 
+### Boing
+
+`boing.html` is a door stopper spring toy: the coil spring behind a door that goes "boing" when you flick it. Pull a spring and let go, tap it, swipe across it, press Space, or turn on **Shake** and shake the phone. Each spring is a cantilever built from its first three bending modes plus a stretch mode, so it whips, wobbles and settles like the real thing, and a hard pull curls it over.
+
+Every spring is also a small synth voice driven by its own motion: loudness follows how far it swings, the "wow-wow" follows how fast, and the pitch glides down as it settles. The **Synth** tab tunes all of it: the note (with octave and semitone steps and a fine tune), the voice (Doorstop, measured from a real stopper that rings at about 175 Hz, plus sine, triangle, saw, square, bell, wub and organ), glide, wah, brightness, resonance, vibrato, the clack of the strike, a spring reverb and volume. With more than one spring, each takes its own note from a scale (pentatonic, major, minor, blues, whole tone, chromatic), and higher notes get shorter springs, so a row can be strummed like a harp. Keys 1 to 9, 0, - and = pluck single springs.
+
+**Shape** sets how many springs there are (up to 12), their length, coils, width, wire, stiffness, ring time and stretchiness, the material (steel, brass, copper, candy stripe, rainbow, glowing neon with trails, or mixed) and the tip (rubber cap, googly eyes, bouncy ball or bare). Nine presets cover the range, from Classic to Noodle, Bwoing Bass, Spring Harp and Wub Garden. Tweaks are kept on the device, and the eye button (or H) hides the controls. To add a setting, add one entry to `PARAMS` near the top of the script.
+
 ## Updating
 
 To update an app, replace its page with the new version. Pages refresh themselves the next time you open them online.

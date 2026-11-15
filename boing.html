@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d0b16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Boing">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Boing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chewy&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: a full-bleed night-time room corner with door stopper springs on a glossy floor,
+   a floating pill dock, and one sheet for presets, the spring and the synth. Single dark theme. */
+:root{
+  color-scheme: dark;
+  --void:#0d0b16;
+  --glass:rgba(20,17,32,.72);
+  --line:rgba(236,228,255,.11);
+  --text:#f2eff8;
+  --muted:#9d97b3;
+  --accent:#ff9f6b;
+  --accent-ink:#1a0c05;
+  --font-display:'Chewy','Marker Felt','Comic Sans MS',system-ui,sans-serif;
+  --font-body:'Nunito',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
+}
+html{box-sizing:border-box;height:100%;overflow:hidden;background:var(--void)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  height:100%;overflow:hidden;margin:0;
+  background:var(--void);color:var(--text);
+  font-family:var(--font-body);font-size:14px;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;overscroll-behavior:none;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#stage.grabbing{cursor:grabbing}
+
+.brand{
+  position:fixed;z-index:5;pointer-events:none;
+  top:calc(12px + env(safe-area-inset-top, 0px));
+  left:calc(16px + env(safe-area-inset-left, 0px));
+  text-shadow:0 2px 12px rgba(0,0,0,.6);
+}
+.brand h1{margin:0;font:400 2rem/1 var(--font-display);letter-spacing:.02em;color:#ffe9d6;transform:rotate(-3deg);transform-origin:left center}
+.brand p{margin:4px 0 0;font-size:.74rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+.hint{
+  position:fixed;z-index:5;left:50%;transform:translateX(-50%);
+  bottom:calc(84px + env(safe-area-inset-bottom, 0px));
+  width:max-content;max-width:calc(100vw - 32px);
+  padding:8px 14px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  font-size:.85rem;font-weight:700;text-align:center;pointer-events:none;
+  transition:opacity .6s;
+}
+.hint.gone{opacity:0}
+
+.dock{
+  position:fixed;z-index:6;left:50%;transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+  display:flex;gap:2px;padding:5px;
+  background:var(--glass);border:1px solid var(--line);border-radius:999px;
+  -webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);
+}
+.dock button,.dock .home,.ghost{
+  width:44px;height:44px;border:0;border-radius:999px;background:transparent;
+  display:grid;place-items:center;cursor:pointer;color:var(--text);
+}
+.dock button:hover,.dock .home:hover{background:rgba(255,255,255,.07)}
+/* back to the Stim Lab homepage (a home-screen web app has no back button) */
+.dock .home{text-decoration:none}
+.dock .sep{width:1px;margin:10px 3px;background:var(--line)}
+@media (max-width:400px){ .dock button,.dock .home{width:39px} .dock .sep{margin:10px 1px} }
+.dock button[aria-pressed="true"],.dock button[aria-expanded="true"]{color:var(--accent)}
+.dock [hidden]{display:none}
+.dock svg,.ghost svg,.sheet svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ghost{
+  position:fixed;z-index:6;
+  right:calc(14px + env(safe-area-inset-right, 0px));
+  top:calc(14px + env(safe-area-inset-top, 0px));
+  background:var(--glass);border:1px solid var(--line);opacity:.4;
+}
+.ghost:hover{opacity:1}
+.ui-hidden .brand,.ui-hidden .dock,.ui-hidden .hint,.ui-hidden .sheet{opacity:0;pointer-events:none}
+
+/* The sheet: bottom sheet on phones, a floating side panel on wider screens */
+.sheet{
+  position:fixed;z-index:7;
+  left:calc(8px + env(safe-area-inset-left, 0px));right:calc(8px + env(safe-area-inset-right, 0px));
+  bottom:calc(70px + env(safe-area-inset-bottom, 0px));
+  max-height:min(58vh, 560px);display:flex;flex-direction:column;
+  background:var(--glass);border:1px solid var(--line);border-radius:22px;
+  -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);
+  box-shadow:0 18px 50px rgba(0,0,0,.45);
+  transform:translateY(16px);opacity:0;pointer-events:none;transition:transform .2s ease-out,opacity .2s;
+}
+.sheet.open{transform:none;opacity:1;pointer-events:auto}
+@media (min-width:760px){
+  .sheet{left:auto;right:calc(16px + env(safe-area-inset-right, 0px));top:calc(16px + env(safe-area-inset-top, 0px));bottom:calc(80px + env(safe-area-inset-bottom, 0px));width:360px;max-height:none}
+}
+.sheet-head{display:flex;align-items:center;gap:4px;padding:8px 8px 4px 10px}
+.tabs{display:flex;gap:4px;flex:1}
+.tabs button{border:0;background:transparent;padding:8px 12px;border-radius:999px;font-weight:800;font-size:.85rem;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected="true"]{background:rgba(255,255,255,.1);color:var(--text)}
+.sheet-head .x{width:38px;height:38px;border:0;border-radius:999px;background:transparent;display:grid;place-items:center;cursor:pointer}
+.sheet-body{overflow:auto;padding:4px 14px 16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.sheet-body section[hidden]{display:none}
+.sheet h3{margin:14px 0 6px;font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sheet h3:first-child{margin-top:6px}
+
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.preset{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:14px;padding:10px 12px;text-align:left;cursor:pointer}
+.preset b{display:block;font:400 1.15rem/1.1 var(--font-display);letter-spacing:.02em}
+.preset span{display:block;margin-top:3px;font-size:.76rem;color:var(--muted);line-height:1.3}
+.preset[aria-pressed="true"]{border-color:var(--accent);background:rgba(255,159,107,.12)}
+
+.row{display:grid;grid-template-columns:96px 1fr 52px;align-items:center;gap:8px;min-height:36px}
+.row label{font-weight:700;font-size:.84rem}
+.row output{font-variant-numeric:tabular-nums;font-size:.8rem;color:var(--muted);text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#ffe9d6;margin-top:-8px;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border:0;border-radius:50%;background:#ffe9d6}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px}
+.chips button{border:1px solid var(--line);background:rgba(255,255,255,.04);padding:7px 11px;border-radius:999px;font-weight:700;font-size:.8rem;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.notebar{display:flex;align-items:center;gap:8px;margin:4px 0 2px}
+.notebar .big{font:400 2rem/1 var(--font-display);min-width:72px;color:#ffe9d6}
+.notebar button{border:1px solid var(--line);background:rgba(255,255,255,.05);width:40px;height:36px;border-radius:12px;font-weight:800;cursor:pointer}
+.notebar .hz{color:var(--muted);font-size:.8rem;margin-left:auto}
+.small{color:var(--muted);font-size:.78rem;line-height:1.4;margin:6px 0 0}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.actions button{border:1px solid var(--line);background:rgba(255,255,255,.05);padding:9px 14px;border-radius:999px;font-weight:800;font-size:.82rem;cursor:pointer}
+
+@media (prefers-reduced-motion:reduce){ .hint,.sheet{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="Door stopper springs. Drag, flick or swipe across them to make them boing." role="img"></canvas>
+
+<div class="brand">
+  <h1>Boing</h1>
+  <p id="presetName">Classic</p>
+</div>
+
+<div class="hint" id="hint">Pull a spring and let go, or swipe across it</div>
+
+<button class="ghost" id="btnShow" aria-label="Show controls" title="Show controls (H)" hidden>
+  <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+</button>
+
+<div class="sheet" id="sheet" role="dialog" aria-label="Boing settings">
+  <div class="sheet-head">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-presets" aria-selected="true">Springs</button>
+      <button role="tab" id="tab-spring" aria-selected="false">Shape</button>
+      <button role="tab" id="tab-synth" aria-selected="false">Synth</button>
+    </div>
+    <button class="x" id="btnClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="sheet-body" id="sheetBody">
+    <section id="pane-presets"><div class="presets" id="presetList"></div>
+      <p class="small">Your tweaks are kept on this device. Picking a preset again resets it.</p></section>
+    <section id="pane-spring" hidden></section>
+    <section id="pane-synth" hidden></section>
+  </div>
+</div>
+
+<nav class="dock" aria-label="Boing">
+  <a class="home" href="./" aria-label="Back to Stim Lab" title="Stim Lab">
+    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+  </a>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="btnPresets" aria-expanded="false" aria-label="Springs and settings" title="Springs and settings">
+    <svg viewBox="0 0 24 24"><path d="M12 21v-2"/><path d="M8 18.5c0-1 8-1 8-2.5s-8-1-8-2.5 8-1 8-2.5-8-1-8-2.5 8-1 8-2.5"/><ellipse cx="12" cy="4.5" rx="3" ry="1.8"/><path d="M8 21h8"/></svg>
+  </button>
+  <button id="btnSynth" aria-expanded="false" aria-label="Synth" title="Synth">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v8M12 5v8M16 5v8M8 13v6M12 13v6M16 13v6"/></svg>
+  </button>
+  <button id="btnBoing" aria-label="Boing them all" title="Boing them all (Space)">
+    <svg viewBox="0 0 24 24"><path d="M4 14c2-6 4-6 5 0s3 6 5 0 3-6 5 0"/><path d="M3 4l2 2M21 4l-2 2M12 2v3"/></svg>
+  </button>
+  <button id="btnShake" hidden aria-pressed="false" aria-label="Shake to boing" title="Shake to boing">
+    <svg viewBox="0 0 24 24"><rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4 8v8M20 8v8M2 10v4M22 10v4"/></svg>
+  </button>
+  <button id="btnSound" aria-pressed="true" aria-label="Sound" title="Sound">
+    <svg viewBox="0 0 24 24" id="icoSound"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+  </button>
+  <button id="btnHide" aria-label="Hide controls" title="Hide controls (H)">
+    <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+  </button>
+</nav>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+<script>
+/* ------------------------------------------------------------------
+   Boing: door stopper springs that wobble and sing.
+
+   Physics: each spring is a cantilever. Its bend is the sum of the first
+   three cantilever vibration modes (each a damped oscillator), plus one
+   stretch mode along its length. The bend is applied as an angle along
+   the spring, so a big pull curls it instead of stretching it sideways.
+
+   Sound: every spring has its own synth voice, driven every frame by the
+   physics: loudness from how far it's swinging, a "wah" from how fast,
+   and a pitch that glides down as it settles. Everything about the voice
+   is tunable on the Synth tab.
+
+   Settings: PARAMS is the one table of sliders. Add an entry there and it
+   gets a slider, saving and preset support.
+   ------------------------------------------------------------------ */
+const $ = (s) => document.querySelector(s);
+const canvas = $('#stage');
+const ctx = canvas.getContext('2d', { alpha: false });
+const STORE = 'boing';
+
+/* ---------- settings ---------- */
+const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const noteName = (m) => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+// [key, label, min, max, step, default, tab, format]
+const PARAMS = [
+  ['count', 'Springs', 1, 12, 1, 1, 'spring', (v) => v],
+  ['length', 'Length', .35, 1.6, .01, 1, 'spring', (v) => Math.round(v * 100) + '%'],
+  ['coils', 'Coils', 8, 60, 1, 26, 'spring', (v) => v],
+  ['width', 'Coil width', .5, 2.2, .01, 1, 'spring', (v) => Math.round(v * 100) + '%'],
+  ['wire', 'Wire', .5, 2.5, .01, 1, 'spring', (v) => Math.round(v * 100) + '%'],
+  ['stiff', 'Stiffness', .3, 2.5, .01, 1, 'spring', (v) => Math.round(v * 100) + '%'],
+  ['wobble', 'Ring time', .3, 3, .01, 1, 'spring', (v) => Math.round(v * 100) + '%'],
+  ['stretch', 'Stretchy', 0, 2, .01, 1, 'spring', (v) => Math.round(v * 100) + '%'],
+  ['note', 'Note', 24, 96, 1, 53, 'synth', noteName],
+  ['fine', 'Fine tune', -50, 50, 1, 0, 'synth', (v) => (v > 0 ? '+' : '') + v + 'c'],
+  ['glide', 'Boing glide', 0, 2, .01, 1, 'synth', (v) => Math.round(v * 100) + '%'],
+  ['wah', 'Wah', 0, 2, .01, 1, 'synth', (v) => Math.round(v * 100) + '%'],
+  ['tone', 'Brightness', 0, 2, .01, 1, 'synth', (v) => Math.round(v * 100) + '%'],
+  ['reso', 'Resonance', .5, 16, .1, 4, 'synth', (v) => v.toFixed(1)],
+  ['vibrato', 'Vibrato', 0, 1, .01, 0, 'synth', (v) => Math.round(v * 100) + '%'],
+  ['click', 'Clack', 0, 1, .01, .5, 'synth', (v) => Math.round(v * 100) + '%'],
+  ['reverb', 'Spring verb', 0, 1, .01, .3, 'synth', (v) => Math.round(v * 100) + '%'],
+  ['volume', 'Volume', 0, 1, .01, .8, 'synth', (v) => Math.round(v * 100) + '%']
+];
+// Voices: lists of [ratio to the note, level, oscillator type]. Higher entries die away faster.
+// "Doorstop" is measured from a real baseboard door stopper: a 175 Hz ring with partials at about 1.5x and 1.9x.
+const WAVES = {
+  doorstop: { label: 'Doorstop', parts: [[1, 1, 'sine'], [1.5, .55, 'sine'], [1.88, .4, 'sine'], [5.05, .16, 'sine'], [6.9, .09, 'sine']] },
+  sine: { label: 'Sine', parts: [[1, 1, 'sine']] },
+  triangle: { label: 'Triangle', parts: [[1, 1, 'triangle']] },
+  saw: { label: 'Saw', parts: [[1, .55, 'sawtooth'], [1.005, .45, 'sawtooth']] },
+  square: { label: 'Square', parts: [[1, .6, 'square'], [.5, .3, 'sine']] },
+  bell: { label: 'Bell', parts: [[1, 1, 'sine'], [2.76, .5, 'sine'], [5.4, .28, 'sine'], [8.93, .14, 'sine']] },
+  wobble: { label: 'Wub', parts: [[1, .6, 'sawtooth'], [.5, .6, 'square'], [2, .2, 'sine']] },
+  organ: { label: 'Organ', parts: [[1, .7, 'sine'], [2, .45, 'sine'], [3, .3, 'sine'], [4, .2, 'sine'], [6, .12, 'sine']] }
+};
+const SCALES = {
+  majpent: { label: 'Major pentatonic', steps: [0, 2, 4, 7, 9] },
+  minpent: { label: 'Minor pentatonic', steps: [0, 3, 5, 7, 10] },
+  major: { label: 'Major', steps: [0, 2, 4, 5, 7, 9, 11] },
+  minor: { label: 'Minor', steps: [0, 2, 3, 5, 7, 8, 10] },
+  blues: { label: 'Blues', steps: [0, 3, 5, 6, 7, 10] },
+  whole: { label: 'Whole tone', steps: [0, 2, 4, 6, 8, 10] },
+  chromatic: { label: 'Chromatic', steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+  same: { label: 'All the same', steps: [0] }
+};
+const MATERIALS = { steel: 'Steel', brass: 'Brass', copper: 'Copper', candy: 'Candy', rainbow: 'Rainbow', neon: 'Neon', mix: 'Mixed' };
+const TIPS = { cap: 'Rubber cap', eyes: 'Googly eyes', ball: 'Bouncy ball', none: 'Bare', mix: 'Mixed' };
+const CHOICES = [
+  ['material', 'Material', MATERIALS, 'spring'], ['tip', 'Tip', TIPS, 'spring'],
+  ['wave', 'Voice', Object.fromEntries(Object.entries(WAVES).map(([k, v]) => [k, v.label])), 'synth'],
+  ['scale', 'Scale across springs', Object.fromEntries(Object.entries(SCALES).map(([k, v]) => [k, v.label])), 'synth']
+];
+const DEFAULTS = Object.fromEntries(PARAMS.map((p) => [p[0], p[5]]));
+Object.assign(DEFAULTS, { material: 'steel', tip: 'cap', wave: 'doorstop', scale: 'majpent' });
+
+const PRESETS = [
+  { id: 'classic', name: 'Classic', blurb: 'The one behind your door', set: {} },
+  { id: 'googly', name: 'Googly', blurb: 'Now with eyes', set: { tip: 'eyes', stiff: .8, wobble: 1.3, note: 55, glide: 1.2 } },
+  { id: 'noodle', name: 'Noodle', blurb: 'Long, floppy, rainbow', set: { material: 'rainbow', tip: 'eyes', length: 1.55, coils: 52, width: .9, stiff: .4, wobble: 1.7, stretch: 1.6, note: 41, wave: 'triangle', glide: 1.7, wah: 1.3 } },
+  { id: 'dinky', name: 'Dinky', blurb: 'Tiny, stiff and high', set: { material: 'brass', length: .45, coils: 14, width: .85, stiff: 2.2, note: 76, wave: 'bell', glide: .5, wobble: 1.4 } },
+  { id: 'bass', name: 'Bwoing Bass', blurb: 'Fat copper, low saw', set: { material: 'copper', tip: 'ball', width: 1.9, wire: 2.1, coils: 15, stiff: .7, note: 31, wave: 'saw', wah: 1.6, reso: 9, tone: .7, glide: 1.4 } },
+  { id: 'neon', name: 'Neon', blurb: 'Glowing trails, square wave', set: { material: 'neon', tip: 'ball', count: 3, note: 57, wave: 'square', reverb: .6, wah: 1.4, reso: 7, stiff: .9, scale: 'minpent' } },
+  { id: 'harp', name: 'Spring Harp', blurb: 'Seven tuned springs to strum', set: { count: 7, material: 'candy', note: 48, wave: 'doorstop', scale: 'majpent', glide: .6, wobble: 1.4 } },
+  { id: 'jelly', name: 'Jelly', blurb: 'Super stretchy and gooey', set: { material: 'candy', tip: 'eyes', stretch: 2, stiff: .5, wobble: .8, width: 1.4, coils: 20, glide: 2, wave: 'sine', note: 45, vibrato: .35 } },
+  { id: 'wub', name: 'Wub Garden', blurb: 'Twelve springs, wobble bass', set: { count: 12, material: 'mix', tip: 'mix', note: 36, wave: 'wobble', scale: 'minpent', wah: 2, reso: 10, reverb: .45 } }
+];
+
+let S = { ...DEFAULTS, preset: 'classic', sound: true };
+try { const saved = JSON.parse(localStorage.getItem(STORE) || 'null'); if (saved) S = { ...S, ...saved }; } catch (e) {}
+let saveTimer = 0;
+function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }, 250); }
+
+/* ---------- cantilever mode shapes ---------- */
+const N = 40;                     // segments along each spring
+const BL = [1.8751, 4.6941, 7.8548], SG = [.7341, 1.0185, .9992];
+const MODE_RATIO = [1, 4.4, 10.5];  // squeezed from the real 1 : 6.3 : 17.5 so the wiggles stay visible
+function phi(k, x){ const b = BL[k] * x; return Math.cosh(b) - Math.cos(b) - SG[k] * (Math.sinh(b) - Math.sin(b)); }
+// slope of each mode at each segment's middle, with the tip deflection normalized to 1
+const SLOPE = [0, 1, 2].map((k) => {
+  const a = new Float32Array(N), tip = phi(k, 1), hh = 1e-4;
+  for (let i = 0; i < N; i++){ const s = (i + .5) / N; a[i] = (phi(k, s + hh) - phi(k, s - hh)) / (2 * hh) / tip; }
+  return a;
+});
+
+/* ---------- the springs ---------- */
+let W = 0, H = 0, DPR = 1, floorY = 0, springs = [];
+const hash = (i, salt) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
+
+function makeSpring(){
+  return {
+    q: [0, 0, 0], v: [0, 0, 0], e: 0, ev: 0,
+    grab: null, hist: [], x: new Float32Array(N + 1), y: new Float32Array(N + 1), a: new Float32Array(N),
+    tip: [0, 0], tipP: [0, 0], tipPP: [0, 0], pupils: [[0, .4, 0, 0], [0, .4, 0, 0]],
+    voice: null, quiet: 0, cool: 0
+  };
+}
+function layout(){
+  const n = S.count | 0;
+  while (springs.length < n) springs.push(makeSpring());
+  while (springs.length > n){ const sp = springs.pop(); killVoice(sp); }
+  const steps = SCALES[S.scale].steps;
+  const room = floorY - (70 + safeTop());
+  const baseLen = Math.max(80, room * .62);
+  const spacing = n > 1 ? Math.min(W / (n + .6), 150) : W;
+  const x0 = W / 2 - spacing * (n - 1) / 2;
+  const mats = Object.keys(MATERIALS).filter((m) => m !== 'mix'), tips = ['cap', 'eyes', 'ball', 'cap'];
+  springs.forEach((sp, i) => {
+    sp.semi = n > 1 ? steps[i % steps.length] + 12 * Math.floor(i / steps.length) : 0;
+    // higher notes get shorter springs, like a xylophone
+    sp.lf = n > 1 ? Math.pow(2, -sp.semi / 34) : 1;
+    sp.bx = x0 + i * spacing; sp.by = floorY - 4;
+    sp.L = Math.min(baseLen * S.length * sp.lf, room);
+    sp.R = Math.max(4, Math.min(baseLen * .062 * S.width, spacing * .3));
+    sp.lw = Math.max(1, Math.min(sp.R * .2 * S.wire, 14));
+    sp.mat = S.material === 'mix' ? mats[Math.floor(hash(i, 1) * mats.length)] : S.material;
+    sp.tipKind = S.tip === 'mix' ? tips[Math.floor(hash(i, 2) * tips.length)] : S.tip;
+    sp.ballHue = Math.floor(hash(i, 3) * 360);
+    const f1 = Math.max(.4, Math.min(14, 3.4 * S.stiff / Math.pow(S.length * sp.lf, 1.3)));
+    sp.w = MODE_RATIO.map((r) => 2 * Math.PI * f1 * r);
+    sp.z = [.012, .03, .06].map((z) => z / S.wobble);
+    sp.wa = sp.w[0] * 2.6; sp.za = .05 / S.wobble;
+    sp.maxE = .12 + .45 * S.stretch;
+    shape(sp);
+  });
+}
+function safeTop(){ return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0; }
+
+// Lay the spring's backbone out from its base, bending by the sum of its modes.
+function shape(sp){
+  const ds = sp.L * (1 + sp.e) / N, q = sp.q;
+  let x = sp.bx, y = sp.by - sp.R * .9;
+  sp.x[0] = x; sp.y[0] = y;
+  for (let i = 0; i < N; i++){
+    let th = q[0] * SLOPE[0][i] + q[1] * SLOPE[1][i] + q[2] * SLOPE[2][i];
+    th = th > 2.7 ? 2.7 : th < -2.7 ? -2.7 : th;
+    sp.a[i] = th; x += ds * Math.sin(th); y -= ds * Math.cos(th);
+    sp.x[i + 1] = x; sp.y[i + 1] = y;
+  }
+}
+// Where point g sits for a pure first-mode bend q (unstretched), relative to the base.
+function pointAt(sp, q, g){
+  const ds = sp.L / N; let x = 0, y = 0;
+  for (let i = 0; i < g; i++){
+    let th = q * SLOPE[0][i]; th = th > 2.7 ? 2.7 : th < -2.7 ? -2.7 : th;
+    x += ds * Math.sin(th); y -= ds * Math.cos(th);
+  }
+  return [x, y];
+}
+// Bend and stretch the spring so its grabbed point lands under the finger.
+function dragTo(sp, fx, fy){
+  const g = sp.grab.g, bx = sp.bx, by = sp.by - sp.R * .9;
+  const target = Math.atan2(fx - bx, by - fy);
+  const ang = (q) => { const p = pointAt(sp, q, g); return Math.atan2(p[0], -p[1]); };
+  let lo = -1.8, hi = 1.8, q;
+  if (target >= ang(hi)) q = hi; else if (target <= ang(lo)) q = lo;
+  else { for (let k = 0; k < 22; k++){ const m = (lo + hi) / 2; if (ang(m) < target) lo = m; else hi = m; } q = (lo + hi) / 2; }
+  const p = pointAt(sp, q, g), chord = Math.hypot(p[0], p[1]) || 1;
+  const raw = Math.hypot(fx - bx, fy - by) / chord - 1;
+  const e = raw > 0 ? sp.maxE * Math.tanh(raw / sp.maxE) : -.45 * Math.tanh(-raw / .45);
+  sp.q[0] = q; sp.e = e;
+}
+
+/* ---------- physics ---------- */
+const shake = { on: false, ax: 0, ay: 0 };
+function step(sp, dt){
+  if (sp.grab){
+    const now = performance.now();
+    dragTo(sp, sp.grab.x, sp.grab.y);
+    sp.hist.push([now, sp.q[0], sp.e]);
+    while (sp.hist.length > 2 && now - sp.hist[0][0] > 90) sp.hist.shift();
+    const h0 = sp.hist[0], dtH = Math.max(.008, (now - h0[0]) / 1000);
+    sp.v[0] = (sp.q[0] - h0[1]) / dtH; sp.ev = (sp.e - h0[2]) / dtH;
+    for (let k = 1; k < 3; k++){ sp.q[k] *= .8; sp.v[k] *= .8; }
+    return;
+  }
+  const F = shake.on ? -shake.ax * 2600 / sp.L : 0, Fa = shake.on ? shake.ay * 300 / sp.L : 0;
+  const sub = Math.max(1, Math.ceil(dt * sp.w[2] / .45)), h = dt / sub;
+  const q = sp.q, v = sp.v, w = sp.w, z = sp.z;
+  for (let s = 0; s < sub; s++){
+    v[0] += (-w[0] * w[0] * q[0] - 2 * z[0] * w[0] * v[0] + F) * h;
+    v[1] += (-w[1] * w[1] * q[1] - 2 * z[1] * w[1] * v[1] - F * .5) * h;
+    v[2] += (-w[2] * w[2] * q[2] - 2 * z[2] * w[2] * v[2] + F * .25) * h;
+    sp.ev += (-sp.wa * sp.wa * sp.e - 2 * sp.za * sp.wa * sp.ev + Fa) * h;
+    for (let k = 0; k < 3; k++) q[k] += v[k] * h;
+    sp.e += sp.ev * h;
+  }
+  for (let k = 0; k < 3; k++){ if (q[k] > 1.9){ q[k] = 1.9; v[k] *= -.3; } if (q[k] < -1.9){ q[k] = -1.9; v[k] *= -.3; } }
+  if (sp.e > sp.maxE * 1.4){ sp.e = sp.maxE * 1.4; sp.ev *= -.3; }
+  if (sp.e < -.5){ sp.e = -.5; sp.ev *= -.3; }
+}
+function kick(sp, dir, strength, at){
+  const s = Math.min(1.6, strength);
+  sp.v[0] += dir * s * sp.w[0] * .9;
+  sp.v[1] += -dir * s * sp.w[1] * .06 * (1 - (at ?? 1) * .6);
+  sp.ev += s * sp.wa * .02 * (Math.random() - .3);
+  clack(sp, Math.min(1, s));
+  dismissHint();
+}
+function release(sp){
+  const vMax = sp.w[0] * 1.8;
+  sp.v[0] = Math.max(-vMax, Math.min(vMax, sp.v[0]));
+  sp.ev = Math.max(-sp.wa * .5, Math.min(sp.wa * .5, sp.ev));
+  // a point pull isn't a pure first mode: the leftover shows up as the higher wiggles
+  const lever = 1 - sp.grab.g / N;
+  sp.q[1] = -.3 * sp.q[0] * lever; sp.q[2] = .1 * sp.q[0] * lever;
+  const strength = Math.abs(sp.q[0]) * .9 + Math.abs(sp.v[0]) / sp.w[0] * .4 + Math.abs(sp.e) * 1.5;
+  if (strength > .05){ clack(sp, Math.min(1, strength)); dismissHint(); }
+  sp.grab = null; sp.hist = [];
+}
+
+/* ---------- input ---------- */
+const pointers = new Map();
+function nearest(px, py){
+  let best = null, bd = Infinity;
+  for (const sp of springs){
+    for (let i = 0; i <= N; i++){
+      const d = Math.hypot(sp.x[i] - px, sp.y[i] - py);
+      if (d < bd){ bd = d; best = { sp, i }; }
+    }
+    const tipD = Math.hypot(sp.tip[0] - px, sp.tip[1] - py);
+    if (tipD < bd){ bd = tipD; best = { sp, i: N }; }
+  }
+  if (!best) return null;
+  return bd < best.sp.R + 26 + (best.i === N ? 14 : 0) ? best : null;
+}
+canvas.addEventListener('pointerdown', (ev) => {
+  unlockAudio();
+  canvas.setPointerCapture && canvas.setPointerCapture(ev.pointerId);
+  const p = { x: ev.clientX, y: ev.clientY, px: ev.clientX, py: ev.clientY, t: performance.now(), sx: ev.clientX, sy: ev.clientY, sp: null };
+  const hit = nearest(ev.clientX, ev.clientY);
+  if (hit && !hit.sp.grab){
+    p.sp = hit.sp;
+    hit.sp.grab = { g: Math.max(Math.round(N * .3), hit.i), x: ev.clientX, y: ev.clientY, id: ev.pointerId };
+    hit.sp.hist = [];
+    canvas.classList.add('grabbing');
+  }
+  pointers.set(ev.pointerId, p);
+});
+canvas.addEventListener('pointermove', (ev) => {
+  const p = pointers.get(ev.pointerId);
+  if (!p) return;
+  const now = performance.now(), dt = Math.max(.008, (now - p.t) / 1000);
+  p.px = p.x; p.py = p.y; p.x = ev.clientX; p.y = ev.clientY; p.t = now;
+  if (p.sp){ p.sp.grab.x = p.x; p.sp.grab.y = p.y; return; }
+  // strumming: a finger swiping across a spring flicks it in the swipe's direction
+  for (const sp of springs){
+    if (sp.grab || now < sp.cool) continue;
+    for (let i = 2; i < N; i += 2){
+      if (crosses(p.px, p.py, p.x, p.y, sp.x[i], sp.y[i], sp.x[i + 2], sp.y[i + 2])){
+        const vx = (p.x - p.px) / dt;
+        kick(sp, Math.sign(vx) || 1, Math.min(1.4, Math.abs(vx) / 900 + .25), i / N);
+        sp.cool = now + 110;
+        break;
+      }
+    }
+  }
+});
+function endPointer(ev){
+  const p = pointers.get(ev.pointerId);
+  if (!p) return;
+  pointers.delete(ev.pointerId);
+  if (p.sp){
+    const sp = p.sp;
+    const tap = performance.now() - p.t < 260 && Math.hypot(p.x - p.sx, p.y - p.sy) < 8 && Math.abs(sp.q[0]) < .08;
+    const g = sp.grab.g;
+    release(sp);
+    // a tap is a flick away from the side you tapped
+    if (tap) kick(sp, p.sx < sp.x[g] ? 1 : -1, .7, g / N);
+  }
+  if (![...pointers.values()].some((q) => q.sp)) canvas.classList.remove('grabbing');
+  if (shakeWanted && !shake.on) enableShake();
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+function crosses(ax, ay, bx, by, cx, cy, dx, dy){
+  const d = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
+  if (Math.abs(d) < 1e-9) return false;
+  const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / d, u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / d;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+function boingAll(){
+  unlockAudio();
+  springs.forEach((sp, i) => setTimeout(() => { if (!sp.grab) kick(sp, Math.random() < .5 ? -1 : 1, .7 + Math.random() * .6, 1); }, i * 55));
+}
+
+/* ---------- shake (device motion) ---------- */
+let shakeWanted = false;
+const hasMotion = 'DeviceMotionEvent' in window && matchMedia('(pointer:coarse)').matches;
+function onMotion(e){
+  const a = e.acceleration;
+  if (!a || a.x == null) return;
+  const ang = ((screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0) * Math.PI / 180;
+  const sx = a.x * Math.cos(ang) - a.y * Math.sin(ang), sy = a.x * Math.sin(ang) + a.y * Math.cos(ang);
+  shake.ax += (sx - shake.ax) * .5; shake.ay += (sy - shake.ay) * .5;
+}
+function enableShake(){
+  const go = () => { shake.on = true; addEventListener('devicemotion', onMotion); setShakeBtn(); };
+  if (typeof DeviceMotionEvent.requestPermission === 'function'){
+    DeviceMotionEvent.requestPermission().then((r) => { if (r === 'granted') go(); }).catch(() => {});
+  } else go();
+}
+function setShakeBtn(){ $('#btnShake').setAttribute('aria-pressed', String(shakeWanted)); }
+if (hasMotion){
+  $('#btnShake').hidden = false;
+  shakeWanted = !!S.shake; setShakeBtn();
+  $('#btnShake').addEventListener('click', () => {
+    shakeWanted = !shakeWanted; S.shake = shakeWanted; save();
+    if (shakeWanted) enableShake(); else { shake.on = false; shake.ax = shake.ay = 0; removeEventListener('devicemotion', onMotion); }
+    setShakeBtn();
+  });
+}
+
+/* ---------- audio ---------- */
+let AC = null, master = null, verbSend = null, noiseBuf = null;
+function unlockAudio(){
+  if (!S.sound) return;
+  if (!AC){
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return;
+    // Play through the ringer switch on iPhone, like a music app.
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    AC = new C();
+    const comp = AC.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = .004; comp.release.value = .2;
+    comp.connect(AC.destination);
+    master = AC.createGain(); master.gain.value = S.volume; master.connect(comp);
+    const conv = AC.createConvolver(); conv.buffer = springVerb(AC);
+    verbSend = AC.createGain(); verbSend.gain.value = S.reverb * 1.6;
+    master.connect(verbSend); verbSend.connect(conv); conv.connect(comp);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * .2 | 0, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  if (AC.state !== 'running') AC.resume().catch(() => {});
+}
+// A spring reverb's impulse: echoes every few tens of milliseconds, each one a falling chirp
+// (high frequencies run faster down a spring), which is where its "boyoyoing" comes from.
+function springVerb(ac){
+  const sr = ac.sampleRate, len = sr * 1.8 | 0, buf = ac.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++){
+    const d = buf.getChannelData(ch), T = ch ? .0371 : .0313, cl = sr * .028 | 0;
+    for (let k = 0; ; k++){
+      const t0 = k * T + (k ? .004 * Math.sin(k * 7.3 + ch) : 0);
+      if (t0 > 1.7) break;
+      const amp = Math.exp(-t0 * 2.8) * (k % 2 ? -1 : 1), s0 = t0 * sr | 0;
+      let ph = 0;
+      for (let j = 0; j < cl && s0 + j < len; j++){
+        const u = j / cl, f = 4200 * Math.pow(160 / 4200, u);
+        ph += 2 * Math.PI * f / sr;
+        d[s0 + j] += amp * Math.sin(ph) * Math.sin(Math.PI * u) * .5;
+      }
+    }
+    for (let i = 0; i < len; i++) d[i] += (Math.random() * 2 - 1) * .015 * Math.exp(-i / sr * 3);
+  }
+  return buf;
+}
+function noteOf(sp){ return S.note + sp.semi + S.fine / 100; }
+function makeVoice(sp){
+  const v = { oscs: [], gains: [], parts: WAVES[S.wave].parts, wave: S.wave };
+  v.sum = AC.createGain();
+  v.filt = AC.createBiquadFilter(); v.filt.type = 'lowpass'; v.filt.Q.value = S.reso;
+  v.out = AC.createGain(); v.out.gain.value = 0;
+  v.sum.connect(v.filt); v.filt.connect(v.out);
+  if (AC.createStereoPanner){ v.pan = AC.createStereoPanner(); v.pan.pan.value = Math.max(-.8, Math.min(.8, (sp.bx / W - .5) * 1.6)); v.out.connect(v.pan); v.pan.connect(master); }
+  else v.out.connect(master);
+  const f = midiHz(noteOf(sp));
+  v.parts.forEach(([r, g, type]) => {
+    const o = AC.createOscillator(); o.type = type; o.frequency.value = f * r;
+    const gg = AC.createGain(); gg.gain.value = 0;
+    o.connect(gg); gg.connect(v.sum); o.start();
+    v.oscs.push(o); v.gains.push(gg);
+  });
+  return v;
+}
+function killVoice(sp){
+  const v = sp.voice; if (!v) return;
+  sp.voice = null;
+  const t = AC.currentTime;
+  v.out.gain.setTargetAtTime(0, t, .02);
+  v.oscs.forEach((o) => { try { o.stop(t + .15); } catch (e) {} });
+  setTimeout(() => { try { (v.pan || v.out).disconnect(); } catch (e) {} }, 300);
+}
+// The strike: a short bright clack (the real one sits around 3 kHz).
+function clack(sp, s){
+  if (!AC || !S.sound || AC.state !== 'running' || S.click <= 0) return;
+  const t = AC.currentTime;
+  const src = AC.createBufferSource(); src.buffer = noiseBuf;
+  const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2600 + 900 * Math.random(); bp.Q.value = 2.2;
+  const g = AC.createGain(); g.gain.setValueAtTime(S.click * s * .9, t); g.gain.exponentialRampToValueAtTime(.0005, t + .07);
+  src.connect(bp); bp.connect(g); g.connect(master);
+  src.start(t); src.stop(t + .1);
+}
+let vibPh = 0;
+function voiceFrame(sp, dt){
+  if (!AC || AC.state !== 'running') return;
+  const A = Math.hypot(sp.q[0], sp.v[0] / sp.w[0]), A2 = Math.hypot(sp.q[1], sp.v[1] / sp.w[1]);
+  const speed = Math.abs(sp.v[0]) / sp.w[0];
+  const held = !!sp.grab;
+  const loud = !held && S.sound && (A > .004 || A2 > .004);
+  if (!loud){
+    if (sp.voice){ sp.quiet += dt; sp.voice.out.gain.setTargetAtTime(0, AC.currentTime, .03); if (sp.quiet > 1.2) killVoice(sp); }
+    return;
+  }
+  sp.quiet = 0;
+  if (sp.voice && sp.voice.wave !== S.wave) killVoice(sp);
+  if (!sp.voice) sp.voice = makeVoice(sp);
+  const v = sp.voice, t = AC.currentTime, tc = .012;
+  const env = Math.min(1, A * 1.7 + A2 * .8);
+  // "wah wah": loudest and brightest as the spring whips through the middle of each swing
+  const wob = speed / (A + 1e-4), wahMix = Math.min(1, S.wah * .6);
+  const level = env * (1 - wahMix + wahMix * (.35 + .65 * wob));
+  const vib = 1 + S.vibrato * .012 * Math.sin(vibPh * 2 * Math.PI * 5.5);
+  const f = midiHz(noteOf(sp)) * (1 + .28 * S.glide * Math.min(A, 1.6)) * (1 + .04 * S.glide * sp.v[0] / sp.w[0]) * (1 + .05 * sp.e) * vib;
+  v.parts.forEach(([r, g], k) => {
+    v.oscs[k].frequency.setTargetAtTime(f * r, t, tc);
+    const fade = r > 1.2 ? Math.pow(env, 1 + k * .5) : env; // overtones die away first
+    v.gains[k].gain.setTargetAtTime(g * fade, t, tc);
+  });
+  const cut = f * (1.2 + S.tone * 2.5 + S.wah * 7 * speed + 5 * A2);
+  v.filt.frequency.setTargetAtTime(Math.min(18000, cut), t, tc);
+  v.filt.Q.setTargetAtTime(S.reso, t, .05);
+  v.out.gain.setTargetAtTime(level * .5, t, tc);
+}
+
+/* ---------- drawing ---------- */
+let bg = null, trails = false;
+function buildBackground(){
+  bg = document.createElement('canvas');
+  bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+  const b = bg.getContext('2d'); b.scale(DPR, DPR);
+  const wall = b.createLinearGradient(0, 0, 0, floorY);
+  wall.addColorStop(0, '#0b0915'); wall.addColorStop(1, '#17132a');
+  b.fillStyle = wall; b.fillRect(0, 0, W, floorY);
+  // a soft lamp glow behind the springs
+  const g = b.createRadialGradient(W / 2, floorY - H * .18, 10, W / 2, floorY - H * .18, Math.max(W, H) * .6);
+  g.addColorStop(0, 'rgba(255,190,140,.10)'); g.addColorStop(1, 'rgba(255,190,140,0)');
+  b.fillStyle = g; b.fillRect(0, 0, W, floorY);
+  // baseboard
+  const bbH = Math.min(46, H * .05);
+  b.fillStyle = '#211c33'; b.fillRect(0, floorY - bbH, W, bbH);
+  b.fillStyle = 'rgba(255,255,255,.07)'; b.fillRect(0, floorY - bbH, W, 2);
+  b.fillStyle = 'rgba(0,0,0,.3)'; b.fillRect(0, floorY - 3, W, 3);
+  // floorboards
+  const fl = b.createLinearGradient(0, floorY, 0, H);
+  fl.addColorStop(0, '#2a1c1a'); fl.addColorStop(1, '#120c0d');
+  b.fillStyle = fl; b.fillRect(0, floorY, W, H - floorY);
+  b.strokeStyle = 'rgba(0,0,0,.28)'; b.lineWidth = 1;
+  for (let k = 1; k < 9; k++){
+    const yy = floorY + (H - floorY) * Math.pow(k / 9, 1.6);
+    b.beginPath(); b.moveTo(0, yy); b.lineTo(W, yy); b.stroke();
+  }
+  for (let k = 0; k < 16; k++){
+    const xx = W / 2 + (k - 7.5) * W * .14;
+    b.beginPath(); b.moveTo(W / 2 + (xx - W / 2) * .55, floorY); b.lineTo(xx + (xx - W / 2) * .9, H); b.stroke();
+  }
+}
+
+const MAT = {
+  steel: (c, u, sp) => ['#c9d1de', '#4c5463', 'rgba(255,255,255,.9)'],
+  brass: () => ['#e5b54f', '#6e4f17', 'rgba(255,244,205,.95)'],
+  copper: () => ['#e58c5c', '#6b2f1d', 'rgba(255,222,200,.95)'],
+  candy: (c) => (c % 2 ? ['#fff3ee', '#8b6f78', 'rgba(255,255,255,.95)'] : ['#ff4d6d', '#7a1b2e', 'rgba(255,215,222,.95)']),
+  rainbow: (c, u, sp, t) => { const hh = (u * 320 + t * 50) % 360; return ['hsl(' + hh + ',85%,64%)', 'hsl(' + hh + ',60%,26%)', 'hsla(' + hh + ',100%,92%,.95)']; },
+  neon: (c, u, sp, t) => { const hh = (190 + Math.min(1, Math.abs(sp.v[0]) / sp.w[0]) * 140 + u * 40) % 360; return ['hsl(' + hh + ',100%,62%)', 'hsl(' + hh + ',90%,30%)', 'hsla(' + hh + ',100%,92%,.95)']; }
+};
+
+// The coil: a helix wound around the bent backbone, back halves drawn first and darker,
+// seen a little from above so each turn reads as a loop.
+function coilPoint(sp, s, ph){
+  const fi = Math.min(N - 1e-3, s * N), i = Math.floor(fi), f = fi - i;
+  const x = sp.x[i] + (sp.x[i + 1] - sp.x[i]) * f, y = sp.y[i] + (sp.y[i + 1] - sp.y[i]) * f;
+  const th = sp.a[Math.min(N - 1, i)];
+  const tx = Math.sin(th), ty = -Math.cos(th), nx = Math.cos(th), ny = Math.sin(th);
+  const o = sp.R * Math.sin(ph), dz = sp.R * .24 * Math.cos(ph);
+  return [x + nx * o - tx * dz, y + ny * o - ty * dz];
+}
+function drawSpring(sp, t, glow){
+  const coils = S.coils, mat = MAT[sp.mat] || MAT.steel;
+  const halfPath = (c, front) => {
+    ctx.beginPath();
+    const a0 = 2 * Math.PI * c + (front ? -Math.PI / 2 : Math.PI / 2);
+    for (let j = 0; j <= 8; j++){
+      const ph = a0 + Math.PI * j / 8, s = Math.min(1, Math.max(0, ph / (2 * Math.PI * coils)));
+      const p = coilPoint(sp, .015 + s * .97, ph);
+      j ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]);
+    }
+  };
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (sp.mat === 'neon' && glow){
+    ctx.globalCompositeOperation = 'lighter';
+    for (let c = 0; c < coils; c++){
+      const col = mat(c, c / coils, sp, t);
+      halfPath(c, true); ctx.strokeStyle = col[0]; ctx.globalAlpha = .13; ctx.lineWidth = sp.lw * 5; ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+  for (let c = 0; c < coils; c++){
+    const col = mat(c, c / coils, sp, t);
+    halfPath(c, false); ctx.strokeStyle = col[1]; ctx.lineWidth = sp.lw * .9; ctx.stroke();
+  }
+  for (let c = 0; c < coils; c++){
+    const col = mat(c, c / coils, sp, t);
+    halfPath(c, true); ctx.strokeStyle = col[0]; ctx.lineWidth = sp.lw; ctx.stroke();
+    if (sp.lw > 1.6){ ctx.strokeStyle = col[2]; ctx.lineWidth = sp.lw * .3; ctx.stroke(); }
+  }
+}
+function drawBase(sp){
+  const R = sp.R, x = sp.bx, y = sp.by;
+  // floor plate and collar, chrome
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(x, y + 3, R * 2.1, R * .45 + 2, 0, 0, 7); ctx.fill();
+  const g = ctx.createLinearGradient(x - R * 1.3, 0, x + R * 1.3, 0);
+  g.addColorStop(0, '#6c7280'); g.addColorStop(.35, '#eef1f6'); g.addColorStop(.6, '#9aa1ad'); g.addColorStop(1, '#4b505b');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(x, y, R * 1.7, R * .38 + 1.5, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - R * 1.05, y - R * 1.15, R * 2.1, R * 1.15, [R * .3, R * .3, 0, 0]) : ctx.rect(x - R * 1.05, y - R * 1.15, R * 2.1, R * 1.15); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x - R * .55, y - R * 1.05, R * .18, R);
+}
+function drawTip(sp, t){
+  const th = sp.a[N - 1], x = sp.x[N], y = sp.y[N], R = sp.R;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(th);
+  if (sp.tipKind === 'cap' || sp.tipKind === 'eyes'){
+    const w = R * (sp.tipKind === 'eyes' ? 1.6 : 1.3), hgt = R * (sp.tipKind === 'eyes' ? 2.6 : 1.9);
+    const g = ctx.createLinearGradient(-w, 0, w, 0);
+    g.addColorStop(0, '#b9b1a3'); g.addColorStop(.35, '#fbf8f1'); g.addColorStop(1, '#a39b8e');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(-w, R * .3); ctx.lineTo(-w, -hgt + w); ctx.arc(0, -hgt + w, w, Math.PI, 0); ctx.lineTo(w, R * .3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(-w, R * .05, w * 2, R * .25);
+  } else if (sp.tipKind === 'ball'){
+    const r = R * 1.55, hue = sp.mat === 'neon' ? 300 : sp.ballHue;
+    const g = ctx.createRadialGradient(-r * .35, -r * 1.35, r * .1, 0, -r, r);
+    g.addColorStop(0, 'hsl(' + hue + ',100%,88%)'); g.addColorStop(.45, 'hsl(' + hue + ',90%,60%)'); g.addColorStop(1, 'hsl(' + hue + ',70%,30%)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -r * .9, r, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+  if (sp.tipKind === 'eyes') drawEyes(sp, th, x, y);
+}
+function drawEyes(sp, th, x, y){
+  const R = sp.R, er = Math.max(4, R * .78), pr = er * .5;
+  const c = Math.cos(th), s = Math.sin(th);
+  [-1, 1].forEach((side, k) => {
+    const lx = side * R * .72, ly = -R * 1.55;
+    const ex = x + lx * c - ly * s, ey = y + lx * s + ly * c;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, er, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1; ctx.stroke();
+    const p = sp.pupils[k], m = 1 - pr / er;
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(ex + p[0] * er * m, ey + p[1] * er * m, pr, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(ex + p[0] * er * m - pr * .35, ey + p[1] * er * m - pr * .35, pr * .25, 0, 7); ctx.fill();
+  });
+}
+// Googly pupils: they fall to the bottom of the eye and slosh around when the tip swings.
+function stepPupils(sp, dt){
+  const ax = (sp.tip[0] - 2 * sp.tipP[0] + sp.tipPP[0]) / (dt * dt), ay = (sp.tip[1] - 2 * sp.tipP[1] + sp.tipPP[1]) / (dt * dt);
+  const er = Math.max(4, sp.R * .78);
+  sp.pupils.forEach((p, k) => {
+    p[2] += -ax / er * .012 * (1 + k * .15) * dt;
+    p[3] += (-ay / er * .012 * (1 + k * .15) + 40) * dt;
+    p[2] *= Math.pow(.2, dt); p[3] *= Math.pow(.2, dt);
+    p[0] += p[2] * dt; p[1] += p[3] * dt;
+    const d = Math.hypot(p[0], p[1]);
+    if (d > 1){ p[0] /= d; p[1] /= d; const vn = (p[2] * p[0] + p[3] * p[1]); if (vn > 0){ p[2] -= 1.5 * vn * p[0]; p[3] -= 1.5 * vn * p[1]; } }
+  });
+}
+
+function draw(t){
+  trails = springs.some((sp) => sp.mat === 'neon');
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = trails ? .32 : 1;
+  ctx.drawImage(bg, 0, 0, W, H);
+  ctx.globalAlpha = 1;
+  // reflections in the glossy floor
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, floorY, W, H - floorY); ctx.clip();
+  ctx.translate(0, 2 * floorY); ctx.scale(1, -1);
+  ctx.globalAlpha = .14;
+  for (const sp of springs){ drawSpring(sp, t, false); drawTip(sp, t); }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  for (const sp of springs){ drawBase(sp); drawSpring(sp, t, true); drawTip(sp, t); }
+}
+
+/* ---------- loop ---------- */
+let last = 0;
+function frame(now){
+  const dt = Math.min(.04, last ? (now - last) / 1000 : 1 / 60);
+  last = now; vibPh += dt;
+  for (const sp of springs){
+    step(sp, dt); shape(sp);
+    sp.tipPP[0] = sp.tipP[0]; sp.tipPP[1] = sp.tipP[1]; sp.tipP[0] = sp.tip[0]; sp.tipP[1] = sp.tip[1];
+    sp.tip[0] = sp.x[N]; sp.tip[1] = sp.y[N];
+    stepPupils(sp, dt);
+    voiceFrame(sp, dt);
+  }
+  draw(now / 1000);
+  requestAnimationFrame(frame);
+}
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  const sab = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sab')) || 0;
+  floorY = Math.round(H - Math.max(110 + sab, H * .2));
+  buildBackground();
+  layout();
+  springs.forEach((sp) => { sp.tip[0] = sp.tipP[0] = sp.tipPP[0] = sp.x[N]; sp.tip[1] = sp.tipP[1] = sp.tipPP[1] = sp.y[N]; });
+}
+document.documentElement.style.setProperty('--sat', 'env(safe-area-inset-top, 0px)');
+// read the safe areas through a probe, since custom properties don't resolve env() on their own
+(() => {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+  document.body.appendChild(probe);
+  const read = () => {
+    const cs = getComputedStyle(probe);
+    document.documentElement.style.setProperty('--sat', cs.paddingTop);
+    document.documentElement.style.setProperty('--sab', cs.paddingBottom);
+  };
+  read(); addEventListener('resize', read);
+})();
+addEventListener('resize', resize);
+
+/* ---------- UI ---------- */
+const sheet = $('#sheet');
+let tab = 'presets';
+function showTab(name){
+  tab = name;
+  ['presets', 'spring', 'synth'].forEach((n) => { $('#tab-' + n).setAttribute('aria-selected', String(n === name)); $('#pane-' + n).hidden = n !== name; });
+  $('#sheetBody').scrollTop = 0;
+  syncDockExpanded();
+}
+function openSheet(name){ showTab(name); sheet.classList.add('open'); syncDockExpanded(); }
+function closeSheet(){ sheet.classList.remove('open'); syncDockExpanded(); }
+function syncDockExpanded(){
+  const open = sheet.classList.contains('open');
+  $('#btnPresets').setAttribute('aria-expanded', String(open && tab !== 'synth'));
+  $('#btnSynth').setAttribute('aria-expanded', String(open && tab === 'synth'));
+}
+['presets', 'spring', 'synth'].forEach((n) => $('#tab-' + n).addEventListener('click', () => showTab(n)));
+$('#btnClose').addEventListener('click', closeSheet);
+$('#btnPresets').addEventListener('click', () => (sheet.classList.contains('open') && tab !== 'synth') ? closeSheet() : openSheet(tab === 'synth' ? 'presets' : tab));
+$('#btnSynth').addEventListener('click', () => (sheet.classList.contains('open') && tab === 'synth') ? closeSheet() : openSheet('synth'));
+$('#btnBoing').addEventListener('click', boingAll);
+
+const controls = {};
+function buildControls(){
+  const panes = { spring: $('#pane-spring'), synth: $('#pane-synth') };
+  // the synth tab leads with a big note readout and octave / semitone steps
+  const nb = document.createElement('div'); nb.className = 'notebar';
+  nb.innerHTML = '<span class="big" id="noteBig"></span><button data-d="-12" aria-label="Octave down">−8va</button><button data-d="-1" aria-label="Semitone down">−1</button><button data-d="1" aria-label="Semitone up">+1</button><button data-d="12" aria-label="Octave up">+8va</button><span class="hz" id="noteHz"></span>';
+  nb.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { set('note', Math.max(24, Math.min(96, S.note + +b.dataset.d))); previewNote(); }));
+  const h0 = document.createElement('h3'); h0.textContent = 'Tuning';
+  panes.synth.append(h0, nb);
+  const groups = { spring: [['Size', ['count', 'length', 'coils', 'width', 'wire']], ['Feel', ['stiff', 'wobble', 'stretch']]],
+    synth: [['', ['note', 'fine']], ['Boing', ['glide', 'wah', 'tone', 'reso', 'vibrato']], ['Mix', ['click', 'reverb', 'volume']]] };
+  const addChoice = (pane, [key, label, opts]) => {
+    const h = document.createElement('h3'); h.textContent = label;
+    const box = document.createElement('div'); box.className = 'chips';
+    Object.entries(opts).forEach(([k, l]) => {
+      const b = document.createElement('button'); b.textContent = l; b.dataset.v = k;
+      b.addEventListener('click', () => { set(key, k); if (key === 'wave' || key === 'scale') previewNote(); });
+      box.appendChild(b);
+    });
+    controls[key] = { chips: box };
+    pane.append(h, box);
+  };
+  for (const [paneKey, list] of Object.entries(groups)){
+    const pane = panes[paneKey];
+    if (paneKey === 'synth') CHOICES.filter((c) => c[3] === 'synth' && c[0] === 'wave').forEach((c) => addChoice(pane, c));
+    for (const [title, keys] of list){
+      if (title){ const h = document.createElement('h3'); h.textContent = title; pane.appendChild(h); }
+      for (const key of keys){
+        const p = PARAMS.find((x) => x[0] === key);
+        const row = document.createElement('div'); row.className = 'row';
+        const id = 'p-' + key;
+        row.innerHTML = '<label for="' + id + '">' + p[1] + '</label><input type="range" id="' + id + '" min="' + p[2] + '" max="' + p[3] + '" step="' + p[4] + '"><output></output>';
+        const input = row.querySelector('input');
+        input.addEventListener('input', () => set(key, +input.value));
+        if (key === 'note' || key === 'fine') input.addEventListener('change', previewNote);
+        controls[key] = { input, out: row.querySelector('output'), fmt: p[7] };
+        pane.appendChild(row);
+      }
+    }
+    CHOICES.filter((c) => c[3] === paneKey && c[0] !== 'wave').forEach((c) => addChoice(pane, c));
+  }
+  const act = document.createElement('div'); act.className = 'actions';
+  act.innerHTML = '<button id="btnReset">Reset to preset</button>';
+  panes.spring.appendChild(act);
+  act.querySelector('button').addEventListener('click', () => applyPreset(S.preset));
+  const note = document.createElement('p'); note.className = 'small';
+  note.textContent = 'Each spring plays its own note from the scale, starting at the root note. Pitch glides down as a boing settles; Wah is the "wow-wow" as it swings; Brightness and Resonance shape the filter.';
+  panes.synth.appendChild(note);
+
+  const list = $('#presetList');
+  PRESETS.forEach((pr) => {
+    const b = document.createElement('button'); b.className = 'preset'; b.dataset.id = pr.id;
+    b.innerHTML = '<b>' + pr.name + '</b><span>' + pr.blurb + '</span>';
+    b.addEventListener('click', () => { applyPreset(pr.id); unlockAudio(); setTimeout(boingAll, 60); });
+    list.appendChild(b);
+  });
+}
+const LAYOUT_KEYS = new Set(['count', 'length', 'width', 'wire', 'stiff', 'wobble', 'stretch', 'material', 'tip', 'scale']);
+function set(key, val){
+  S[key] = val; save();
+  syncControls();
+  if (LAYOUT_KEYS.has(key)) layout();
+  if (key === 'note' || key === 'fine' || key === 'scale') springs.forEach(killVoice);
+  if (AC){ if (key === 'volume') master.gain.setTargetAtTime(val, AC.currentTime, .03); if (key === 'reverb') verbSend.gain.setTargetAtTime(val * 1.6, AC.currentTime, .03); }
+}
+function syncControls(){
+  for (const [key, c] of Object.entries(controls)){
+    if (c.input){ c.input.value = S[key]; c.out.textContent = c.fmt(S[key]); }
+    else c.chips.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === S[key])));
+  }
+  $('#noteBig').textContent = noteName(S.note);
+  $('#noteHz').textContent = Math.round(midiHz(S.note + S.fine / 100)) + ' Hz';
+  document.querySelectorAll('.preset').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === S.preset)));
+  const pr = PRESETS.find((p) => p.id === S.preset);
+  $('#presetName').textContent = pr ? pr.name : 'Custom';
+}
+function applyPreset(id){
+  const pr = PRESETS.find((p) => p.id === id) || PRESETS[0];
+  const keep = { sound: S.sound, shake: S.shake, volume: S.volume };
+  S = { ...DEFAULTS, ...pr.set, ...keep, preset: pr.id };
+  save(); springs.forEach(killVoice); syncControls(); layout();
+}
+// a gentle pluck so a tuning change can be heard
+function previewNote(){
+  unlockAudio();
+  const sp = springs[0]; if (sp && !sp.grab) kick(sp, Math.random() < .5 ? -1 : 1, .55, 1);
+}
+
+function setSound(on){
+  S.sound = on; save();
+  $('#btnSound').setAttribute('aria-pressed', String(on));
+  $('#icoSound').innerHTML = on ? '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>' : '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/>';
+  if (!on) springs.forEach(killVoice); else unlockAudio();
+}
+$('#btnSound').addEventListener('click', () => setSound(!S.sound));
+
+function setUiHidden(h){
+  document.body.classList.toggle('ui-hidden', h);
+  $('#btnShow').hidden = !h;
+  if (h) closeSheet();
+}
+$('#btnHide').addEventListener('click', () => setUiHidden(true));
+$('#btnShow').addEventListener('click', () => setUiHidden(false));
+
+let hintTimer = setTimeout(dismissHint, 9000);
+function dismissHint(){ clearTimeout(hintTimer); $('#hint').classList.add('gone'); }
+
+// Keyboard: Space boings everything, 1–9 / 0 / - / = pluck single springs, H hides the controls.
+const PLUCK_KEYS = '1234567890-=';
+addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest && e.target.closest('input')) return;
+  const k = e.key.toLowerCase();
+  if (k === ' ' && !(e.target.closest && e.target.closest('button'))){ e.preventDefault(); boingAll(); }
+  else if (k === 'h') setUiHidden(!document.body.classList.contains('ui-hidden'));
+  else if (k === 'escape') closeSheet();
+  else if (PLUCK_KEYS.includes(k) && !e.repeat){
+    const sp = springs[PLUCK_KEYS.indexOf(k)];
+    if (sp){ unlockAudio(); kick(sp, Math.random() < .5 ? -1 : 1, .8, 1); }
+  }
+});
+
+buildControls();
+setSound(S.sound !== false);
+syncControls();
+resize();
+// open on a little wobble so the room looks alive (it stays silent until the first touch)
+setTimeout(() => springs.forEach((sp, i) => setTimeout(() => { sp.v[0] += sp.w[0] * .5 * (i % 2 ? -1 : 1); }, i * 60)), 500);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
