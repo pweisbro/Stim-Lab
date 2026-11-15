@@ -223,7 +223,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .look .note{font-size:12px}
 
 /* ===== Interface: Glass + Rail. The bench fills the whole screen; the header, the parts rail and the settings panel float over it on frosted glass.
-   Drag a part off the rail onto the bench to place it (a tap still drops one in the middle). ===== */
+   Drag a part off the rail onto the bench to place it (a tap on a part opens its settings first). ===== */
 [data-ui~="glass"] .stage{border-color:transparent;background:transparent;overflow:visible}
 [data-ui~="glass"] #bench{position:fixed;inset:0;z-index:0}
 [data-ui~="glass"] .top,[data-ui~="glass"] .dock{position:relative;z-index:2;background:rgba(15,17,23,.62);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgba(255,255,255,.09);border-radius:16px}
@@ -252,6 +252,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   [data-ui~="rail"] .dock{grid-column:3}
 }
 .ui-hidden .add{display:none}
+.add button[aria-pressed="true"],[data-ui~="glass"][data-ui~="rail"] .add button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
+.pre-note{margin:-4px 0 0}
 [data-ui~="glass"][data-ui~="rail"] .add{position:relative;z-index:2;background:rgba(15,17,23,.62);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgba(255,255,255,.09);border-radius:16px}
 [data-ui~="rail"] .add button{touch-action:pan-x;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:grab}
 [data-ui~="glass"][data-ui~="rail"] .add button{background:transparent;border-color:transparent}
@@ -318,6 +320,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
       <button type="button" data-add="slit" aria-label="Add a slit or light block"><svg viewBox="0 0 24 24"><path d="M12 3v7.5M12 13.5V21" stroke-width="3"/></svg><span>Slit</span></button>
       <button type="button" data-add="screen" aria-label="Add a screen"><svg viewBox="0 0 24 24"><rect x="9.5" y="3" width="5" height="18" rx="1"/></svg><span>Screen</span></button>
       <button type="button" data-add="hole" aria-label="Add a black hole"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6" fill="currentColor"/><path d="M2.5 13.5c3-1.2 5.5-5.3 9.5-5.3s5.6 3.4 9.5 2.3" stroke-width="1.2"/><circle cx="12" cy="12" r="7.5" stroke-width="1" stroke-dasharray="1.5 2.5"/></svg><span>Hole</span></button>
+      <button type="button" data-add="white" aria-label="White hole"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M12 5.5V2.5M12 21.5v-3M5.5 12h-3M21.5 12h-3M7.4 7.4L5.3 5.3M18.7 18.7l-2.1-2.1M7.4 16.6l-2.1 2.1M18.7 5.3l-2.1 2.1" stroke-width="1.2"/></svg><span>White</span></button>
       <button type="button" data-add="amp" aria-label="Add an amplifier"><svg viewBox="0 0 24 24"><rect x="7" y="4" width="10" height="16" rx="1"/><path d="M2 12h5M17 12h5" stroke-width="1"/><path d="M10.5 9.5L13.5 12l-3 2.5"/></svg><span>Amp</span></button>
       <button type="button" data-add="shift" aria-label="Add a color shifter"><svg viewBox="0 0 24 24"><rect x="10" y="4" width="4" height="16" rx="1"/><path d="M2 12h8" stroke-width="1"/><path d="M14 12h7M18.5 9.5L21 12l-2.5 2.5" stroke-width="1.8"/></svg><span>Shift</span></button>
       <button type="button" data-add="tx" aria-label="Add a transmitter"><svg viewBox="0 0 24 24"><rect x="6" y="8" width="9" height="8" rx="1"/><path d="M15 12h7" stroke-width="1"/><path d="M3.5 9.5a4 4 0 0 0 0 5M1.5 7.5a7 7 0 0 0 0 9" stroke-width="1"/></svg><span>Transmit</span></button>
@@ -436,27 +439,30 @@ const DEF={
   splitter:{type:'splitter',x:0,y:0,angle:-45,len:120,refl:50},
   slit:{type:'slit',x:0,y:0,angle:90,len:200,gap:10},
   screen:{type:'screen',x:0,y:0,angle:90,len:260,ch:1},
-  hole:{type:'hole',x:0,y:0,angle:0,mass:8,reach:320,mat:'flint',boost:2},
+  hole:{type:'hole',x:0,y:0,angle:0,mass:8,reach:320,mat:'flint',boost:2,ch:0},
+  // White hole: light cannot fall in and is pushed away. Linked to a black hole's channel, it pours out what that hole swallows.
+  white:{type:'white',x:0,y:0,angle:0,mass:10,reach:260,mat:'none',boost:2,ch:1,out:1},
   // Amplifier: a gain slab that boosts light passing through, for every color or one band.
   amp:Object.assign({type:'amp',x:0,y:0,angle:90,len:120,gain:2,pass:'all',lam:620,bw:80},SNDB,{sndGain:3}),
   // Color shifter: moves every color passing through by a set number of nm, the way a fluorescent dye re-emits redder light.
   shift:Object.assign({type:'shift',x:0,y:0,angle:90,len:120,shift:60,edge:'fade'},SNDB,{sndShift:80}),
   // Transmitter: re-emits whatever lands on the screens set to its channel, as a picture across its face or as one beam.
-  tx:Object.assign({type:'tx',x:0,y:0,angle:0,ch:1,mode:'image',len:80,spread:0,out:1,flip:false},SNDB,{sndOut:1.5})
+  tx:Object.assign({type:'tx',x:0,y:0,angle:0,ch:1,mode:'image',ang:'fixed',len:80,spread:0,out:1,flip:false},SNDB,{sndOut:1.5})
 };
 const RANGES={c:[0,100000],res:[2,60],aSens:[.5,4],aLo:[20,20000],aHi:[20,20000],sndSens:[.5,4],aFloor:[-160,0],aPeak:[-160,0],sndFloor:[-160,0],sndPeak:[-160,0],aAmt:[4,40],aLen:[60,400],aSpd:[40,600],aSwayAmt:[5,60],sndLo:[20,20000],sndHi:[20,20000],sndN:[0,.6],sndBoost:[1,8],sndRefl:[0,.95],sndGrow:[0,1],sndSpin:[0,90],sndRip:[0,2],wob:[0,1],flow:[0,3],x:[-3000,3000],y:[-3000,3000],angle:[-3600,3600],laser:[380,700],width:[0,240],spread:[0,90],size:[70,300],boost:[1,6],
   f:[30,500],ap:[30,260],len:[20,640],lpmm:[100,1500],orders:[1,3],lam:[380,700],bw:[10,200],refl:[5,95],gap:[0,400],mass:[3,30],reach:[120,640],
-  gain:[1,8],sndGain:[0,8],shift:[-300,300],sndShift:[-300,300],ch:[1,4],out:[.25,3],sndOut:[0,3]};
+  gain:[1,8],sndGain:[0,8],shift:[-300,300],sndShift:[-300,300],ch:[0,4],out:[.25,3],sndOut:[0,3]};
 const PRISM_SHAPES=['eq','right','hex','block','drop','pipe'];
 function okEnum(t,k,v){
   switch(k){
     case 'spectrum':return has(SPECTRA,v);
     case 'shape':return t==='curved'?(v==='sphere'||v==='para'):PRISM_SHAPES.includes(v);
-    case 'mat':return has(MATS,v)||(t==='lens'&&v==='ideal')||(t==='hole'&&v==='none');
+    case 'mat':return has(MATS,v)||(t==='lens'&&v==='ideal')||((t==='hole'||t==='white')&&v==='none');
     case 'power':return v==='conv'||v==='div';
     case 'form':return v==='bi'||v==='plano';
     case 'pass':return t==='amp'?(v==='all'||v==='band'):(v==='band'||v==='long'||v==='short');
     case 'edge':return v==='fade'||v==='wrap';
+    case 'ang':return v==='fixed'||v==='pass'||v==='refl';
     case 'aStyle':return v==='wave'||v==='bars';
     case 'aLevel':case 'sndLevel':return v==='auto'||v==='cal'||v==='off';
     case 'mode':return t==='grating'?(v==='trans'||v==='refl'):t==='tx'?(v==='image'||v==='beam'):(v==='absorb'||v==='dichroic');
@@ -480,7 +486,7 @@ function sanitize(o){
 }
 function serialScene(sc){return sc.map(o=>{const c={};for(const k in DEF[o.type]){const v=o[k];c[k]=typeof v==='number'?Math.round(v*10)/10:v;}return c;});}
 
-const NAMES={light:'Light source',mirror:'Mirror',grating:'Grating',splitter:'Beam splitter',screen:'Screen',hole:'Black hole',amp:'Amplifier',shift:'Color shifter',tx:'Transmitter'};
+const NAMES={light:'Light source',mirror:'Mirror',grating:'Grating',splitter:'Beam splitter',screen:'Screen',hole:'Black hole',white:'White hole',amp:'Amplifier',shift:'Color shifter',tx:'Transmitter'};
 function nameOf(el){
   switch(el.type){
     case 'liquid':return 'Liquid';
@@ -573,8 +579,8 @@ function geomOf(el){
       return{F,C,curve:pts,r:C.h,prims:[mkArc(F,0,C.R,C.R,-HP-C.hs,-HP+C.hs,'mirror',el)]};}
     case 'slit':{const h=el.len/2,g=Math.min(el.gap,el.len-10)/2,A=F.L(-h,0),B=F.L(h,0);
       return{F,ends:[A,B],r:h,gapH:g,prims:g>0?[mkSeg(A,F.L(-g,0),'block',el),mkSeg(F.L(g,0),B,'block',el)]:[mkSeg(A,B,'block',el)]};}
-    case 'hole':{
-      // The horizon absorbs; the field (t 3) ends each ray inside the pull after one short step.
+    case 'white':case 'hole':{
+      // The horizon absorbs (a linked black hole hands what it swallows to its white holes); the field (t 3) ends each ray inside the pull after one short step.
       return{F,hole:true,prims:[mkArc(F,0,0,el.mass,-Math.PI,Math.PI,'block',el),{t:3,cx:el.x,cy:el.y,R:el.reach,kind:'grav',el}],r:Math.max(el.mass,10)};}
     default:{const h=el.len/2,A=F.L(-h,0),B=F.L(h,0);return{F,ends:[A,B],r:h,prims:[mkSeg(A,B,KIND[el.type],el)]};}
   }
@@ -584,7 +590,13 @@ function inPoly(x,y,v){let c=false;for(let i=0,j=v.length-1;i<v.length;j=i++){co
 function polyDist(x,y,v,closed){let m=Infinity;const n=v.length;for(let i=0;i<(closed?n:n-1);i++){const a=v[i],b=v[(i+1)%n];m=Math.min(m,segDist(x,y,a[0],a[1],b[0],b[1]));}return m;}
 
 /* ================= Ray tracing ================= */
-const MAXD=48, MAXSEG=42000, FAR=5000, IMIN=.012, REFL_MIN=.048;
+const MAXD=48, MAXSEG=42000, FAR=5000, IMIN=.012, REFL_MIN=.048, HOPS=6;
+// Which pieces hand light on: transmitters by channel (fed by screens) and white holes by channel (fed by black holes).
+let LINKS={tx:new Map(),wh:new Map()};
+function setLinks(sc){const tx=new Map(),wh=new Map(),add=(m,k,v)=>{const a=m.get(k);if(a)a.push(v);else m.set(k,[v]);};
+  for(const e of sc){if(e.type==='tx')add(tx,Math.round(e.ch),{el:e,F:frameOf(e)});else if(e.type==='white'&&e.ch>0)add(wh,Math.round(e.ch),e);}
+  LINKS={tx,wh};}
+const ends=hs=>hs.kind==='screen'&&!LINKS.tx.has(Math.round(hs.el.ch)); // a screen nobody relays is where a ray stops
 const EFF=[.32,.22,.07,.035]; // share of light sent into grating orders 0, ±1, ±2, ±3
 
 function emit(el,stack,keyed){
@@ -694,7 +706,10 @@ function hitOf(r,S,tmin,lim){
 // What a ray turns into where it ends (reflected, refracted, diffracted or filtered rays), pushed onto out.
 function kids(r,out){
   const hs=r.hs,best=r.b,hnx=r.nx,hny=r.ny,ex=r.x+r.dx*best,ey=r.y+r.dy*best;
-  const go=(dx,dy,I,med,tg,dd,lam)=>{const nl=lam!=null;if(I>=IMIN)out.push({x:ex,y:ey,dx,dy,lam:nl?lam:r.lam,I,base:r.base,W:r.W,depth:r.depth+(dd||1),med,sk:hs.pid,col:nl?colorOf(lam):r.col,ck:nl?Math.round(lam*2):r.ck,gi:r.gi,d:r.d+best,key:r.key?((Math.imul(r.key,16777619)^(hs.el.id*16+tg))&0x3fffffff)||1:0,b:0,hs:null,hu:0,nx:0,ny:0,k:0});};
+  const go=(dx,dy,I,med,tg,dd,lam)=>{const nl=lam!=null;if(I>=IMIN)out.push({x:ex,y:ey,dx,dy,lam:nl?lam:r.lam,I,base:r.base,W:r.W,depth:r.depth+(dd||1),med,sk:hs.pid,col:nl?colorOf(lam):r.col,ck:nl?Math.round(lam*2):r.ck,gi:r.gi,d:r.d+best,key:r.key?((Math.imul(r.key,16777619)^(hs.el.id*16+tg))&0x3fffffff)||1:0,hop:r.hop|0,b:0,hs:null,hu:0,nx:0,ny:0,k:0});};
+  // A ray handed from one piece to another (screen to transmitter, black hole to white hole): it carries on from there with the
+  // distance it has already travelled, so slowed light stays slowed, and it counts a hop so a loop of relays ends.
+  const port=(x,y,dx,dy,I,id)=>{if(I>=IMIN&&(r.hop|0)<HOPS)out.push({x,y,dx,dy,lam:r.lam,I,base:r.base,W:r.W,depth:r.depth+1,med:null,sk:-1,col:r.col,ck:r.ck,gi:r.gi,d:r.d+best,key:r.key?((Math.imul(r.key,16777619)^(id*16+5))&0x3fffffff)||1:0,hop:(r.hop|0)+1,b:0,hs:null,hu:0,nx:0,ny:0,k:0});};
   const refl=I=>{const d=r.dx*hnx+r.dy*hny;go(r.dx-2*d*hnx,r.dy-2*d*hny,I,r.med,2);};
   switch(hs.kind){
     case 'mirror':refl(r.I*.95);break;
@@ -724,7 +739,7 @@ function kids(r,out){
     case 'grav':{ // a step through a black hole's pull: the ray turns toward rising index by (∇n/n across the ray) × step length
       const el=hs.el,qx=ex-hs.cx,qy=ey-hs.cy,rho=Math.hypot(qx,qy);let dx=r.dx,dy=r.dy;
       if(rho<el.reach&&rho>el.mass){
-        const D=gravD(el,r.lam),e=Math.min(.5,(rho-el.mass)/2),g=(gravN(el,rho+e,D)-gravN(el,rho-e,D))/(2*e)/gravN(el,rho,D)*Math.min(best,gravStep(el,rho)*1.5);
+        const D=gravD(el,r.lam),e=Math.min(.5,(rho-el.mass)/2),g=(el.type==='white'?-1:1)*(gravN(el,rho+e,D)-gravN(el,rho-e,D))/(2*e)/gravN(el,rho,D)*Math.min(best,gravStep(el,rho)*1.5); // a white hole pushes where a black hole pulls
         const ux=qx/rho,uy=qy/rho,c=ux*dx+uy*dy;dx+=g*(ux-c*dx);dy+=g*(uy-c*dy);const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;
       }
       go(dx,dy,r.I,r.med,1,1/32);break;} // each step costs a sliver of depth, so light can take many but an orbit still ends
@@ -736,7 +751,24 @@ function kids(r,out){
         const c=Math.sqrt(1-s*s);go(s*hs.tx+sg*c*nx,s*hs.ty+sg*c*ny,r.I*EFF[Math.abs(m)],r.med,8+m);
       }
       break;}
-    default:break; // screens record the hit; blocks and light housings absorb
+    case 'screen':{ // every transmitter on this screen's channel sends the ray on
+      const L=LINKS.tx.get(Math.round(hs.el.ch));if(!L)break;
+      const dt=r.dx*hs.tx+r.dy*hs.ty,dn=r.dx*hs.nx+r.dy*hs.ny,sd=dn>=0?1:-1;
+      for(const {el:tx,F} of L){
+        const I=Math.min(AMPMAX,r.I*tx.out*(tx.bm||1)),one=tx.mode==='beam';
+        if(tx.ang==='fixed'){let f=r.hu-.5;if(tx.flip)f=-f;const a=F.a+(one?0:tx.spread*f*D2R),o=F.L(23,one?0:tx.len*f);port(o[0],o[1],Math.cos(a),Math.sin(a),I,tx.id);}
+        else{ // the face stands in for the far side of the screen (pass through) or for the screen as a mirror (reflect)
+          const sg=(tx.ang==='pass'?-sd:sd)*(tx.flip?-1:1),o=F.L(23,one?0:tx.len*sg*(r.hu-.5)),fw=Math.max(Math.abs(dn),.05),lt=sg*dt,l=Math.hypot(fw,lt);
+          port(o[0],o[1],(F.ux*fw+F.vx*lt)/l,(F.uy*fw+F.vy*lt)/l,I,tx.id);}
+      }
+      break;}
+    case 'block':{ // a black hole's horizon: light that falls in comes out of every white hole on its channel, still heading the same way
+      const el=hs.el;if(el.type!=='hole'||!(el.ch>0))break;const L=LINKS.wh.get(Math.round(el.ch));if(!L)break;
+      const qx=(ex-el.x)/el.mass,qy=(ey-el.y)/el.mass;
+      for(const w of L){const a=(w.angle-el.angle)*D2R,c=Math.cos(a),s=Math.sin(a),R=w.mass+.6;
+        port(w.x-(qx*c-qy*s)*R,w.y-(qx*s+qy*c)*R,r.dx*c-r.dy*s,r.dx*s+r.dy*c,Math.min(AMPMAX,r.I*w.out),w.id);}
+      break;}
+    default:break; // light housings, slits and unlinked screens and holes absorb
   }
 }
 let LB=null; // the bucket bucketOf last returned, with where its path last ended (lx, ly)
@@ -745,6 +777,7 @@ let LB=null; // the bucket bucketOf last returned, with where its path last ende
 function bucketOf(map,r,a,kind){const q=Math.max(1,Math.min(24,Math.round(a*24)));const key=(r.ck*32+q)*8+r.gi;let b=map.get(key);if(!b){b={p:null,c:r.col,a:q/24,gm:Math.pow(2,-r.gi),lx:NaN,ly:NaN};b.p=GLB.rec?new SegRec(b,kind|0):new Path2D();map.set(key,b);}LB=b;return b.p;}
 function screenHit(out,r,a){
   const hs=r.hs,ex=r.x+r.dx*r.b,ey=r.y+r.dy*r.b;let arr=out.hits.get(hs.el.id);if(!arr){arr=[];out.hits.set(hs.el.id,arr);}arr.push([r.hu,r.lam,r.I,r.base]);
+  const L=LINKS.tx.get(Math.round(hs.el.ch));if(L&&(r.hop|0)<HOPS){const tc=out.txc||(out.txc=new Map());for(const {el:tx} of L){let cc=tc.get(tx.id);if(!cc){cc=[0,0,0];tc.set(tx.id,cc);}const I=r.I*tx.out*(tx.bm||1);cc[0]+=r.col[0]*I;cc[1]+=r.col[1]*I;cc[2]+=r.col[2]*I;}}
   const sa=clamp(a*.8,0,1);if(sa>=.02){const p=bucketOf(out.splats,r,sa,1);p.moveTo(ex-hs.tx*2.5,ey-hs.ty*2.5);p.lineTo(ex+hs.tx*2.5,ey+hs.ty*2.5);}
 }
 // Draws a ray from s0 to s1 along it. In a slowed beam (sh) the same ray is followed from pulse to pulse: each pulse adds the
@@ -774,7 +807,8 @@ function drawPart(beams,r,a,s0,s1,sh,RW){
 }
 // Traces every light in sc through the bench at once. sh (optional): {out, S, emit} lets the slowed-light view share its maps and shapes.
 function trace(sc,bright,geos,W,sh){
-  const S0=sh?sh.S:buildS(geos),out=sh?sh.out:{beams:new Map(),splats:new Map(),hits:new Map()},stack=[];
+  if(!sh)setLinks(sc);
+  const S0=sh?sh.S:buildS(geos),out=sh?sh.out:{beams:new Map(),splats:new Map(),hits:new Map(),txc:new Map()},stack=[];
   if(sh&&sh.rays)for(const r of sh.rays)stack.push(r);
   else for(const el of (sh&&sh.emit)||sc)if(el.type==='light')emit(el,stack,false);
   let segs=0,maxD=0;
@@ -787,48 +821,10 @@ function trace(sc,bright,geos,W,sh){
     if(a>=.02)drawPart(out.beams,r,a,0,r.b,null,r.W);
     segs+=r.hs&&r.hs.kind==='grav'?.25:1; // steps through a black hole's pull are short and many, so they count for less
     if(!r.hs)continue;
-    if(r.hs.kind==='screen')screenHit(out,r,a);else kids(r,stack);
+    if(r.hs.kind==='screen')screenHit(out,r,a);
+    kids(r,stack);
   }
-  return{beams:out.beams,splats:out.splats,hits:out.hits,maxD};
-}
-
-/* ================= Transmitters ================= */
-// A transmitter re-emits the light landing on every screen set to its channel. In picture mode each spot along the screen
-// leaves from the matching spot across the transmitter's face, so a rainbow on the screen comes back out as a rainbow band;
-// in one-beam mode everything leaves as one beam. Relayed light can land on screens that feed transmitters too, up to TXGEN hops.
-const TXGEN=3,TXMAX=1600;
-function txCells(tx,sc,hits,q){
-  const ch=Math.round(tx.ch),NB=tx.mode==='beam'?1:clamp(Math.round(tx.len/6),4,32),cells=new Map();
-  for(const s of sc){if(s.type!=='screen'||Math.round(s.ch)!==ch)continue;const a=hits.get(s.id);if(!a)continue;
-    for(const h of a){const b=NB===1?0:Math.min(NB-1,Math.floor(h[0]*NB)),k=b*4000+Math.round(h[1]*2/q);let c=cells.get(k);if(!c){c={b,l:0,I:0,w:0};cells.set(k,c);}
-      c.I+=h[2];c.w+=h[2]*h[3];c.l+=h[1]*h[2];}}
-  return{NB,cells};
-}
-function emitTx(tx,sc,hits,rays,col){
-  let C=txCells(tx,sc,hits,1);if(C.cells.size>TXMAX)C=txCells(tx,sc,hits,10);if(C.cells.size>TXMAX)C=txCells(tx,sc,hits,40);
-  if(!C.cells.size)return;
-  const F=frameOf(tx),NB=C.NB,used=new Set();for(const c of C.cells.values())used.add(c.b);
-  const gi=used.size<=1?0:Math.min(7,Math.round(Math.log2(used.size))),g=tx.out*(tx.bm||1);
-  let cc=col.get(tx.id);if(!cc){cc=[0,0,0];col.set(tx.id,cc);}
-  for(const c of C.cells.values()){
-    if(!(c.I>0))continue;const l=c.l/c.I,I=Math.min(AMPMAX,c.I*g);if(I<IMIN)continue;
-    let f=NB===1?0:(c.b+.5)/NB-.5;if(tx.flip)f=-f;
-    const a=F.a+(NB===1?0:tx.spread*f*D2R),o=F.L(23,tx.len*f),cl=colorOf(l);
-    cc[0]+=cl[0]*I;cc[1]+=cl[1]*I;cc[2]+=cl[2]*I;
-    rays.push({x:o[0],y:o[1],dx:Math.cos(a),dy:Math.sin(a),lam:l,I,base:c.w/c.I,W:null,depth:0,med:null,sk:-1,col:cl,ck:Math.round(l*2),gi,d:0,key:0,b:0,hs:null,hu:0,nx:0,ny:0,k:0});
-  }
-}
-function relay(sc,geos,T,bright){
-  T.txc=new Map();if(!sc.some(e=>e.type==='tx'))return;
-  const S=buildS(geos);let hits=T.hits;
-  for(let gen=0;gen<TXGEN;gen++){
-    const rays=[];for(const tx of sc)if(tx.type==='tx')emitTx(tx,sc,hits,rays,T.txc);
-    if(!rays.length)break;
-    const out={beams:T.beams,splats:T.splats,hits:new Map()};
-    trace(sc,bright,null,null,{out,S,rays});
-    for(const [id,a] of out.hits){let t=T.hits.get(id);if(!t){t=[];T.hits.set(id,t);}for(const h of a)t.push(h);}
-    hits=out.hits;
-  }
+  return{beams:out.beams,splats:out.splats,hits:out.hits,txc:out.txc||new Map(),maxD};
 }
 
 /* ================= Finite light speed ================= */
@@ -869,13 +865,13 @@ function recordHist(sc){
 }
 // A light switched from Instant to a finite speed sets out again from its source.
 function regrow(id){if(!HIST.length)seedHist(scene);GROW.add(id);PULSES.delete(id);lastSig='';lastChange=NOW=performance.now()/1000;}
-const cloneRay=(r,k)=>({x:r.x,y:r.y,dx:r.dx,dy:r.dy,lam:r.lam,I:r.I,base:r.base,W:r.W,depth:r.depth,med:r.med,sk:r.sk,col:r.col,ck:r.ck,gi:r.gi,d:r.d,key:r.key,b:r.b,hs:r.hs,hu:r.hu,nx:r.nx,ny:r.ny,k});
+const cloneRay=(r,k)=>({x:r.x,y:r.y,dx:r.dx,dy:r.dy,lam:r.lam,I:r.I,base:r.base,W:r.W,depth:r.depth,med:r.med,sk:r.sk,col:r.col,ck:r.ck,gi:r.gi,d:r.d,key:r.key,hop:r.hop|0,b:r.b,hs:r.hs,hu:r.hu,nx:r.nx,ny:r.ny,k});
 // Lays a slowed beam out as pulses along the beam as it stood in base (the bench before the latest change).
 // A heavy beam (many rays) is laid out with wider spacing so the first frames stay in budget too.
 function seedPulses(F,L,base,ds,Dm,share){
   const src=base.find(e=>e.id===L.id);if(!src)return; // a light that wasn't there before grows from its source
-  const S=buildS(base.map(geomOf)),segs=[],stack=[];emit(src,stack,true);
-  while(stack.length&&segs.length<MAXSEG){const r=stack.pop();if(r.I<IMIN||r.depth>MAXD)continue;hitOf(r,S);segs.push(r);if(r.hs&&r.hs.kind!=='screen')kids(r,stack);}
+  setLinks(base);const S=buildS(base.map(geomOf)),segs=[],stack=[];emit(src,stack,true);
+  while(stack.length&&segs.length<MAXSEG){const r=stack.pop();if(r.I<IMIN||r.depth>MAXD)continue;hitOf(r,S);segs.push(r);if(r.hs)kids(r,stack);}
   let cov=0;for(const r of segs)cov+=Math.max(0,Math.min(r.d+r.b,Dm)-r.d);
   ds=Math.max(ds,cov/share);F.load=cov/Dm;
   const K=Math.max(1,Math.min(KMAX,Math.ceil(Dm/ds)));
@@ -917,13 +913,13 @@ function runPulses(L,F,ds,Dm,X,bright,out){
         else if(Sch)hitOf(r,Sch,Math.max(1e-6,lo-r.d),r.b); // something that moved may now be in the way ahead
       }
       if(!r.k&&r.d+r.b<hi){
-        if(r.hs&&r.hs.kind!=='screen'&&r.depth<MAXD&&R.length<6000){
+        if(r.hs&&!ends(r.hs)&&r.depth<MAXD&&R.length<6000){
           // meet the surface as it was at the moment the pulse got there, blended within the frame
           const q=adv>0?X.q((r.d+r.b-hi+adv)/adv):4,Sq=X.S(q);
           if(CHANGED.has(r.hs.el.id)){refind(r,Sq,back,ds);
             // glass that moved may have slid out from under light that was inside it (or over light outside it): ask the shape
             const h=r.hs;if(h&&h.kind==='glass'&&h.g&&h.g.outline){const t=Math.max(r.b-.5,r.b/2),ins=inPoly(r.x+r.dx*t,r.y+r.dy*t,h.g.outline);if(ins!==(!!r.med&&r.med.id===h.el.id))r.med=ins?h.el:null;}}
-          if(r.hs&&r.d+r.b<hi+ds){r.k=1;if(r.hs.kind!=='screen'){const n0=R.length;kids(r,R);for(let k=n0;k<R.length;k++)hitOf(R[k],Sq);}}
+          if(r.hs&&r.d+r.b<hi+ds){r.k=1;const n0=R.length;kids(r,R);for(let k=n0;k<R.length;k++)hitOf(R[k],Sq);}
         }else r.k=1;
       }
       const e=r.d+r.b,a=clamp(bright*r.base*Math.pow(r.I,.6),0,1);
@@ -941,7 +937,8 @@ function runPulses(L,F,ds,Dm,X,bright,out){
   return maxD;
 }
 function traceDelayed(sc,geos,o){
-  const t0=performance.now(),out={beams:new Map(),splats:new Map(),hits:new Map()},S0=buildS(geos);
+  setLinks(sc);
+  const t0=performance.now(),out={beams:new Map(),splats:new Map(),hits:new Map(),txc:new Map()},S0=buildS(geos);
   const Dmax=clamp(lastMaxD,300,4000),inst=[],slow=[];
   for(const L of sc)if(L.type==='light'){if(L.c>0&&NOW-lastChange<=Dmax/L.c+.25)slow.push(L);else{inst.push(L);PULSES.delete(L.id);}}
   let maxD=0;
@@ -964,12 +961,12 @@ function traceDelayed(sc,geos,o){
     const c=L.c,want=L.res||6,fl=c/1000,lb=F&&F.load?Dmax*F.load/(RAYB/slow.length):0,ds=Math.max(want*SAFE,fl,Dmax/KMAX,lb);
     RESEFF.set(L.id,{ds,why:ds<=want*1.02?'':fl>=ds*.999?'speed':'load'});
     if(!F){F={P:[],t:NOW};PULSES.set(L.id,F);
-      if(GROW.has(L.id))GROW.delete(L.id);else seedPulses(F,L,HIST.length>1?HIST[HIST.length-2].sc:sc,ds,Dmax,RAYB/slow.length);}
+      if(GROW.has(L.id))GROW.delete(L.id);else seedPulses(F,L,HIST.length>1?HIST[HIST.length-2].sc:sc,ds,Dmax,RAYB/slow.length);setLinks(sc);}
     maxD=Math.max(maxD,runPulses(L,F,ds,Dmax,X,o.bright,out));
   }
   lastMaxD+=(Math.max(300,maxD)-lastMaxD)*.3;
   const dt=performance.now()-t0;if(slow.length)SAFE=clamp(SAFE*(dt>SAFE_MS?1.12:dt<SAFE_MS*.5?.95:1),1,16);
-  return{beams:out.beams,splats:out.splats,hits:out.hits,maxD};
+  return{beams:out.beams,splats:out.splats,hits:out.hits,txc:out.txc,maxD};
 }
 
 /* ================= Performance panel (P) ================= */
@@ -1219,6 +1216,14 @@ function drawEl(g,el,geo,px){
       g.fillStyle='#000';g.beginPath();g.arc(el.x,el.y,h,0,TAU);g.fill();
       g.strokeStyle='rgba(255,210,150,.55)';g.lineWidth=1.2*px;g.stroke();
       break;}
+    case 'white':{ // a bright core with a soft glow, the black hole turned inside out
+      const h=el.mass;
+      g.setLineDash([2*px,6*px]);g.strokeStyle='rgba(255,255,255,.07)';g.lineWidth=1*px;g.beginPath();g.arc(el.x,el.y,el.reach,0,TAU);g.stroke();g.setLineDash([]);
+      const gr=g.createRadialGradient(el.x,el.y,h*.9,el.x,el.y,h*2.6);gr.addColorStop(0,'rgba(235,242,255,.4)');gr.addColorStop(1,'rgba(235,242,255,0)');
+      g.fillStyle=gr;g.beginPath();g.arc(el.x,el.y,h*2.6,0,TAU);g.fill();
+      g.fillStyle='#f4f7ff';g.beginPath();g.arc(el.x,el.y,h,0,TAU);g.fill();
+      g.strokeStyle='rgba(160,200,255,.7)';g.lineWidth=1.2*px;g.stroke();
+      break;}
     case 'amp':{ // a gain slab: dark body, a lit core that brightens with its gain (and with sound)
       const h=el.len/2,c=el.pass==='band'?colorOf(el.lam):[255,96,150],k=clamp(.25+.08*(el.gain-1)+.5*(el.lv||0),.2,1);
       g.save();g.translate(el.x,el.y);g.rotate(el.angle*D2R);
@@ -1259,6 +1264,7 @@ function drawEl(g,el,geo,px){
 function drawLinks(g,sc,px){
   g.save();g.setLineDash([3*px,7*px]);g.lineWidth=1*px;g.strokeStyle='rgba(140,200,255,.22)';g.beginPath();
   for(const t of sc)if(t.type==='tx'){const F=frameOf(t),b=F.L(-22,0);for(const s of sc)if(s.type==='screen'&&Math.round(s.ch)===Math.round(t.ch)){g.moveTo(s.x,s.y);g.lineTo(b[0],b[1]);}}
+  for(const w of sc)if(w.type==='white'&&w.ch>0)for(const b of sc)if(b.type==='hole'&&Math.round(b.ch)===Math.round(w.ch)){g.moveTo(b.x,b.y);g.lineTo(w.x,w.y);}
   g.stroke();g.restore();
 }
 // Short square ticks across a mirror's ends: they mark its edges crisply without a heavy frame.
@@ -1352,13 +1358,13 @@ function drawStyled(g,el,geo,px,S){
       else{g.strokeStyle=S.block;g.lineWidth=S.blockLW*px;strokeTwice(()=>{P([A,B],false);g.stroke();});}}
     return;
   }
-  if(t==='hole'){
-    const h=el.mass,ph=(2+Math.sqrt(3))*h;
+  if(t==='hole'||t==='white'){
+    const wh=t==='white',h=el.mass,ph=wh?1.9*h:(2+Math.sqrt(3))*h;
     g.save();g.setLineDash([2*px,6*px]);g.strokeStyle=S.reach;g.lineWidth=1*px;g.beginPath();g.arc(el.x,el.y,el.reach,0,TAU);g.stroke();g.restore();
-    if(S.holeHalo){const gr=g.createRadialGradient(el.x,el.y,h*.9,el.x,el.y,h*2.6);gr.addColorStop(0,S.holeHalo);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.beginPath();g.arc(el.x,el.y,h*2.6,0,TAU);g.fill();}
+    if(S.holeHalo||wh){const gr=g.createRadialGradient(el.x,el.y,h*.9,el.x,el.y,h*2.6);gr.addColorStop(0,wh?'rgba(240,245,255,.32)':S.holeHalo);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.beginPath();g.arc(el.x,el.y,h*2.6,0,TAU);g.fill();}
     glow(S.holeRing);g.strokeStyle=S.holeRing;g.lineWidth=S.ringLW*px;g.beginPath();g.arc(el.x,el.y,ph,0,TAU);g.stroke();noGlow();
     if(S.shadow){g.fillStyle=S.shadowCol;g.beginPath();g.arc(el.x+S.shadow*px,el.y+S.shadow*1.4*px,h,0,TAU);g.fill();}
-    g.fillStyle=S.holeCore;g.beginPath();g.arc(el.x,el.y,h,0,TAU);g.fill();
+    g.fillStyle=wh?(S.whiteCore||'#f4f7ff'):S.holeCore;g.beginPath();g.arc(el.x,el.y,h,0,TAU);g.fill();
     g.strokeStyle=S.holeEdge;g.lineWidth=1.2*px;strokeTwice(()=>{g.beginPath();g.arc(el.x+(J?(rnd()-.5)*J:0),el.y,h,0,TAU);g.stroke();});
     return;
   }
@@ -1496,6 +1502,13 @@ function drawChrome(g,el,geo,px){
     g.stroke();return;
   }
   if(t==='slit'){for(const s of geo.prims)tube(g,PP([[s.ax,s.ay],[s.ax+s.ex,s.ay+s.ey]],false),12,px,{color:'#6f7b8c',core:'#aab6c8'});return;}
+  if(t==='white'){
+    const h=el.mass;
+    g.save();g.setLineDash([2*px,6*px]);g.strokeStyle='rgba(200,215,240,.25)';g.lineWidth=1*px;g.beginPath();g.arc(el.x,el.y,el.reach,0,TAU);g.stroke();g.restore();
+    const gr=g.createRadialGradient(el.x,el.y,h*.8,el.x,el.y,h*2.8);gr.addColorStop(0,'rgba(255,255,255,.5)');gr.addColorStop(.5,'rgba(190,210,255,.14)');gr.addColorStop(1,'rgba(190,210,255,0)');g.fillStyle=gr;g.beginPath();g.arc(el.x,el.y,h*2.8,0,TAU);g.fill();
+    const cr=g.createRadialGradient(el.x-h*.3,el.y-h*.35,h*.1,el.x,el.y,h);cr.addColorStop(0,'#fff');cr.addColorStop(.7,'#e6ecfa');cr.addColorStop(1,'#aab8d6');g.fillStyle=cr;g.beginPath();g.arc(el.x,el.y,h,0,TAU);g.fill();
+    tube(g,()=>{g.beginPath();g.arc(el.x,el.y,h+3*px,0,TAU);},4,px);return;
+  }
   if(t==='hole'){
     const h=el.mass,ph=(2+Math.sqrt(3))*h;
     g.save();g.setLineDash([2*px,6*px]);g.strokeStyle='rgba(200,215,240,.25)';g.lineWidth=1*px;g.beginPath();g.arc(el.x,el.y,el.reach,0,TAU);g.stroke();g.restore();
@@ -1552,14 +1565,13 @@ let objStyle='chrome-liquid';
 function render(g,sc,v,o){
   const useGL=!!o.main&&GLP.want&&glOn();GLB.rec=useGL;GLB.n=0;
   const t0=performance.now(),geos=sc.map(geomOf),T=o.delay?traceDelayed(sc,geos,o):trace(sc,o.bright,geos,o.wave||null),px=(o.lw||1)/v.scale;
-  relay(sc,geos,T,o.bright);
   GLB.rec=false;PF.gl=useGL;
   if(o.main)PF.tr=performance.now()-t0;
   if(o.main&&!o.delay)lastMaxD=Math.max(300,T.maxD);
   g.setTransform(v.dpr*v.scale,0,0,v.dpr*v.scale,v.dpr*v.cx,v.dpr*v.cy);
   g.lineCap='round';g.lineJoin='round';
   OBJ.drawAll(g,v,objStyle,sc.map((el,i)=>[el,geos[i]]).filter(p=>p[0].type==='screen'),px);
-  if(T.txc.size||sc.some(e=>e.type==='tx'))drawLinks(g,sc,px);
+  if(sc.some(e=>e.type==='tx'||e.type==='white'))drawLinks(g,sc,px);
   if(useGL)glFlush(g,v);else{
   g.globalCompositeOperation='lighter';
   g.lineWidth=8*px;for(const b of T.beams.values()){g.strokeStyle=rgba(b.c,b.a*.16*b.gm);g.stroke(b.p);}
@@ -1581,7 +1593,7 @@ function drawSelection(el,geo){
   ctx.setTransform(bdpr,0,0,bdpr,0,0);ctx.lineCap='round';ctx.lineJoin='round';
   const S=p=>toScreen(p[0],p[1]),[kx,ky]=knobPos(el,geo),F=geo.F;
   let tail=null;
-  if(el.type==='prism'||el.type==='liquid'||el.type==='hole'){
+  if(el.type==='prism'||el.type==='liquid'||el.type==='hole'||el.type==='white'){
     const [sx,sy]=toScreen(el.x,el.y);ctx.strokeStyle='rgba(255,179,64,.6)';ctx.lineWidth=1.2;ctx.setLineDash([3,5]);
     ctx.beginPath();ctx.arc(sx,sy,geo.r*scale+14,0,TAU);ctx.stroke();ctx.setLineDash([]);
   }else if(isBox(el)){
@@ -1596,7 +1608,7 @@ function drawSelection(el,geo){
   if(tail){ctx.strokeStyle='rgba(255,179,64,.6)';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(tail[0],tail[1]);ctx.lineTo(kx,ky);ctx.stroke();}
   if(el.type==='lens'){const hollow=el.power==='div';focusMark(F.L(0,el.f),hollow);focusMark(F.L(0,-el.f),hollow);}
   if(el.type==='curved')focusMark(F.L(0,el.f),false);
-  if(el.type==='hole')return; // a black hole looks the same from every angle, so it has no turning knob
+  if(el.type==='hole'||el.type==='white')return; // a hole looks the same from every angle, so it has no turning knob
   ctx.fillStyle='#ffb340';ctx.beginPath();ctx.arc(kx,ky,9,0,TAU);ctx.fill();
   ctx.strokeStyle='#0a0c10';ctx.lineWidth=2;ctx.beginPath();ctx.arc(kx,ky,3.5,0,TAU);ctx.stroke();
   if(drag&&drag.mode==='rot'){ctx.font='500 12px "IBM Plex Mono",ui-monospace,monospace';ctx.fillStyle='#ffb340';ctx.textAlign='left';ctx.fillText(fmtA(el.angle),kx+14,ky-12);}
@@ -1700,7 +1712,7 @@ const MAT_OPTS=Object.keys(MATS).map(k=>[k,MATS[k].name]);
 
 function changed(){request();saveSoon();}
 function syncAngle(){const n=$('f-angle');if(n&&sel){n.value=Math.round(normA(sel.angle));$('f-angle-v').textContent=fmtA(sel.angle);}}
-function setView(v){view=v;$('b-lib').setAttribute('aria-pressed',String(v==='lib'));$('b-snd').setAttribute('aria-pressed',String(v==='snd'));}
+function setView(v){view=v;document.querySelectorAll('.add button[data-add]').forEach(b=>b.setAttribute('aria-pressed',String(v==='insp'&&!!sel&&!!sel._pre&&sel.type===b.dataset.add)));$('b-lib').setAttribute('aria-pressed',String(v==='lib'));$('b-snd').setAttribute('aria-pressed',String(v==='snd'));}
 
 let lightTab='light';
 function lightAudioHTML(el){
@@ -1735,7 +1747,9 @@ function renderInspector(){
   const box=$('insp');
   if(!sel){box.innerHTML=benchHTML();wireBench();return;}
   const el=sel,angle=rangeField('f-angle','angle','Angle',-180,180,1,Math.round(normA(el.angle)),fmtA);
-  let h=`<div class="insp-head"><h2 id="insp-title"></h2><div class="acts"><button type="button" class="ghost" id="b-dup">Duplicate</button><button type="button" class="ghost" id="b-del">Remove</button></div></div><div class="fields">`;
+  let h=el._pre
+    ?`<div class="insp-head"><h2 id="insp-title"></h2><div class="acts"><button type="button" class="ghost" id="b-place">Place</button></div></div><p class="note pre-note">Not on the bench yet. Set it up here, then drag it from the ${isWide()?'rail':'row of parts'} onto the bench. Place drops it in the middle.</p><div class="fields">`
+    :`<div class="insp-head"><h2 id="insp-title"></h2><div class="acts"><button type="button" class="ghost" id="b-dup">Duplicate</button><button type="button" class="ghost" id="b-del">Remove</button></div></div><div class="fields">`;
   switch(el.type){
     case 'light':
       h=h.slice(0,-'<div class="fields">'.length)+`<div class="seg" id="f-ltab" role="tablist" aria-label="Light settings">${[['light','Light'],['audio','Audio reactive']].map(([v,t])=>`<button type="button" role="tab" data-v="${v}" aria-selected="${v===lightTab}" aria-pressed="${v===lightTab}">${t}</button>`).join('')}</div><div class="fields">`;
@@ -1791,9 +1805,11 @@ function renderInspector(){
     case 'slit':
       h+=rangeField('f-gap','gap','Opening',0,200,1,el.gap,v=>v>0?v+' mm':'Closed');
       h+=rangeField('f-len','len','Length',40,420,1,el.len,mmF)+angle+'</div><div class="readout" id="readout"></div>';break;
-    case 'hole':
+    case 'white':case 'hole':
       h+=rangeField('f-mass','mass','Horizon',3,30,.5,el.mass,v=>(+v).toFixed(1)+' mm');
-      h+=rangeField('f-reach','reach','Pull reaches',120,640,10,el.reach,mmF);
+      h+=rangeField('f-reach','reach',el.type==='white'?'Push reaches':'Pull reaches',120,640,10,el.reach,mmF);
+      h+=segField('f-ch','ch',el.type==='white'?'Black hole channel':'White hole channel',[[0,'Off'],[1,'1'],[2,'2'],[3,'3'],[4,'4']],el.ch,true);
+      if(el.type==='white')h+=rangeField('f-out','out','Output',.25,3,.05,el.out,v=>(+v).toFixed(2)+'×');
       h+=selectField('f-hmat','mat','Colors bend like',[['none','Real gravity (all alike)']].concat(MAT_OPTS),el.mat);
       h+=`<div id="wrap-boost">${rangeField('f-boost','boost','Rainbow boost',1,6,.5,el.boost,boostF)}</div>`;
       h+='</div><div class="readout" id="readout"></div>';break;
@@ -1815,14 +1831,16 @@ function renderInspector(){
     case 'tx':
       h+=segField('f-ch','ch','Channel',[[1,'1'],[2,'2'],[3,'3'],[4,'4']],el.ch,true);
       h+=segField('f-tmode','mode','Sends',[['image','The picture'],['beam','One beam']],el.mode);
-      h+=`<div id="wrap-timg">${rangeField('f-len','len','Width',20,400,2,el.len,mmF)}${rangeField('f-spread','spread','Spread',0,90,1,el.spread,v=>v>0?v+'°':'Parallel')}
+      h+=segField('f-tang','ang','Leaves',[['fixed','Straight out'],['pass','Pass through'],['refl','Reflect']],el.ang);
+      h+=`<div id="wrap-timg">${rangeField('f-len','len','Width',20,400,2,el.len,mmF)}<div id="wrap-tspread">${rangeField('f-spread','spread','Spread',0,90,1,el.spread,v=>v>0?v+'°':'Parallel')}</div>
         <label class="tog" for="f-flip"><input type="checkbox" id="f-flip" data-k="flip"${el.flip?' checked':''}><span>Mirror the picture</span></label></div>`;
       h+=rangeField('f-out','out','Output',.25,3,.05,el.out,v=>(+v).toFixed(2)+'×')+angle+'</div><div class="readout top" id="readout"></div>';
       h+=sndSection(el,rangeField('f-sot','sndOut','Output',0,3,.1,el.sndOut,v=>'up to +'+(+v).toFixed(1)+'×'));break;
   }
   box.innerHTML=h;
-  $('b-dup').addEventListener('click',()=>{const c=mk(sel.type,Object.assign({},sel,{x:sel.x+30,y:sel.y+30}));scene.push(c);sel=c;renderInspector();changed();});
-  $('b-del').addEventListener('click',delSel);
+  if(el._pre)$('b-place').addEventListener('click',()=>{const c=newPiece(el.type);scene.push(c);placed(c);});
+  else{$('b-dup').addEventListener('click',()=>{const c=mk(sel.type,Object.assign({},sel,{x:sel.x+30,y:sel.y+30}));scene.push(c);sel=c;renderInspector();changed();});
+    $('b-del').addEventListener('click',delSel);}
   const lt=$('f-ltab');if(lt)lt.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.dataset.v===lightTab)return;lightTab=b.dataset.v;renderInspector();});
   box.querySelectorAll('input[type=range][data-k]').forEach(n=>n.addEventListener('input',()=>{const raw=parseFloat(n.value),v=n.dataset.log?Math.round(logF(raw)):n.dataset.lspd?lspdFromSlider(raw):n.dataset.res?resFromSlider(raw):raw,was=sel[n.dataset.k];sel[n.dataset.k]=v;if(n.dataset.lspd&&!(was>0)&&v>0)regrow(sel.id);$(n.id+'-v').textContent=FM[n.id](v);onField();}));
   box.querySelectorAll('input[type=checkbox][data-k]').forEach(n=>n.addEventListener('change',()=>{sel[n.dataset.k]=n.checked;onField();}));
@@ -1865,12 +1883,12 @@ function applyVis(){
   const ws=$('wrap-snd');if(ws)ws.hidden=!el.snd;
   const lv=$('f-lev');if(lv){const m=el[lv.dataset.k];$('f-lev-note').textContent=LEVNOTE[m]||'';$('wrap-cal').hidden=m!=='cal';calNote(true);}
   if($('f-snd-note')){sndNote(true);drawBandMeter();}
-  const t=$('insp-title');if(t)t.textContent=nameOf(el);
+  const t=$('insp-title');if(t)t.textContent=(el._pre?'New ':'')+nameOf(el);
   if(el.type==='light'){resNote(true);const wl=$('wrap-laser');if(wl)wl.hidden=el.spectrum!=='laser';const aw=$('wrap-aw');if(aw)aw.hidden=!el.aWave;const as=$('wrap-asw');if(as)as.hidden=!el.aSway;const an=$('f-ac-note');if(an)an.hidden=el.spectrum==='laser';}
-  if(el.type==='hole')$('wrap-boost').hidden=el.mat==='none';
+  if(el.type==='hole'||el.type==='white')$('wrap-boost').hidden=el.mat==='none';
   if(el.type==='lens'){const ideal=el.mat==='ideal';$('wrap-form').hidden=ideal;$('wrap-boost').hidden=ideal;}
   if(el.type==='amp')$('wrap-aband').hidden=el.pass!=='band';
-  if(el.type==='tx')$('wrap-timg').hidden=el.mode==='beam';
+  if(el.type==='tx'){$('wrap-timg').hidden=el.mode==='beam';$('wrap-tspread').hidden=el.ang!=='fixed';}
   if(el.type==='filter'){$('wrap-bw').hidden=el.pass!=='band';$('f-lam-l').textContent=el.pass==='band'?'Center':'Cutoff';}
 }
 function onField(){applyVis();updateReadout();changed();}
@@ -1961,7 +1979,16 @@ function updateReadout(){
       if(el.mat==='none')t+=`<div>Real gravity bends every color by the same angle, about <b>${dv(550)}°</b> for light passing 150 mm out. Pick a material to give it that material’s rainbow.</div>`;
       else t+=`<div>Here gravity borrows the color spread of ${MATS[el.mat].name.toLowerCase()}${el.boost>1?`, exaggerated ${el.boost}×`:''}. Light passing 150 mm out bends about <b>${dv(400)}°</b> at 400 nm, <b>${dv(550)}°</b> at 550 and <b>${dv(700)}°</b> at 700, so violet swings in tighter than red. Real gravity bends every color alike.</div>`;
       t+='<div>Light only feels the pull inside the dashed circle, and it fades out toward the edge.</div>';
+      {const ch=Math.round(el.ch),n=ch>0?scene.filter(e=>e.type==='white'&&Math.round(e.ch)===ch).length:0;
+      t+=ch>0?(n?`<div>Light that falls in comes back out of ${n===1?'the white hole':n+' white holes'} on channel <b>${ch}</b>.</div>`:`<div>No white hole is on channel <b>${ch}</b> yet, so light that falls in is gone.</div>`):'<div>Set a White hole channel and add a White hole on it to let the light that falls in come back out somewhere else.</div>';}
       box.innerHTML=t;break;}
+    case 'white':{
+      const ch=Math.round(el.ch),n=ch>0?scene.filter(e=>e.type==='hole'&&Math.round(e.ch)===ch).length:0;
+      box.innerHTML='<div>A black hole run backwards: nothing can fall in, and light passing by is pushed away, more the closer it comes. Inside the dashed circle beams fan outward around it.</div>'+
+        (ch>0?(n?`<div>Linked to ${n===1?'the black hole':n+' black holes'} on channel <b>${ch}</b>. Whatever falls in there pours out of here, still heading the way it was going, and the push fans it out. Slowed light keeps its speed on the way through.</div>`
+          :`<div>No black hole is on channel <b>${ch}</b> yet. Pick a black hole and set its White hole channel to ${ch}.</div>`)
+          :'<div>Pick a channel to link it to a black hole and pour out whatever that hole swallows.</div>')+
+        '<div>White holes are allowed by the equations of gravity but none has ever been seen.</div>';break;}
     case 'screen':{
       const n=scene.filter(e=>e.type==='tx'&&Math.round(e.ch)===Math.round(el.ch)).length;
       box.innerHTML='<canvas class="strip" id="strip" aria-label="Light landing on this screen"></canvas><div>The screen unrolled: what lands on it, end to end. The right edge is the knob end.</div>'+
@@ -1981,9 +2008,10 @@ function updateReadout(){
     case 'tx':{
       const ch=Math.round(el.ch),n=scene.filter(e=>e.type==='screen'&&Math.round(e.ch)===ch).length;
       box.innerHTML='<canvas class="strip" id="strip" aria-label="Light this transmitter is sending"></canvas>'+
-        (n?`<div>Receives from ${n===1?'the screen':n+' screens'} on channel <b>${ch}</b> and sends out what lands there.${el.mode==='image'?' Each spot along the screen leaves from the matching spot across the face, so the picture is kept.':' Everything leaves as one beam.'}</div>`
+        (n?`<div>Receives from ${n===1?'the screen':n+' screens'} on channel <b>${ch}</b> and sends out what lands there.${el.mode==='image'?' Each spot along the screen leaves from the matching spot across the face, so the picture is kept.':' Everything leaves from the middle of the face.'}</div>`+
+          (el.ang==='pass'?'<div>Pass through: each ray leaves at the angle it met the screen, as if the screen were a window and this were its far side.</div>':el.ang==='refl'?'<div>Reflect: each ray leaves at the angle it would bounce off the screen, as if the screen were a mirror standing here.</div>':'<div>Straight out: every ray leaves square to the face, whatever angle it arrived at.</div>')
           :`<div>No screen is on channel <b>${ch}</b> yet. Pick a screen and set its Transmitter channel to ${ch}.</div>`)+
-        '<div>Relayed light can land on screens that feed other transmitters, up to three hops. It always arrives at once, even when the light is slowed.</div>';
+        '<div>Each ray carries straight on from the screen, so slowed light keeps its speed and arrives here as it lands there. Relayed light can feed other transmitters, up to six hops.</div>';
       drawStrip();break;}
   }
 }
@@ -2023,7 +2051,7 @@ function pick(x,y){
   return null;
 }
 function evPt(e){const r=canvas.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
-function onKnob(sx,sy){if(!sel||sel.type==='hole')return false;const k=knobPos(sel,geomOf(sel));return Math.hypot(sx-k[0],sy-k[1])<24;}
+function onKnob(sx,sy){if(!sel||sel._pre||sel.type==='hole'||sel.type==='white')return false;const k=knobPos(sel,geomOf(sel));return Math.hypot(sx-k[0],sy-k[1])<24;}
 // One finger or the mouse moves a piece, turns it by its knob, or pans the bench when it starts on empty space. Two fingers pinch to zoom and pan.
 const PTS=new Map();
 const pinchOf=()=>{const [a,b]=[...PTS.values()];return{d:Math.max(1,Math.hypot(a[0]-b[0],a[1]-b[1])),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]};};
@@ -2079,7 +2107,7 @@ $('z-in').addEventListener('click',()=>stepZoom(1.25));
 $('z-out').addEventListener('click',()=>stepZoom(1/1.25));
 $('z-reset').addEventListener('click',resetView);
 canvas.addEventListener('keydown',e=>{
-  if(!sel)return;const st=e.shiftKey?10:2,rs=e.shiftKey?15:1;let used=true;
+  if(!sel||sel._pre)return;const st=e.shiftKey?10:2,rs=e.shiftKey?15:1;let used=true;
   switch(e.key){
     case 'ArrowLeft':sel.x-=st;break;case 'ArrowRight':sel.x+=st;break;
     case 'ArrowUp':sel.y-=st;break;case 'ArrowDown':sel.y+=st;break;
@@ -2092,13 +2120,15 @@ canvas.addEventListener('keydown',e=>{
 function newPiece(t,at){
   const n=scene.length%6,o={x:(n-2.5)*16,y:(n-2.5)*12};
   if(t==='light'){o.x=-200/Math.max(1,zoom);o.y=(n-2.5)*20;}
-  if(t==='tx'){const sc=sel&&sel.type==='screen'?sel:scene.find(e=>e.type==='screen');if(sc)o.ch=sc.ch;}
-  if(at){o.x=Math.round(at[0]);o.y=Math.round(at[1]);}else{o.x=Math.round(o.x+vx);o.y=Math.round(o.y+vy);} // a tap lands it in the middle of what's on screen
+  const pre=PRE.get(t);if(pre)for(const k in DEF[t])if(k!=='type'&&k!=='x'&&k!=='y')o[k]=pre[k]; // what was set up on the rail
+  if(t==='tx'&&!pre){const sc=scene.find(e=>e.type==='screen');if(sc)o.ch=sc.ch;}
+  if(t==='white'&&!pre){const b=scene.find(e=>e.type==='hole'&&e.ch>0)||scene.find(e=>e.type==='hole');if(b){if(!(b.ch>0))b.ch=1;o.ch=b.ch;}} // links to a black hole already on the bench
+  if(at){o.x=Math.round(at[0]);o.y=Math.round(at[1]);}else{o.x=Math.round(o.x+vx);o.y=Math.round(o.y+vy);} // Place lands it in the middle of what's on screen
   return mk(t,o);
 }
 function placed(el){sel=el;renderInspector();$('dock').scrollTop=0;changed();}
 // Press a part on the rail and drag it onto the bench: it appears under your finger, beams and all, and stays where you let go.
-// Dragging along the rail still scrolls it; drag across (out toward the bench) to pick a part up. A plain tap adds it in the middle.
+// Dragging along the rail still scrolls it; drag across (out toward the bench) to pick a part up.
 let addDrag=null,skipClick=false;
 const addBarEl=document.querySelector('.add');
 function overBench(x,y){const t=document.elementFromPoint(x,y);return t===canvas;}
@@ -2130,9 +2160,12 @@ function addDragEnd(e){
 window.addEventListener('pointermove',addDragMove,{passive:false});
 window.addEventListener('pointerup',addDragEnd);
 window.addEventListener('pointercancel',addDragEnd);
+// A tap on a part doesn't add it: it opens that part's settings, and whatever is set there is what gets dragged in next.
+const PRE=new Map();
+function preset(t){let el=PRE.get(t);if(!el){el=mk(t,{});el._pre=true;PRE.set(t,el);}sel=el;renderInspector();$('dock').scrollTop=0;request();}
 addBarEl.addEventListener('click',e=>{
   const b=e.target.closest('button[data-add]');if(!b||skipClick)return;
-  const el=newPiece(b.dataset.add);scene.push(el);placed(el);
+  preset(b.dataset.add);
 });
 
 /* ================= Undo toast ================= */
@@ -2176,6 +2209,7 @@ const PRESETS=[ // the first one is what a newcomer's bench opens with
   {name:'Relay and shift',blurb:'A transmitter re-sends the rainbow on one screen through an amplifier and a color shifter onto another.',build:()=>[mk('light',{x:-244,y:149,angle:-33.2}),mk('prism',{x:-22,y:50}),mk('screen',{x:220,y:165,angle:123.2,len:230}),
     mk('tx',{x:250,y:-190,angle:180,len:90}),mk('amp',{x:160,y:-190,len:120,gain:1.6}),mk('shift',{x:90,y:-190,len:120,shift:80,edge:'wrap'}),mk('screen',{x:20,y:-190,len:150,ch:2})]},
   {name:'Black hole',blurb:'Gravity bends white light around a hole, violet tighter than red.',bright:1.4,build:()=>[mk('light',{x:-300,y:-95,width:130}),mk('hole',{x:0,y:0,mass:8,boost:3}),mk('screen',{x:270,y:0,angle:90,len:520})]},
+  {name:'Wormhole',blurb:'Light that falls into the black hole pours back out of a white hole across the bench.',bright:1.3,build:()=>[mk('light',{x:-330,y:-30,width:70}),mk('hole',{x:-90,y:0,mass:10,reach:240,boost:2,ch:1}),mk('white',{x:170,y:110,mass:10,reach:200,ch:1}),mk('screen',{x:330,y:60,angle:80,len:420})]},
   {name:'Diamond fire',blurb:'High index and strong dispersion make the sparkle.',build:()=>[mk('light',{x:-240,y:0,width:24}),mk('prism',{x:20,y:0,angle:12,size:180,mat:'diamond'})]},
   {name:'Liquid lens',blurb:'A flowing blob of water throws moving caustics.',build:()=>[mk('light',{x:-282,y:0,width:150}),mk('liquid',{x:-30,y:0,size:230,mat:'water',wob:.6,flow:.6}),mk('screen',{x:250,y:0,len:340})]},
   {name:'Bass-tuned prism',blurb:'Start Sound and play music: bass bends and spreads the rainbow.',build:()=>[mk('light',{x:-244,y:79,angle:-33.2}),mk('prism',{x:-22,y:-20,snd:true,sndLo:40,sndHi:160,sndN:.18,sndBoost:4,sndSpin:6}),mk('screen',{x:220,y:95,angle:123.2,len:230})]}
