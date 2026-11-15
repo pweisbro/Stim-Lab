@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="description" content="Overtone: a frequency explorer for the microphone. A scrolling heat map of every frequency, with harmonics, steady resonances and a tap-to-isolate band.">
+<meta name="theme-color" content="#05040b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Overtone">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+<title>Overtone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Share+Tech+Mono&display=swap">
+<style>
+/* Overtone: a cyberpunk frequency explorer. Single dark theme on purpose: a neon HUD over a black
+   signal map. Magenta and cyan carry the interface, the heat map carries the sound. */
+:root{
+  color-scheme: dark;
+  --bg:#05040b;
+  --panel:rgba(10,8,22,.86);
+  --line:rgba(5,217,232,.28);
+  --cyan:#05d9e8;
+  --pink:#ff2a6d;
+  --yellow:#f9f871;
+  --text:#e8f7ff;
+  --muted:#8a9bb8;
+  --hud:"Share Tech Mono",ui-monospace,Menlo,Consolas,monospace;
+  --display:"Orbitron","Avenir Next",system-ui,sans-serif;
+  --sys:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+  --sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font:400 14px/1.4 var(--sys);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button,select,input{font:inherit;color:inherit}
+#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+/* scanlines and a soft vignette over everything, never blocking touches */
+#scan{position:fixed;inset:0;pointer-events:none;z-index:5;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px),
+    radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.55));mix-blend-mode:multiply}
+
+.ui{transition:opacity .25s}
+body.bare .ui{opacity:0;pointer-events:none}
+
+/* corner-cut HUD panels */
+.hud{background:var(--panel);border:1px solid var(--line);
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 0 24px rgba(5,217,232,.08) inset}
+
+#top{position:fixed;z-index:10;top:calc(var(--st) + 10px);left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);
+  display:flex;align-items:center;gap:4px;padding:4px 6px;pointer-events:none}
+#top > *{pointer-events:auto}
+.bar{display:flex;align-items:center;gap:2px;padding:3px}
+.ib{width:42px;height:42px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--text);
+  border-radius:2px;text-decoration:none;position:relative}
+.ib:hover{background:rgba(5,217,232,.1)}
+.ib svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ib[aria-pressed="true"]{color:var(--cyan);text-shadow:0 0 8px var(--cyan)}
+.ib[aria-pressed="true"] svg{filter:drop-shadow(0 0 4px rgba(5,217,232,.9))}
+.ib.pink[aria-pressed="true"]{color:var(--pink)}
+.ib.pink[aria-pressed="true"] svg{filter:drop-shadow(0 0 4px rgba(255,42,109,.9))}
+.sep{width:1px;height:24px;background:var(--line);margin:0 3px}
+.brand{font:800 14px/1 var(--display);letter-spacing:.22em;text-transform:uppercase;padding:0 8px 0 4px;white-space:nowrap;
+  color:var(--text);text-shadow:0 0 6px rgba(255,42,109,.9),0 0 18px rgba(255,42,109,.45)}
+.brand b{color:var(--cyan);font-weight:800;text-shadow:0 0 6px rgba(5,217,232,.9),0 0 18px rgba(5,217,232,.45)}
+.spacer{flex:1}
+#src{height:34px;padding:0 12px;border:1px solid var(--line);background:rgba(5,217,232,.06);cursor:pointer;
+  font:13px/1 var(--hud);letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:8px;white-space:nowrap;
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
+#src i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:block}
+#src.live i{background:var(--pink);box-shadow:0 0 8px var(--pink);animation:blink 1.6s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+@media (max-width:560px){ .brand{display:none} .ib{width:38px} #src{padding:0 9px} }
+@media (max-width:380px){ .ib{width:35px} }
+
+#menu{position:fixed;z-index:20;top:calc(var(--st) + 64px);left:calc(var(--sl) + 10px);min-width:230px;padding:6px}
+#menu button{display:flex;width:100%;gap:10px;align-items:center;padding:11px 12px;border:0;background:transparent;cursor:pointer;text-align:left;
+  font:14px/1.2 var(--hud);letter-spacing:.04em}
+#menu button:hover{background:rgba(5,217,232,.1)}
+#menu button small{display:block;color:var(--muted);font-size:11px;letter-spacing:0;font-family:var(--sys)}
+#menu svg{width:20px;height:20px;flex:none;fill:none;stroke:var(--cyan);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* readout: the fundamental and its harmonic fingerprint */
+#readout{position:fixed;z-index:9;left:calc(var(--sl) + 10px);bottom:calc(var(--sb) + 10px);padding:10px 16px 10px 14px;
+  display:flex;align-items:center;gap:14px;max-width:calc(100% - 20px - var(--sl) - var(--sr));pointer-events:none}
+#readout .note{font:800 30px/1 var(--display);letter-spacing:.04em;color:var(--pink);text-shadow:0 0 10px rgba(255,42,109,.8);min-width:2.6ch}
+#readout .note.dim{color:var(--muted);text-shadow:none;font-size:18px}
+#readout .meta{font:13px/1.35 var(--hud);color:var(--text);white-space:nowrap}
+#readout .meta span{color:var(--cyan)}
+#readout canvas{width:132px;height:38px;display:block}
+@media (max-width:420px){ #readout canvas{width:96px} #readout .note{font-size:24px} #readout{gap:10px;padding:8px 12px} }
+
+/* probe card: tap a frequency */
+#probe{position:fixed;z-index:11;right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 10px);width:min(330px,calc(100% - 20px - var(--sl) - var(--sr)));padding:12px 14px 14px}
+#probe h3{margin:0;font:800 22px/1.1 var(--display);letter-spacing:.03em;color:var(--cyan);text-shadow:0 0 10px rgba(5,217,232,.7)}
+#probe .sub{font:13px/1.45 var(--hud);color:var(--text);margin-top:4px}
+#probe .sub em{font-style:normal;color:var(--yellow)}
+#probe .why{font:12px/1.4 var(--sys);color:var(--muted);margin-top:4px;min-height:1.4em}
+#probe .row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+#probe .x{position:absolute;top:6px;right:6px}
+#probe .chips .btn{padding:0 8px}
+@media (max-width:600px){ #probe{bottom:calc(var(--sb) + 76px)} }
+.btn{height:36px;padding:0 12px;border:1px solid var(--line);background:rgba(5,217,232,.06);cursor:pointer;
+  font:13px/1 var(--hud);letter-spacing:.06em;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px;
+  clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px))}
+.btn:hover{background:rgba(5,217,232,.14)}
+.btn[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:#12020a;box-shadow:0 0 16px rgba(255,42,109,.6)}
+.btn.cy[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:#001417;box-shadow:0 0 16px rgba(5,217,232,.6)}
+.btn.sm{height:32px;padding:0 10px;font-size:12px}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+
+/* settings sheet */
+#panel{position:fixed;z-index:15;top:calc(var(--st) + 64px);right:calc(var(--sr) + 10px);width:min(360px,calc(100% - 20px - var(--sl) - var(--sr)));
+  max-height:calc(100% - var(--st) - var(--sb) - 84px);overflow:auto;padding:14px 16px 16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#panel h4{margin:16px 0 8px;font:600 11px/1 var(--display);letter-spacing:.24em;text-transform:uppercase;color:var(--pink)}
+#panel h4:first-child{margin-top:2px}
+.field{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 10px;margin:9px 0}
+.field label{font-size:13px;color:var(--text)}
+.field output{font:12px var(--hud);color:var(--cyan);text-align:right}
+.field input[type=range]{grid-column:1/-1;width:100%}
+.field select{grid-column:2;background:#0c0a1c;border:1px solid var(--line);padding:6px 8px;border-radius:0}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.45}
+input[type=range]{-webkit-appearance:none;appearance:none;height:24px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:linear-gradient(90deg,var(--pink),var(--cyan))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-6.5px;background:#05040b;border:2px solid var(--cyan);transform:rotate(45deg);box-shadow:0 0 8px var(--cyan)}
+input[type=range]::-moz-range-track{height:3px;background:linear-gradient(90deg,var(--pink),var(--cyan))}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:0;background:#05040b;border:2px solid var(--cyan)}
+
+/* start card */
+#start{position:fixed;z-index:30;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,calc(100% - 32px));padding:24px 22px 20px;text-align:left}
+#start h1{margin:0;font:800 clamp(26px,7vw,34px)/1 var(--display);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--text);text-shadow:0 0 8px rgba(255,42,109,.9),0 0 26px rgba(255,42,109,.5)}
+#start h1 b{color:var(--cyan);text-shadow:0 0 8px rgba(5,217,232,.9),0 0 26px rgba(5,217,232,.5)}
+#start .tag{font:12px/1 var(--hud);color:var(--cyan);letter-spacing:.2em;text-transform:uppercase;margin:10px 0 14px}
+#start p{margin:0 0 16px;color:#c9d6ea;font-size:15px;line-height:1.5}
+#start .go{display:flex;flex-direction:column;gap:8px}
+#start .btn{height:46px;justify-content:center;font-size:14px}
+#start .btn.main{background:var(--pink);border-color:var(--pink);color:#12020a;box-shadow:0 0 22px rgba(255,42,109,.55)}
+#start .demo{margin-top:12px;background:none;border:0;color:var(--muted);cursor:pointer;font:12px var(--hud);letter-spacing:.08em;text-transform:uppercase;padding:6px 0}
+
+#filebar{position:fixed;z-index:9;left:50%;transform:translateX(-50%);top:calc(var(--st) + 64px);display:flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;width:min(480px,calc(100% - 20px))}
+#filebar .name{font:12px var(--hud);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+#filebar input{flex:1;min-width:60px}
+
+#show{position:fixed;z-index:12;right:calc(var(--sr) + 10px);top:calc(var(--st) + 14px);opacity:0;pointer-events:none;transition:opacity .25s}
+body.bare #show{opacity:.35;pointer-events:auto}
+body.bare #show:hover{opacity:1}
+
+#toast{position:fixed;z-index:40;left:50%;bottom:calc(var(--sb) + 90px);transform:translateX(-50%) translateY(10px);max-width:min(440px,calc(100% - 32px));
+  padding:10px 14px;font:13px/1.4 var(--hud);color:var(--text);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){ .ui,#toast{transition:none} #src.live i{animation:none} }
+</style>
+</head>
+<body>
+<canvas id="view" aria-label="Frequency heat map. Tap a frequency to inspect it, drag up and down to move, pinch to zoom."></canvas>
+<div id="scan"></div>
+
+<div id="top" class="ui">
+  <div class="bar hud">
+    <a class="ib" href="./" aria-label="Back to Stim Lab" title="Stim Lab">
+      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+    </a>
+    <span class="brand">Over<b>tone</b></span>
+    <button id="src" aria-haspopup="true"><i></i><span id="srcName">Demo</span></button>
+  </div>
+  <span class="spacer"></span>
+  <div class="bar hud">
+    <button class="ib" id="bFreeze" aria-pressed="false" title="Freeze (Space)" aria-label="Freeze the map">
+      <svg viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></svg>
+    </button>
+    <button class="ib pink" id="bHarm" aria-pressed="true" title="Harmonics" aria-label="Show harmonics">
+      <svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V5M10 20V9M14 20v-7M18 20v-4"/></svg>
+    </button>
+    <button class="ib" id="bRes" aria-pressed="true" title="Resonances" aria-label="Show steady resonances">
+      <svg viewBox="0 0 24 24"><path d="M3 12h3l2-6 3 12 3-9 2 3h5"/></svg>
+    </button>
+    <span class="sep"></span>
+    <button class="ib" id="bSet" aria-pressed="false" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+    </button>
+    <button class="ib" id="bHide" title="Hide controls (H)" aria-label="Hide controls">
+      <svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+  </div>
+</div>
+<button class="ib hud" id="show" aria-label="Show controls" title="Show controls (H)">
+  <svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+</button>
+
+<div id="menu" class="hud ui" hidden>
+  <button data-src="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Microphone<small>Listen to the room, a voice or an instrument</small></span></button>
+  <button data-src="file"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span>Song file<small>Plays it and maps it; stays on the device</small></span></button>
+  <button data-src="demo"><svg viewBox="0 0 24 24"><path d="M4 12h2l2-5 3 10 3-7 2 4h4"/></svg><span>Demo<small>A made-up voice, mains hum and a fan</small></span></button>
+</div>
+
+<div id="filebar" class="hud ui" hidden>
+  <button class="ib" id="fPlay" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></button>
+  <span class="name" id="fName"></span>
+  <input type="range" id="fPos" min="0" max="1000" value="0" aria-label="Position">
+</div>
+
+<div id="readout" class="hud ui">
+  <div class="note dim" id="rNote">—</div>
+  <div class="meta" id="rMeta">Listening for a pitch</div>
+  <canvas id="rBars" aria-hidden="true"></canvas>
+</div>
+
+<div id="probe" class="hud ui" hidden>
+  <button class="ib x" id="pClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <h3 id="pHz">440 Hz</h3>
+  <div class="sub" id="pSub"></div>
+  <div class="why" id="pWhy"></div>
+  <div class="row">
+    <button class="btn sm" id="pDown" aria-label="Down a semitone">−½</button>
+    <button class="btn sm" id="pUp" aria-label="Up a semitone">+½</button>
+    <button class="btn sm" id="pSnap" title="Jump to the nearest peak">Peak</button>
+    <button class="btn sm cy" id="pTone" aria-pressed="false">Tone</button>
+    <button class="btn sm" id="pIso" aria-pressed="false">Hear band</button>
+  </div>
+  <div class="row chips" id="pWidth"></div>
+</div>
+
+<div id="panel" class="hud ui" hidden>
+  <h4>Views</h4>
+  <div class="chips" id="views"></div>
+  <p class="hint" id="viewHint"></p>
+
+  <h4>Map</h4>
+  <div class="chips" id="palettes"></div>
+  <div class="field"><label for="sWin">Time across the screen</label><output id="oWin"></output><input type="range" id="sWin" min="0" max="4" step="1"></div>
+  <div class="field"><label for="sFft">Detail</label><select id="sFft"></select></div>
+  <p class="hint">More detail separates close frequencies (good for resonances and low notes) but blurs fast changes.</p>
+  <div class="field"><label for="sSmooth">Smoothing</label><output id="oSmooth"></output><input type="range" id="sSmooth" min="0" max="0.9" step="0.05"></div>
+  <div class="field"><label for="sRange">Brightness range</label><output id="oRange"></output><input type="range" id="sRange" min="30" max="110" step="5"></div>
+  <div class="field"><label for="sBoost">Boost</label><output id="oBoost"></output><input type="range" id="sBoost" min="-20" max="30" step="1"></div>
+  <p class="hint">The map levels itself to what it hears. Range sets how quiet a sound still glows; Boost brightens or dims everything.</p>
+
+  <h4>Harmonics</h4>
+  <div class="field"><label for="sHarmN">Overtones to mark</label><output id="oHarmN"></output><input type="range" id="sHarmN" min="3" max="24" step="1"></div>
+  <div class="field"><label>Trails on the map</label><button class="btn sm cy" id="sTrails" aria-pressed="true">On</button></div>
+  <div class="field"><label>Peak labels</label><button class="btn sm cy" id="sLabels" aria-pressed="true">On</button></div>
+  <div class="field"><label>Piano keys on the edge</label><button class="btn sm cy" id="sPiano" aria-pressed="true">On</button></div>
+  <div class="field"><label for="sA4">Tuning, A4</label><output id="oA4"></output><input type="range" id="sA4" min="415" max="466" step="1"></div>
+
+  <h4>Resonances</h4>
+  <div class="field"><label for="sMem">Memory</label><output id="oMem"></output><input type="range" id="sMem" min="2" max="60" step="1"></div>
+  <p class="hint">A resonance is a frequency that keeps showing up as a peak for most of this time, like a room mode, a fan, mains hum or a ringing string. Shorter memory reacts faster.</p>
+  <div class="row chips"><button class="btn sm" id="resReset">Forget resonances</button></div>
+
+  <h4>Excite the room</h4>
+  <p class="hint" style="margin-top:0">Play a sound out of the speaker while the microphone listens, so the room's own resonances light up. Turn the volume down first.</p>
+  <div class="row chips" style="margin-top:8px"><button class="btn sm cy" id="xSweep" aria-pressed="false">Slow sweep</button><button class="btn sm cy" id="xNoise" aria-pressed="false">Pink noise</button></div>
+  <div class="field"><label for="sVol">Speaker volume</label><output id="oVol"></output><input type="range" id="sVol" min="0" max="1" step="0.01"></div>
+
+  <h4>Input</h4>
+  <div class="field"><label for="sMic">Microphone</label><select id="sMic"><option value="">Default</option></select></div>
+  <div class="row chips" style="margin-top:12px"><button class="btn sm" id="saveImg">Save image</button></div>
+  <p class="hint">Drag up and down to move through frequencies, pinch or scroll to zoom, double-tap to reset. Keys: Space freezes, H hides the controls, Esc closes the probe.</p>
+</div>
+
+<div id="start" class="hud">
+  <h1>Over<b>tone</b></h1>
+  <div class="tag">// frequency explorer</div>
+  <p>Every frequency the microphone hears, as a scrolling heat map: loud ones burn as hotspots. It finds the note, marks its overtones, picks out steady resonances, and you can tap any frequency to isolate it.</p>
+  <div class="go">
+    <button class="btn main" id="goMic">Listen with the microphone</button>
+    <button class="btn" id="goFile">Open a song</button>
+  </div>
+  <button class="demo" id="goDemo">Just watch the demo</button>
+</div>
+
+<input type="file" id="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg" hidden>
+<audio id="player" preload="auto" playsinline></audio>
+<div id="toast" class="hud" role="status"></div>
+
+<script>
+'use strict';
+/* =================================================================
+   Settings: everything here is kept on the device and comes back next visit.
+   ================================================================= */
+const STORE = 'overtone-settings';
+const VIEWS = {
+  voice: { name: 'Voice & instruments', fmin: 55, fmax: 5000, fft: 8192, win: 2, hint: 'Notes and their overtones. Sing, hum or play something.' },
+  room:  { name: 'Room resonances', fmin: 25, fmax: 1200, fft: 32768, win: 3, hint: 'Low and slow, with fine detail. Try Excite the room below, or just let the fridge, fans and traffic play.' },
+  full:  { name: 'Full range', fmin: 20, fmax: 20000, fft: 8192, win: 2, hint: 'Everything from deep bass to the top of hearing.' },
+  high:  { name: 'Birds & whistles', fmin: 900, fmax: 14000, fft: 4096, win: 1, hint: 'High and fast: birdsong, whistles, squeaks and electronics whine.' },
+  bass:  { name: 'Bass & hum', fmin: 20, fmax: 400, fft: 32768, win: 3, hint: 'Sub bass, kick drums and mains hum (50 or 60 Hz and its multiples).' }
+};
+const WINS = [4, 8, 12, 18, 24];
+const FFTS = [[2048, 'Fast'], [4096, 'Quick'], [8192, 'Balanced'], [16384, 'Fine'], [32768, 'Finest']];
+const PALETTES = {
+  neon:   { name: 'Neon', stops: [[0, '#030208'], [.16, '#0d0630'], [.34, '#3a0b7a'], [.5, '#9a0f9e'], [.64, '#ff2a6d'], [.8, '#ff9b3d'], [.92, '#f9f871'], [1, '#ffffff']] },
+  ice:    { name: 'Ice', stops: [[0, '#020409'], [.22, '#04163a'], [.45, '#0a4aa8'], [.65, '#05d9e8'], [.85, '#b6fff7'], [1, '#ffffff']] },
+  matrix: { name: 'Matrix', stops: [[0, '#010402'], [.3, '#032a10'], [.6, '#0fae3c'], [.85, '#8dff8a'], [1, '#f2fff0']] },
+  chroma: { name: 'Note colors', chroma: true }
+};
+const DEFAULTS = { view: 'voice', fmin: 55, fmax: 5000, fft: 8192, win: 2, palette: 'neon', smooth: .3, range: 70, boost: 0,
+  harm: true, harmN: 12, trails: true, labels: true, piano: true, res: true, mem: 12, a4: 440, vol: .25, micId: '', source: 'demo', bw: 1 / 6 };
+let S = Object.assign({}, DEFAULTS);
+try { Object.assign(S, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) {}
+let saveT = 0;
+function save(){ clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }, 300); }
+
+/* =================================================================
+   Notes and numbers
+   ================================================================= */
+const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+function noteOf(f){
+  const m = 69 + 12 * Math.log2(f / S.a4), n = Math.round(m);
+  return { name: NAMES[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1), cents: Math.round((m - n) * 100), midi: n };
+}
+const centsStr = (c) => (c > 0 ? '+' : c < 0 ? '−' : '±') + Math.abs(c) + '¢';
+function fmtHz(f){
+  if (f >= 10000) return (f / 1000).toFixed(1) + ' kHz';
+  if (f >= 1000) return (f / 1000).toFixed(2) + ' kHz';
+  if (f >= 100) return Math.round(f) + ' Hz';
+  return f.toFixed(1) + ' Hz';
+}
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* =================================================================
+   The history: a log-frequency grid, ROWS tall, COLS long (60 columns a second)
+   ================================================================= */
+const ROWS = 2048, COLS = 1440, CPS = 60, HF0 = 20, HF1 = 20000;
+const LOG0 = Math.log2(HF0), LSPAN = Math.log2(HF1 / HF0), RPO = (ROWS - 1) / LSPAN; // rows per octave
+const rowOf = (f) => (Math.log2(f) - LOG0) * RPO;
+const fOfRow = (r) => HF0 * Math.pow(2, r / RPO);
+const hist = document.createElement('canvas'); hist.width = COLS; hist.height = ROWS;
+const hctx = hist.getContext('2d');
+hctx.fillStyle = '#030208'; hctx.fillRect(0, 0, COLS, ROWS);
+const histDb = new Uint8Array(COLS * ROWS);       // dB per cell, -140..0 in 255 steps (for recoloring)
+const f0Hist = new Float32Array(COLS);            // the detected fundamental per column (0 = none)
+const colImg = hctx.createImageData(1, ROWS);
+let head = 0;                                     // next column to write
+
+const rowDb = new Float32Array(ROWS);             // current spectrum on the grid
+const holdDb = new Float32Array(ROWS).fill(-140); // falling peak hold
+const avgDb = new Float32Array(ROWS).fill(-140);  // long-term average (resonances)
+const pres = new Float32Array(ROWS);              // how often each row has been a peak lately
+const hitMask = new Uint8Array(ROWS);
+
+// palette lookup, 256 colors, plus per-row hue for "Note colors"
+let LUT = new Uint8Array(256 * 3);
+const rowHue = new Uint8Array(ROWS * 3);
+function hex(h){ const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function buildPalette(){
+  const p = PALETTES[S.palette] || PALETTES.neon;
+  if (p.chroma){
+    for (let i = 0; i < 256; i++){ const v = i / 255; LUT[i * 3] = LUT[i * 3 + 1] = LUT[i * 3 + 2] = Math.round(255 * Math.pow(v, 1.6)); }
+    for (let r = 0; r < ROWS; r++){
+      const pc = ((12 * Math.log2(fOfRow(r) / (S.a4 * Math.pow(2, -9 / 12))) % 12) + 12) % 12; // 0 = C
+      const [R, G, B] = hsl(pc / 12 * 360 + 330, 1, .58);
+      rowHue[r * 3] = R; rowHue[r * 3 + 1] = G; rowHue[r * 3 + 2] = B;
+    }
+  } else {
+    const st = p.stops.map(([t, c]) => [t, hex(c)]);
+    for (let i = 0; i < 256; i++){
+      const v = i / 255; let k = 1; while (k < st.length - 1 && st[k][0] < v) k++;
+      const [t0, c0] = st[k - 1], [t1, c1] = st[k], u = clamp((v - t0) / (t1 - t0 || 1), 0, 1);
+      for (let j = 0; j < 3; j++) LUT[i * 3 + j] = Math.round(c0[j] + (c1[j] - c0[j]) * u);
+    }
+  }
+}
+function hsl(h, s, l){
+  h = ((h % 360) + 360) % 360 / 60; const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(h % 2 - 1)), m = l - c / 2;
+  const [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+// level -> 0..255 brightness, from the auto-leveled ceiling, the range and the boost
+let ceilDb = -30;
+const lo = () => ceilDb - S.range - S.boost, hi = () => ceilDb - S.boost;
+function paint(data, off, q, r){
+  // q: 0..255 brightness for row r; writes RGBA at data[off]
+  if (S.palette === 'chroma'){
+    const v = q / 255, w = Math.max(0, v - .82) / .18, k = LUT[q * 3] / 255;
+    data[off] = rowHue[r * 3] * k + (255 - rowHue[r * 3] * k) * w;
+    data[off + 1] = rowHue[r * 3 + 1] * k + (255 - rowHue[r * 3 + 1] * k) * w;
+    data[off + 2] = rowHue[r * 3 + 2] * k + (255 - rowHue[r * 3 + 2] * k) * w;
+  } else { data[off] = LUT[q * 3]; data[off + 1] = LUT[q * 3 + 1]; data[off + 2] = LUT[q * 3 + 2]; }
+  data[off + 3] = 255;
+}
+const toQ = (db, L, H) => { const v = (db - L) / (H - L); return v <= 0 ? 0 : v >= 1 ? 255 : (v * 255) | 0; };
+function pushColumn(f0){
+  const L = lo(), H = hi(), d = colImg.data, base = head * ROWS;
+  for (let r = 0; r < ROWS; r++){
+    const db = rowDb[r];
+    histDb[base + r] = clamp(Math.round((db + 140) / 140 * 255), 0, 255);
+    paint(d, (ROWS - 1 - r) * 4, toQ(db, L, H), r);
+  }
+  hctx.putImageData(colImg, head, 0);
+  f0Hist[head] = f0 || 0;
+  head = (head + 1) % COLS;
+}
+// After a palette or level change, repaint the whole history from the stored levels.
+function recolorAll(){
+  const L = lo(), H = hi(), img = hctx.createImageData(COLS, ROWS), d = img.data;
+  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++){
+    const q8 = histDb[c * ROWS + r]; const db = q8 === 0 ? -200 : q8 / 255 * 140 - 140;
+    paint(d, ((ROWS - 1 - r) * COLS + c) * 4, toQ(db, L, H), r);
+  }
+  hctx.putImageData(img, 0, 0);
+}
+
+/* =================================================================
+   Audio
+   ================================================================= */
+let ac = null, analyser = null, inBus = null, micStream = null, micNode = null, fileNode = null;
+let fileDirect = null, bp1 = null, bp2 = null, isoGain = null, toneOsc = null, toneGain = null, exciteNode = null, exciteGain = null;
+let source = 'demo', freqBuf = null, binHz = 48000 / 8192, nBins = 4096;
+const player = document.getElementById('player');
+
+function ensureAudio(){
+  if (ac) { if (ac.state !== 'running') ac.resume().catch(() => {}); return ac; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  ac = new AC();
+  try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) {}
+  inBus = ac.createGain();
+  analyser = ac.createAnalyser();
+  analyser.minDecibels = -140; analyser.maxDecibels = 0;
+  inBus.connect(analyser);
+  bp1 = ac.createBiquadFilter(); bp1.type = 'bandpass';
+  bp2 = ac.createBiquadFilter(); bp2.type = 'bandpass';
+  isoGain = ac.createGain(); isoGain.gain.value = 0;
+  bp1.connect(bp2); bp2.connect(isoGain); isoGain.connect(ac.destination);
+  fileDirect = ac.createGain(); fileDirect.connect(ac.destination);
+  toneGain = ac.createGain(); toneGain.gain.value = 0; toneGain.connect(ac.destination);
+  exciteGain = ac.createGain(); exciteGain.gain.value = 0; exciteGain.connect(ac.destination);
+  applyFft();
+  return ac;
+}
+function applyFft(){
+  if (!analyser) return;
+  analyser.fftSize = S.fft;
+  analyser.smoothingTimeConstant = S.smooth;
+  nBins = analyser.frequencyBinCount; binHz = ac.sampleRate / analyser.fftSize;
+  freqBuf = new Float32Array(nBins);
+  buildRowMap();
+}
+
+async function startMic(){
+  ensureAudio();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('This browser can’t use the microphone here.'); return false; }
+  stopFile();
+  if (micStream) micStream.getTracks().forEach((t) => t.stop());
+  try {
+    const audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+    if (S.micId) audio.deviceId = { exact: S.micId };
+    micStream = await navigator.mediaDevices.getUserMedia({ audio }).catch((e) => {
+      if (S.micId){ S.micId = ''; return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
+      throw e;
+    });
+  } catch (e) {
+    toast('Overtone needs the microphone. Allow it for this site in the browser’s settings, then tap Microphone again.');
+    return false;
+  }
+  if (ac.state !== 'running') await ac.resume().catch(() => {});
+  if (micNode) micNode.disconnect();
+  micNode = ac.createMediaStreamSource(micStream);
+  micNode.connect(inBus); micNode.connect(bp1);
+  micStream.getAudioTracks()[0].addEventListener('ended', () => { if (source === 'mic') { setSource('demo'); toast('The microphone stopped. Tap the source button to listen again.'); } });
+  setSource('mic');
+  listMics();
+  return true;
+}
+function stopMic(){
+  if (micStream) micStream.getTracks().forEach((t) => t.stop());
+  micStream = null; if (micNode) { micNode.disconnect(); micNode = null; }
+}
+async function listMics(){
+  try {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
+    const sel = document.getElementById('sMic');
+    sel.innerHTML = '<option value="">Default</option>' + devs.map((d, i) => '<option value="' + d.deviceId + '">' + esc(d.label || ('Microphone ' + (i + 1))) + '</option>').join('');
+    sel.value = devs.some((d) => d.deviceId === S.micId) ? S.micId : '';
+  } catch (e) {}
+}
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function openFile(f){
+  ensureAudio();
+  stopMic();
+  if (player.src) URL.revokeObjectURL(player.src);
+  player.src = URL.createObjectURL(f);
+  player.loop = true;
+  if (!fileNode){ fileNode = ac.createMediaElementSource(player); fileNode.connect(inBus); fileNode.connect(fileDirect); fileNode.connect(bp1); }
+  document.getElementById('fName').textContent = f.name;
+  player.play().catch(() => {});
+  setSource('file');
+}
+function stopFile(){ if (!player.paused) player.pause(); }
+
+function demoBins(){ binHz = 48000 / S.fft; nBins = S.fft / 2; freqBuf = new Float32Array(nBins); buildRowMap(); }
+function setSource(s){
+  source = s;
+  if (s !== 'file') stopFile();
+  if (s !== 'mic') stopMic();
+  if (s === 'demo') demoBins();
+  else applyFft();
+  S.source = s === 'file' ? 'demo' : s; save();
+  const b = document.getElementById('src');
+  b.classList.toggle('live', s !== 'demo');
+  document.getElementById('srcName').textContent = s === 'mic' ? 'Mic' : s === 'file' ? 'Song' : 'Demo';
+  document.getElementById('filebar').hidden = s !== 'file';
+  setIso(isoOn); updateExcite();
+}
+
+/* the band filter: hear only the probed frequency */
+let isoOn = false, toneOn = false, isoWarned = false;
+function bandQ(bw){ const r = Math.pow(2, bw); return Math.sqrt(r) / (r - 1); }
+function setIso(on){
+  isoOn = on && probeF > 0 && source !== 'demo';
+  document.getElementById('pIso').setAttribute('aria-pressed', isoOn);
+  if (!ac) return;
+  const t = ac.currentTime;
+  if (isoOn){
+    bp1.frequency.setTargetAtTime(probeF, t, .02); bp2.frequency.setTargetAtTime(probeF, t, .02);
+    const q = bandQ(S.bw); bp1.Q.value = q; bp2.Q.value = q;
+  }
+  isoGain.gain.setTargetAtTime(isoOn ? 2.5 + 6 * Math.min(1, 1 / (S.bw * 6)) : 0, t, .03);
+  fileDirect.gain.setTargetAtTime(isoOn ? 0 : 1, t, .03);
+}
+function setTone(on){
+  toneOn = on && probeF > 0;
+  document.getElementById('pTone').setAttribute('aria-pressed', toneOn);
+  if (!toneOn && !toneOsc) return;
+  ensureAudio();
+  const t = ac.currentTime;
+  if (toneOn){
+    if (!toneOsc){ toneOsc = ac.createOscillator(); toneOsc.type = 'sine'; toneOsc.frequency.value = probeF; toneOsc.connect(toneGain); toneOsc.start(); }
+    toneOsc.frequency.setTargetAtTime(probeF, t, .015);
+    toneGain.gain.setTargetAtTime(S.vol * .6, t, .03);
+  } else toneGain.gain.setTargetAtTime(0, t, .03);
+}
+/* excite the room: a slow log sweep across the view, or pink noise */
+let excite = '', sweepT = 0;
+function setExcite(kind){
+  excite = excite === kind ? '' : kind;
+  document.getElementById('xSweep').setAttribute('aria-pressed', excite === 'sweep');
+  document.getElementById('xNoise').setAttribute('aria-pressed', excite === 'noise');
+  ensureAudio();
+  if (exciteNode){ try { exciteNode.stop(); } catch (e) {} exciteNode.disconnect(); exciteNode = null; }
+  if (excite === 'sweep'){
+    exciteNode = ac.createOscillator(); exciteNode.type = 'sine'; exciteNode.connect(exciteGain); exciteNode.start(); sweepT = 0;
+  } else if (excite === 'noise'){
+    const n = ac.sampleRate * 4, buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < n; i++){ // Paul Kellet's pink filter
+      const w = Math.random() * 2 - 1;
+      b0 = .99886 * b0 + w * .0555179; b1 = .99332 * b1 + w * .0750759; b2 = .969 * b2 + w * .153852;
+      b3 = .8665 * b3 + w * .3104856; b4 = .55 * b4 + w * .5329522; b5 = -.7616 * b5 - w * .016898;
+      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * .5362) * .11; b6 = w * .115926;
+    }
+    exciteNode = ac.createBufferSource(); exciteNode.buffer = buf; exciteNode.loop = true; exciteNode.connect(exciteGain); exciteNode.start();
+  }
+  updateExcite();
+  if (excite && source !== 'mic') toast('The microphone has to be on to hear the room answer. Tap the source button and pick Microphone.');
+}
+function updateExcite(){ if (exciteGain) exciteGain.gain.setTargetAtTime(excite ? S.vol * (excite === 'noise' ? .9 : .5) : 0, ac.currentTime, .05); }
+function stepExcite(dt){
+  if (excite !== 'sweep' || !exciteNode) return;
+  sweepT = (sweepT + dt) % 24;
+  const a = Math.max(30, S.fmin), b = Math.min(8000, S.fmax), u = sweepT < 22 ? sweepT / 22 : 1 - (sweepT - 22) / 2;
+  exciteNode.frequency.setTargetAtTime(a * Math.pow(b / a, u), ac.currentTime, .01);
+}
+
+/* =================================================================
+   Spectrum -> grid rows, and the demo signal
+   ================================================================= */
+let rowA = new Int32Array(ROWS), rowB = new Int32Array(ROWS), rowFrac = new Float32Array(ROWS);
+function buildRowMap(){
+  for (let r = 0; r < ROWS; r++){
+    const f = fOfRow(r), fl = f * Math.pow(2, -.5 / RPO), fh = f * Math.pow(2, .5 / RPO);
+    const a = Math.ceil(fl / binHz), b = Math.floor(fh / binHz);
+    if (b - a >= 1){ rowA[r] = Math.min(a, nBins - 1); rowB[r] = Math.min(b, nBins - 1); rowFrac[r] = -1; }
+    else { const x = f / binHz, i = Math.floor(x); rowA[r] = Math.min(i, nBins - 1); rowB[r] = Math.min(i + 1, nBins - 1); rowFrac[r] = x - i; }
+  }
+}
+buildRowMap();
+function specToRows(spec){
+  const nyq = binHz * nBins;
+  for (let r = 0; r < ROWS; r++){
+    if (fOfRow(r) > nyq * .98){ rowDb[r] = -140; continue; }
+    let v;
+    if (rowFrac[r] < 0){ v = -200; for (let i = rowA[r]; i <= rowB[r]; i++) if (spec[i] > v) v = spec[i]; }
+    else { const a = spec[rowA[r]], b = spec[rowB[r]]; v = a + (b - a) * rowFrac[r]; }
+    rowDb[r] = v > -140 ? v : -140;
+  }
+}
+
+// The demo: a voice singing a little tune with vibrato, mains hum, a fan whine and a soft noise floor.
+const demo = { t: 0, pw: null };
+const DEMO_TUNE = [45, 52, 57, 55, 52, 50, 48, 50, 52, 57, 59, 57];
+function demoSpectrum(spec, dt){
+  demo.t += dt;
+  const t = demo.t, n = nBins;
+  if (!demo.pw || demo.pw.length !== n) demo.pw = new Float32Array(n);
+  const P = demo.pw;
+  for (let i = 1; i < n; i++){ const f = i * binHz; P[i] = Math.pow(10, (-104 - 3 * Math.log2(f / 1000) + (Math.random() - .5) * 6) / 10); }
+  P[0] = P[1];
+  const add = (f, db, sig) => {
+    const c = f / binHz; if (c < 1 || c > n - 3) return;
+    const A = Math.pow(10, db / 10), w = Math.ceil(sig * 4);
+    for (let i = Math.max(1, Math.floor(c) - w); i <= Math.min(n - 1, Math.ceil(c) + w); i++){ const z = (i - c) / sig; P[i] += A * Math.exp(-.5 * z * z); }
+  };
+  // steady things in the room
+  add(60, -64, .9); add(120, -72, .9); add(180, -70, .9); add(300, -82, .9);
+  add(1470, -74 + 1.5 * Math.sin(t * 1.3), .9); add(2940, -86, .9);
+  // the voice
+  const step = 1.5, k = Math.floor(t / step), u = t - k * step;
+  const m0 = DEMO_TUNE[(k + DEMO_TUNE.length - 1) % DEMO_TUNE.length], m1 = DEMO_TUNE[k % DEMO_TUNE.length];
+  const glide = Math.min(1, u / .12), m = m0 + (m1 - m0) * (glide * glide * (3 - 2 * glide));
+  const vib = u > .35 ? .22 * Math.sin(t * 2 * Math.PI * 5.4) * Math.min(1, (u - .35) / .3) : 0;
+  const f0 = 440 * Math.pow(2, (m + vib - 69) / 12) * (S.a4 / 440);
+  const env = u < .06 ? u / .06 : u > step - .16 ? Math.max(0, (step - u) / .16) : 1;
+  const phrase = (k % 6) === 5 && u > .9 ? 0 : 1; // a breath now and then
+  if (env * phrase > .01){
+    const lv = 20 * Math.log10(env * phrase);
+    for (let h = 1; h <= 40; h++){
+      const f = f0 * h; if (f > 9000) break;
+      const fm = (fc, g, wo) => g * Math.exp(-.5 * Math.pow(Math.log2(f / fc) / wo, 2));
+      const db = -30 - 7.5 * Math.log2(h) + fm(650, 14, .35) + fm(1150, 10, .3) + fm(2600, 8, .25) + lv;
+      add(f, db, .8 + h * f0 * Math.abs(vib) * .0024 * S.fft / 8192);
+    }
+  }
+  for (let i = 0; i < n; i++) spec[i] = 10 * Math.log10(P[i]);
+}
+
+/* =================================================================
+   Analysis: peaks, fundamental, harmonics, resonances
+   ================================================================= */
+let peaks = [], allPeaks = [], f0 = 0, f0Smooth = 0, f0Miss = 0, harmLv = [], resList = [], frameMax = -140;
+function findPeaks(spec){
+  const out = [], L = lo() + S.range * .18, iMin = Math.max(2, Math.ceil(25 / binHz)), iMax = Math.min(nBins - 3, Math.floor(Math.min(19000, binHz * nBins * .95) / binHz));
+  frameMax = -140;
+  for (let i = iMin; i <= iMax; i++){
+    const b = spec[i];
+    if (b > frameMax) frameMax = b;
+    if (b < L || b < spec[i - 1] || b <= spec[i + 1]) continue;
+    const w = Math.max(6, Math.round(i * .035));
+    let ml = b, mr = b;
+    for (let j = Math.max(0, i - w); j < i; j++) if (spec[j] < ml) ml = spec[j];
+    for (let j = i + 1, e = Math.min(nBins - 1, i + w); j <= e; j++) if (spec[j] < mr) mr = spec[j];
+    const prom = b - Math.max(ml, mr);
+    if (prom < 9) continue;
+    const a = spec[i - 1], c = spec[i + 1], den = a - 2 * b + c, p = den < 0 ? clamp(.5 * (a - c) / den, -.5, .5) : 0;
+    out.push({ f: (i + p) * binHz, db: b - .25 * (a - c) * p, prom });
+  }
+  out.sort((x, y) => y.db - x.db);
+  allPeaks = out.slice(0, 160);
+  return out.slice(0, 32);
+}
+function findFundamental(pk){
+  if (pk.length < 2) return 0;
+  const top = pk[0].db, pool = pk.slice(0, 20);
+  const cands = [];
+  for (const p of pk.slice(0, 8)) for (let k = 1; k <= 6; k++){ const c = p.f / k; if (c >= 35 && c <= 2200) cands.push(c); }
+  let best = 0, bestScore = 0;
+  for (const c of cands){
+    let score = 0, n = 0, low = false, sw = 0, sf = 0;
+    const hMax = Math.min(16, Math.floor(19000 / c));
+    const used = new Set();
+    for (let h = 1; h <= hMax; h++){
+      let m = null;
+      for (const p of pool) if (!used.has(p) && Math.abs(p.f / (h * c) - 1) < .028 && (!m || p.db > m.db)) m = p;
+      if (m){ used.add(m); const w = Math.pow(10, (m.db - top) / 20); score += w; n++; if (h <= 2) low = true; sw += w * h * h; sf += w * h * m.f; }
+      else if (h <= 8) score -= .12;
+    }
+    if (n < 3 || !low) continue;
+    if (score > bestScore * 1.04 || (score > bestScore * .96 && c > best)){ bestScore = score; best = sf / sw; }
+  }
+  return bestScore > .5 ? best : 0;
+}
+function harmonicLevels(f){
+  const out = [];
+  for (let h = 1; h <= S.harmN; h++){
+    let m = null;
+    for (const p of peaks) if (Math.abs(p.f / (h * f) - 1) < .03 && (!m || p.db > m.db)) m = p;
+    out.push(m ? { db: m.db, cents: Math.round(1200 * Math.log2(m.f / (h * f))) } : null);
+  }
+  return out;
+}
+let resTimer = 0;
+function updateResonances(dt){
+  const a = Math.min(1, dt / S.mem);
+  hitMask.fill(0);
+  for (const p of allPeaks){ const r = Math.round(rowOf(p.f)); for (let j = r - 2; j <= r + 2; j++) if (j >= 0 && j < ROWS) hitMask[j] = 1; }
+  for (let r = 0; r < ROWS; r++){ pres[r] += (hitMask[r] - pres[r]) * a; avgDb[r] += (rowDb[r] - avgDb[r]) * a; }
+  resTimer -= dt; if (resTimer > 0) return; resTimer = .25;
+  const list = [];
+  for (let r = 8; r < ROWS - 8; r++){
+    const v = pres[r]; if (v < .45) continue;
+    let isMax = true; for (let j = r - 10; j <= r + 10; j++) if (j !== r && j >= 0 && j < ROWS && pres[j] > v){ isMax = false; break; }
+    if (!isMax) continue;
+    // centre on the loudest row of the long-term average nearby, then measure its width there
+    let rc = r; for (let j = r - 3; j <= r + 3; j++) if (avgDb[j] > avgDb[rc]) rc = j;
+    const top = avgDb[rc]; let rl = rc, rr = rc;
+    while (rl > 0 && avgDb[rl] > top - 3 && rc - rl < 120) rl--;
+    while (rr < ROWS - 1 && avgDb[rr] > top - 3 && rr - rc < 120) rr++;
+    const f = fOfRow(rc), q = f / Math.max(.1, fOfRow(rr) - fOfRow(rl));
+    list.push({ f, pres: v, db: top, q });
+    r += 10;
+  }
+  list.sort((x, y) => y.db - x.db);
+  resList = list.slice(0, 8);
+}
+function humOf(f){
+  for (const base of [60, 50]){ const n = Math.round(f / base); if (n >= 1 && n <= 12 && Math.abs(f - n * base) < Math.max(1.2, f * .006)) return { base, n }; }
+  return null;
+}
+const ord = (n) => n + (n % 100 > 10 && n % 100 < 14 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+
+/* =================================================================
+   Layout and drawing
+   ================================================================= */
+const cv = document.getElementById('view'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, mapW = 0, stripX = 0, stripW = 0, pianoW = 0;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  stripW = Math.round(clamp(W * .26, 104, 260));
+  stripX = W - stripW; mapW = stripX;
+  pianoW = S.piano ? (W < 500 ? 12 : 16) : 0;
+  const rb = document.getElementById('rBars'); rb.width = rb.clientWidth * DPR; rb.height = rb.clientHeight * DPR;
+}
+window.addEventListener('resize', resize);
+const lmin = () => Math.log2(S.fmin), lmax = () => Math.log2(S.fmax);
+const yOf = (f) => (1 - (Math.log2(f) - lmin()) / (lmax() - lmin())) * H;
+const fOfY = (y) => Math.pow(2, lmin() + (1 - y / H) * (lmax() - lmin()));
+
+const CYAN = '5,217,232', PINK = '255,42,109', YEL = '249,248,113';
+function draw(){
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#05040b'; ctx.fillRect(0, 0, W, H);
+  // 1. the heat map
+  const n = Math.min(COLS, WINS[S.win] * CPS), start = (head - n + COLS * 2) % COLS;
+  const r1 = rowOf(S.fmax), r0 = rowOf(S.fmin), sy = ROWS - 1 - r1, sh = r1 - r0;
+  ctx.imageSmoothingEnabled = true;
+  if (start + n <= COLS) ctx.drawImage(hist, start, sy, n, sh, 0, 0, mapW, H);
+  else {
+    const a = COLS - start, dw = mapW * a / n;
+    ctx.drawImage(hist, start, sy, a, sh, 0, 0, dw + .5, H);
+    ctx.drawImage(hist, 0, sy, n - a, sh, dw, 0, mapW - dw, H);
+  }
+  // band isolation: dim everything outside the band
+  if (probeF){
+    const k = Math.pow(2, S.bw / 2), ya = yOf(probeF * k), yb = yOf(probeF / k);
+    if (isoOn){ ctx.fillStyle = 'rgba(3,2,8,.62)'; ctx.fillRect(0, 0, W, ya); ctx.fillRect(0, yb, W, H - yb); }
+    ctx.fillStyle = 'rgba(' + CYAN + ',.07)'; ctx.fillRect(0, ya, W, yb - ya);
+  }
+  // 2. grid lines
+  ctx.font = '11px "Share Tech Mono", ui-monospace, monospace'; ctx.textBaseline = 'middle';
+  const span = lmax() - lmin();
+  const marks = [];
+  for (let d = 10; d <= 20000; d *= 10) for (const m of [1, 2, 5]) { const f = d * m; if (f >= S.fmin && f <= S.fmax) marks.push(f); }
+  if (span < 2.2) for (let d = 10; d <= 20000; d *= 10) for (const m of [1.5, 3, 4, 6, 7, 8]) { const f = d * m; if (f > S.fmin && f < S.fmax) marks.push(f); }
+  ctx.lineWidth = 1;
+  for (const f of marks){
+    const y = Math.round(yOf(f)) + .5;
+    ctx.strokeStyle = 'rgba(' + CYAN + ',.09)'; ctx.beginPath(); ctx.moveTo(pianoW, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  // 3. harmonic trails across the history
+  if (S.harm && S.trails){
+    const step = Math.max(1, Math.round(2.5 * n / mapW));
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath();
+    for (let j = 0; j < n; j += step){
+      const f = f0Hist[(start + j) % COLS]; if (!f) continue;
+      const x = j / n * mapW;
+      for (let h = 1; h <= S.harmN; h++){ const fh = f * h; if (fh > S.fmax) break; if (fh < S.fmin) continue; const y = yOf(fh); ctx.rect(x, y - .6, 1.4, 1.2); }
+    }
+    ctx.fill();
+  }
+  // 4. resonances: dashed cyan lines across the map
+  if (S.res){
+    ctx.setLineDash([6, 5]);
+    for (const r of resList){
+      if (r.f < S.fmin || r.f > S.fmax) continue;
+      const y = Math.round(yOf(r.f)) + .5, a = .25 + .5 * clamp((r.pres - .5) * 2, 0, 1);
+      ctx.strokeStyle = 'rgba(' + CYAN + ',' + a + ')'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pianoW, y); ctx.lineTo(mapW, y); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    for (const r of resList){
+      if (r.f < S.fmin || r.f > S.fmax) continue;
+      const y = yOf(r.f), hm = humOf(r.f), nn = noteOf(r.f);
+      const txt = '◆ ' + fmtHz(r.f) + '  ' + (hm ? 'hum ' + hm.n + '×' + hm.base : nn.name + ' ' + centsStr(nn.cents)) + '  Q' + Math.round(r.q);
+      label(txt, pianoW + 8, y - 9, CYAN, 'left');
+    }
+  }
+  // 5. the live strip on the right
+  ctx.fillStyle = 'rgba(5,4,11,.78)'; ctx.fillRect(stripX, 0, stripW, H);
+  ctx.strokeStyle = 'rgba(' + CYAN + ',.35)'; ctx.beginPath(); ctx.moveTo(stripX + .5, 0); ctx.lineTo(stripX + .5, H); ctx.stroke();
+  const L = lo(), Hh = hi(), xOfDb = (db) => stripX + clamp((db - L) / (Hh - L), 0, 1) * (stripW - 6);
+  const rTop = Math.min(ROWS - 1, Math.ceil(r1)), rBot = Math.max(0, Math.floor(r0)), rstep = Math.max(1, (rTop - rBot) / (H * 1.5));
+  const shown = frozen && frozenCol >= 0 ? frozenRows : rowDb;
+  // filled current spectrum
+  const g = ctx.createLinearGradient(stripX, 0, W, 0);
+  g.addColorStop(0, 'rgba(' + PINK + ',.05)'); g.addColorStop(.6, 'rgba(' + PINK + ',.45)'); g.addColorStop(1, 'rgba(' + YEL + ',.9)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(stripX, H);
+  for (let r = rBot; r <= rTop; r += rstep){ const rr = Math.round(r); ctx.lineTo(xOfDb(shown[rr]), yOf(fOfRow(rr))); }
+  ctx.lineTo(stripX, 0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(' + PINK + ',.95)'; ctx.lineWidth = 1.2; ctx.shadowColor = 'rgba(' + PINK + ',.9)'; ctx.shadowBlur = 6;
+  ctx.beginPath();
+  for (let r = rBot, k = 0; r <= rTop; r += rstep, k++){ const rr = Math.round(r), x = xOfDb(shown[rr]), y = yOf(fOfRow(rr)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke(); ctx.shadowBlur = 0;
+  // peak hold and long-term average
+  ctx.strokeStyle = 'rgba(' + YEL + ',.45)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let r = rBot, k = 0; r <= rTop; r += rstep, k++){ const rr = Math.round(r), x = xOfDb(holdDb[rr]), y = yOf(fOfRow(rr)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke();
+  if (S.res){
+    ctx.strokeStyle = 'rgba(' + CYAN + ',.7)'; ctx.beginPath();
+    for (let r = rBot, k = 0; r <= rTop; r += rstep, k++){ const rr = Math.round(r), x = xOfDb(avgDb[rr]), y = yOf(fOfRow(rr)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  }
+  // frequency axis labels
+  ctx.fillStyle = 'rgba(' + CYAN + ',.75)'; ctx.textAlign = 'right';
+  let lastY = -99;
+  for (const f of marks.sort((a, b) => b - a)){ const y = yOf(f); if (y < 14 || y > H - 8 || Math.abs(y - lastY) < 16) continue; lastY = y; ctx.fillText(f >= 1000 ? (f / 1000) + 'k' : String(f), W - 5, y); }
+  // 6. harmonic ladder
+  if (S.harm && f0Smooth){
+    for (let h = 1; h <= S.harmN; h++){
+      const f = f0Smooth * h; if (f > S.fmax) break; if (f < S.fmin) continue;
+      const y = Math.round(yOf(f)) + .5, lv = harmLv[h - 1], a = lv ? .95 : .35;
+      ctx.strokeStyle = 'rgba(' + PINK + ',' + a + ')'; ctx.lineWidth = h === 1 ? 2 : 1;
+      ctx.beginPath(); ctx.moveTo(mapW - 26, y); ctx.lineTo(W, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(' + PINK + ',' + a + ')'; ctx.textAlign = 'right';
+      ctx.fillText(h === 1 ? noteOf(f0Smooth).name : String(h), mapW - 30, y);
+    }
+  }
+  // 7. peak labels on the strip
+  if (S.labels && !frozen){
+    const taken = [];
+    ctx.textAlign = 'left';
+    for (const p of peaks){
+      if (p.f < S.fmin || p.f > S.fmax) continue;
+      const y = yOf(p.f); if (taken.some((t) => Math.abs(t - y) < 14) || taken.length >= 7) continue;
+      taken.push(y);
+      const nn = noteOf(p.f);
+      const x = stripX + 6;
+      ctx.fillStyle = 'rgba(' + YEL + ',.95)'; ctx.fillRect(x, y - .5, 4, 1);
+      label(fmtHz(p.f) + ' ' + nn.name, x + 7, y, YEL, 'left', true);
+    }
+  }
+  // 8. piano keys
+  if (pianoW){
+    const m0 = Math.floor(69 + 12 * Math.log2(S.fmin / S.a4)) - 1, m1 = Math.ceil(69 + 12 * Math.log2(S.fmax / S.a4)) + 1;
+    const semi = H / (span * 12);
+    ctx.fillStyle = 'rgba(5,4,11,.85)'; ctx.fillRect(0, 0, pianoW, H);
+    for (let m = m0; m <= m1; m++){
+      const f = S.a4 * Math.pow(2, (m - 69) / 12), ya = yOf(f * Math.pow(2, 1 / 24)), yb = yOf(f / Math.pow(2, 1 / 24));
+      const black = [1, 3, 6, 8, 10].includes(((m % 12) + 12) % 12);
+      if (semi < 2.5 && black) continue;
+      ctx.fillStyle = black ? 'rgba(' + PINK + ',.35)' : 'rgba(232,247,255,.16)';
+      ctx.fillRect(0, ya + .5, pianoW - (black ? 4 : 1), Math.max(.5, yb - ya - 1));
+      if (((m % 12) + 12) % 12 === 0 && semi * 12 > 40){ ctx.fillStyle = 'rgba(' + CYAN + ',.9)'; ctx.textAlign = 'left'; ctx.fillText('C' + (Math.floor(m / 12) - 1), pianoW + 3, (ya + yb) / 2); }
+    }
+  }
+  // 9. the probe line
+  if (probeF){
+    const y = Math.round(yOf(probeF)) + .5;
+    ctx.strokeStyle = 'rgba(' + CYAN + ',.95)'; ctx.lineWidth = 1; ctx.shadowColor = 'rgba(' + CYAN + ',1)'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(' + CYAN + ',1)';
+    ctx.beginPath(); ctx.moveTo(mapW, y); ctx.lineTo(mapW - 7, y - 5); ctx.lineTo(mapW - 7, y + 5); ctx.fill();
+  }
+  if (frozen) label('// FROZEN · drag sideways', mapW / 2, Math.min(H * .5, 96), PINK, 'center');
+}
+function label(txt, x, y, rgb, align, small){
+  ctx.textAlign = align; ctx.font = (small ? '11px' : '11px') + ' "Share Tech Mono", ui-monospace, monospace';
+  const w = ctx.measureText(txt).width, bx = align === 'left' ? x - 3 : align === 'center' ? x - w / 2 - 3 : x - w - 3;
+  ctx.fillStyle = 'rgba(5,4,11,.72)'; ctx.fillRect(bx, y - 7, w + 6, 14);
+  ctx.fillStyle = 'rgba(' + rgb + ',1)'; ctx.fillText(txt, x, y + .5);
+}
+
+// the readout's harmonic fingerprint bars
+const rbars = document.getElementById('rBars'), rbx = rbars.getContext('2d');
+function drawBars(){
+  const w = rbars.width, h = rbars.height; rbx.clearRect(0, 0, w, h);
+  const n = S.harmN, bw = w / n;
+  const ref = harmLv.reduce((m, v) => v && v.db > m ? v.db : m, -200);
+  for (let i = 0; i < n; i++){
+    const v = harmLv[i];
+    rbx.fillStyle = 'rgba(' + CYAN + ',.18)'; rbx.fillRect(i * bw + 1, h - 2 * DPR, bw - 2, 2 * DPR);
+    if (!v || !f0Smooth) continue;
+    const k = clamp(1 + (v.db - ref) / 50, .04, 1);
+    rbx.fillStyle = i === 0 ? 'rgba(' + PINK + ',1)' : 'rgba(' + PINK + ',' + (.45 + .5 * k) + ')';
+    rbx.fillRect(i * bw + 1, h - k * h, bw - 2, k * h);
+  }
+}
+
+/* =================================================================
+   The probe
+   ================================================================= */
+let probeF = 0;
+const pEl = (id) => document.getElementById(id);
+function setProbe(f, snap){
+  if (f && snap){ const p = nearestPeak(f, 14); if (p) f = p.f; }
+  probeF = f ? clamp(f, 20, 20000) : 0;
+  pEl('probe').hidden = !probeF;
+  if (!probeF){ setIso(false); setTone(false); return; }
+  if (isoOn) setIso(true);
+  if (toneOn) setTone(true);
+  updateProbeCard(true);
+}
+function nearestPeak(f, px){
+  let best = null, bd = px;
+  for (const p of peaks){ const d = Math.abs(yOf(p.f) - yOf(f)); if (d < bd){ bd = d; best = p; } }
+  for (const r of resList){ const d = Math.abs(yOf(r.f) - yOf(f)); if (d < bd){ bd = d; best = r; } }
+  return best;
+}
+let probeTick = 0;
+function updateProbeCard(force){
+  if (!probeF) return;
+  probeTick -= 1; if (!force && probeTick > 0) return; probeTick = 8;
+  const nn = noteOf(probeF), r = Math.round(rowOf(probeF));
+  pEl('pHz').textContent = fmtHz(probeF);
+  const now = frozen && frozenCol >= 0 ? frozenRows[clamp(r, 0, ROWS - 1)] : rowDb[clamp(r, 0, ROWS - 1)];
+  pEl('pSub').innerHTML = '<em>' + nn.name + '</em> ' + centsStr(nn.cents) + ' &nbsp; now ' + Math.round(now) + ' dB &nbsp; avg ' + Math.round(avgDb[clamp(r, 0, ROWS - 1)]) + ' dB';
+  const why = [];
+  if (f0Smooth){
+    const h = Math.round(probeF / f0Smooth);
+    if (h >= 1 && Math.abs(probeF / (h * f0Smooth) - 1) < .025) why.push(h === 1 ? 'The fundamental of the note you hear.' : 'The ' + ord(h) + ' harmonic of ' + noteOf(f0Smooth).name + ' (' + fmtHz(f0Smooth) + ').');
+  }
+  const res = resList.find((x) => Math.abs(rowOf(x.f) - r) < 8);
+  if (res){
+    const hm = humOf(res.f);
+    why.push((hm ? 'Steady, and it sits on mains hum: ' + ord(hm.n) + ' multiple of ' + hm.base + ' Hz.' : 'A steady resonance') + ', present ' + Math.round(res.pres * 100) + '% of the time, Q about ' + Math.round(res.q) + (res.q > 30 ? ' (a sharp ring).' : res.q > 8 ? '.' : ' (broad).'));
+  }
+  if (!why.length) why.push(probeF < 60 ? 'Sub bass: felt as much as heard.' : probeF > 8000 ? 'Air and sparkle: sibilance, cymbals, hiss.' : 'Tap Hear band to listen to only this slice.');
+  pEl('pWhy').textContent = why.join(' ');
+  pEl('pIso').disabled = source === 'demo';
+  pEl('pIso').title = source === 'demo' ? 'Start the microphone or a song to hear a band' : '';
+}
+const BWS = [[1 / 24, '¼ tone'], [1 / 12, '½ tone'], [1 / 6, '1 tone'], [1 / 3, '⅓ oct'], [1, '1 oct']];
+function buildWidths(){
+  pEl('pWidth').innerHTML = BWS.map(([v, n]) => '<button class="btn sm cy" data-bw="' + v + '" aria-pressed="' + (Math.abs(v - S.bw) < 1e-6) + '">' + n + '</button>').join('');
+}
+pEl('pWidth').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-bw]'); if (!b) return;
+  S.bw = +b.dataset.bw; save(); buildWidths(); if (isoOn) setIso(true);
+});
+pEl('pClose').onclick = () => setProbe(0);
+pEl('pUp').onclick = () => setProbe(probeF * Math.pow(2, 1 / 12));
+pEl('pDown').onclick = () => setProbe(probeF / Math.pow(2, 1 / 12));
+pEl('pSnap').onclick = () => { const p = nearestPeak(probeF, H); if (p) setProbe(p.f); };
+pEl('pTone').onclick = () => setTone(!toneOn);
+pEl('pIso').onclick = () => {
+  if (source === 'demo'){ toast('Start the microphone or a song first; the demo has no sound to isolate.'); return; }
+  const on = !isoOn; setIso(on);
+  if (on && source === 'mic' && !isoWarned){ isoWarned = true; toast('Use headphones: the speaker would feed back into the microphone.'); }
+};
+
+/* =================================================================
+   Freeze
+   ================================================================= */
+let frozen = false, frozenCol = -1;
+const frozenRows = new Float32Array(ROWS);
+function setFreeze(on){
+  frozen = on; frozenCol = -1;
+  pEl('bFreeze').setAttribute('aria-pressed', on);
+  pEl('bFreeze').innerHTML = on ? '<svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></svg>';
+}
+function readColumnAt(x){
+  const n = Math.min(COLS, WINS[S.win] * CPS), start = (head - n + COLS * 2) % COLS;
+  const c = (start + clamp(Math.floor(x / mapW * n), 0, n - 1)) % COLS;
+  frozenCol = c;
+  for (let r = 0; r < ROWS; r++){ const q = histDb[c * ROWS + r]; frozenRows[r] = q === 0 ? -140 : q / 255 * 140 - 140; }
+}
+
+/* =================================================================
+   Touch: tap to probe, drag up/down to move, pinch or wheel to zoom
+   ================================================================= */
+const ptrs = new Map();
+let gesture = null, lastTap = 0;
+function zoomAt(y, k){
+  const lf = Math.log2(fOfY(y)), a = lmin(), b = lmax();
+  let na = lf - (lf - a) * k, nb = lf + (b - lf) * k;
+  const maxL = Math.log2(Math.min(20000, ac ? ac.sampleRate / 2 * .98 : 20000)), minL = Math.log2(20);
+  if (nb - na < .35){ const m = (na + nb) / 2; na = m - .175; nb = m + .175; }
+  if (nb - na > maxL - minL){ na = minL; nb = maxL; }
+  if (na < minL){ nb += minL - na; na = minL; } if (nb > maxL){ na -= nb - maxL; nb = maxL; }
+  S.fmin = Math.pow(2, na); S.fmax = Math.pow(2, nb); S.view = ''; save(); markView();
+}
+function panBy(dy){
+  const d = dy / H * (lmax() - lmin());
+  zoomAt(H / 2, 1); // clamps
+  let na = lmin() + d, nb = lmax() + d;
+  const minL = Math.log2(20), maxL = Math.log2(Math.min(20000, ac ? ac.sampleRate / 2 * .98 : 20000));
+  if (na < minL){ nb += minL - na; na = minL; } if (nb > maxL){ na -= nb - maxL; nb = maxL; }
+  S.fmin = Math.pow(2, na); S.fmax = Math.pow(2, nb); S.view = ''; save(); markView();
+}
+cv.addEventListener('pointerdown', (e) => {
+  closeMenus();
+  cv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() });
+  if (ptrs.size === 2){ const [a, b] = [...ptrs.values()]; gesture = { kind: 'pinch', d: Math.hypot(a.x - b.x, a.y - b.y), my: (a.y + b.y) / 2 }; }
+  else if (ptrs.size === 1) gesture = { kind: 'maybe' };
+});
+cv.addEventListener('pointermove', (e) => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const py = p.y; p.x = e.clientX; p.y = e.clientY;
+  if (gesture && gesture.kind === 'pinch' && ptrs.size >= 2){
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), my = (a.y + b.y) / 2;
+    if (d > 10 && gesture.d > 10) zoomAt(my, gesture.d / d);
+    panBy(my - gesture.my);
+    gesture.d = d; gesture.my = my;
+  } else if (gesture && (gesture.kind === 'maybe' || gesture.kind === 'pan')){
+    if (gesture.kind === 'maybe' && Math.hypot(p.x - p.x0, p.y - p.y0) > 9) gesture.kind = frozen && Math.abs(p.x - p.x0) > Math.abs(p.y - p.y0) ? 'scrub' : 'pan';
+    if (gesture.kind === 'pan') panBy(p.y - py);
+  }
+  if (gesture && gesture.kind === 'scrub'){ readColumnAt(p.x); setProbe(probeF || fOfY(p.y)); }
+});
+function endPtr(e){
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  ptrs.delete(e.pointerId);
+  if (gesture && gesture.kind === 'maybe' && ptrs.size === 0 && performance.now() - p.t0 < 500){
+    const now = performance.now();
+    if (now - lastTap < 300 && Math.abs(p.y - (gesture.ty || 0)) < 30){ resetView(); lastTap = 0; setProbe(0); }
+    else {
+      lastTap = now;
+      if (frozen && p.x < mapW) readColumnAt(p.x);
+      setProbe(fOfY(p.y), true);
+      gesture.ty = p.y;
+      gesture = { kind: 'idle', ty: gesture.ty };
+      return;
+    }
+  }
+  if (ptrs.size === 0) gesture = { kind: 'idle', ty: gesture && gesture.ty };
+  else if (ptrs.size === 1) gesture = { kind: 'pan' };
+}
+cv.addEventListener('pointerup', endPtr);
+cv.addEventListener('pointercancel', endPtr);
+cv.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) panBy(-(e.shiftKey ? e.deltaY : e.deltaX));
+  else zoomAt(e.clientY, Math.exp(e.deltaY * (e.deltaMode === 1 ? .05 : .0015)));
+}, { passive: false });
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+function resetView(){ const v = VIEWS[S.view] || VIEWS.voice; S.fmin = v.fmin; S.fmax = v.fmax; save(); }
+
+/* =================================================================
+   Controls
+   ================================================================= */
+const $ = (id) => document.getElementById(id);
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3800); }
+function closeMenus(){ $('menu').hidden = true; }
+$('src').onclick = (e) => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; $('panel').hidden = true; $('bSet').setAttribute('aria-pressed', false); };
+$('menu').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-src]'); if (!b) return;
+  closeMenus(); hideStart();
+  if (b.dataset.src === 'mic') startMic();
+  else if (b.dataset.src === 'file') $('file').click();
+  else setSource('demo');
+});
+$('file').onchange = (e) => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; };
+$('fPlay').onclick = () => { if (player.paused) player.play().catch(() => {}); else player.pause(); };
+player.addEventListener('play', () => $('fPlay').innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></svg>');
+player.addEventListener('pause', () => $('fPlay').innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg>');
+let seeking = false;
+$('fPos').addEventListener('input', () => { seeking = true; if (player.duration) player.currentTime = $('fPos').value / 1000 * player.duration; });
+$('fPos').addEventListener('change', () => { seeking = false; });
+player.addEventListener('timeupdate', () => { if (!seeking && player.duration) $('fPos').value = Math.round(player.currentTime / player.duration * 1000); });
+
+$('bFreeze').onclick = () => setFreeze(!frozen);
+$('bHarm').onclick = () => { S.harm = !S.harm; save(); syncUI(); };
+$('bRes').onclick = () => { S.res = !S.res; save(); syncUI(); };
+$('bSet').onclick = (e) => { e.stopPropagation(); const p = $('panel'); p.hidden = !p.hidden; $('bSet').setAttribute('aria-pressed', !p.hidden); closeMenus(); };
+$('bHide').onclick = () => document.body.classList.add('bare');
+$('show').onclick = () => document.body.classList.remove('bare');
+
+function markView(){ document.querySelectorAll('#views [data-v]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === S.view)); $('viewHint').textContent = (VIEWS[S.view] || {}).hint || 'Your own view. Double-tap the map to go back to the last preset.'; }
+$('views').innerHTML = Object.entries(VIEWS).map(([k, v]) => '<button class="btn sm cy" data-v="' + k + '">' + v.name + '</button>').join('');
+$('views').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  const v = VIEWS[b.dataset.v]; S.view = b.dataset.v; S.fmin = v.fmin; S.fmax = v.fmax; S.fft = v.fft; S.win = v.win;
+  save(); if (source !== 'demo') applyFft(); else demoBins(); syncUI();
+});
+$('palettes').innerHTML = Object.entries(PALETTES).map(([k, v]) => '<button class="btn sm cy" data-p="' + k + '">' + v.name + '</button>').join('');
+$('palettes').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (!b) return; S.palette = b.dataset.p; save(); buildPalette(); recolorAll(); syncUI(); });
+$('sFft').innerHTML = FFTS.map(([v, n]) => '<option value="' + v + '">' + n + ' (' + v + ')</option>').join('');
+$('sFft').onchange = () => { S.fft = +$('sFft').value; S.view = ''; save(); if (source !== 'demo') applyFft(); else demoBins(); syncUI(); };
+function bindRange(id, key, fmt, after){
+  const el = $(id), out = $('o' + id.slice(1));
+  el.addEventListener('input', () => { S[key] = +el.value; if (out) out.textContent = fmt(S[key]); save(); after && after(); });
+}
+bindRange('sWin', 'win', (v) => WINS[v] + ' s');
+bindRange('sSmooth', 'smooth', (v) => Math.round(v * 100) + '%', () => { if (analyser) analyser.smoothingTimeConstant = S.smooth; });
+let recolorT = 0; const lazyRecolor = () => { clearTimeout(recolorT); recolorT = setTimeout(recolorAll, 120); };
+bindRange('sRange', 'range', (v) => v + ' dB', lazyRecolor);
+bindRange('sBoost', 'boost', (v) => (v > 0 ? '+' : '') + v + ' dB', lazyRecolor);
+bindRange('sHarmN', 'harmN', (v) => v);
+bindRange('sA4', 'a4', (v) => v + ' Hz', () => { if (S.palette === 'chroma'){ buildPalette(); lazyRecolor(); } });
+bindRange('sMem', 'mem', (v) => v + ' s');
+bindRange('sVol', 'vol', (v) => Math.round(v * 100) + '%', () => { updateExcite(); if (toneOn) setTone(true); });
+const toggle = (id, key) => $(id).onclick = () => { S[key] = !S[key]; save(); syncUI(); if (key === 'piano') resize(); };
+toggle('sTrails', 'trails'); toggle('sLabels', 'labels'); toggle('sPiano', 'piano');
+$('resReset').onclick = () => { pres.fill(0); avgDb.fill(-140); resList = []; toast('Resonances forgotten. Listening fresh.'); };
+$('xSweep').onclick = () => setExcite('sweep');
+$('xNoise').onclick = () => setExcite('noise');
+$('sMic').onchange = () => { S.micId = $('sMic').value; save(); if (source === 'mic') startMic(); };
+$('saveImg').onclick = () => {
+  cv.toBlob(async (blob) => {
+    if (!blob) return;
+    const name = 'overtone-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png';
+    const file = new File([blob], name, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })){ try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }, 'image/png');
+};
+document.addEventListener('pointerdown', (e) => {
+  if (!e.target.closest('#menu') && !e.target.closest('#src')) closeMenus();
+});
+
+function syncUI(){
+  $('bHarm').setAttribute('aria-pressed', S.harm); $('bRes').setAttribute('aria-pressed', S.res);
+  $('sWin').value = S.win; $('oWin').textContent = WINS[S.win] + ' s';
+  $('sFft').value = S.fft;
+  $('sSmooth').value = S.smooth; $('oSmooth').textContent = Math.round(S.smooth * 100) + '%';
+  $('sRange').value = S.range; $('oRange').textContent = S.range + ' dB';
+  $('sBoost').value = S.boost; $('oBoost').textContent = (S.boost > 0 ? '+' : '') + S.boost + ' dB';
+  $('sHarmN').value = S.harmN; $('oHarmN').textContent = S.harmN;
+  $('sA4').value = S.a4; $('oA4').textContent = S.a4 + ' Hz';
+  $('sMem').value = S.mem; $('oMem').textContent = S.mem + ' s';
+  $('sVol').value = S.vol; $('oVol').textContent = Math.round(S.vol * 100) + '%';
+  for (const [id, k] of [['sTrails', 'trails'], ['sLabels', 'labels'], ['sPiano', 'piano']]){ $(id).setAttribute('aria-pressed', S[k]); $(id).textContent = S[k] ? 'On' : 'Off'; }
+  document.querySelectorAll('#palettes [data-p]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.p === S.palette));
+  markView();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('input,select')) return;
+  if (e.key === 'h' || e.key === 'H') document.body.classList.toggle('bare');
+  else if (e.key === ' '){ e.preventDefault(); setFreeze(!frozen); }
+  else if (e.key === 'Escape'){ setProbe(0); closeMenus(); $('panel').hidden = true; $('bSet').setAttribute('aria-pressed', false); }
+  else if (e.key === '+' || e.key === '='){ zoomAt(probeF ? yOf(probeF) : H / 2, .8); }
+  else if (e.key === '-' || e.key === '_'){ zoomAt(probeF ? yOf(probeF) : H / 2, 1.25); }
+  else if (e.key === 'ArrowUp' && probeF){ e.preventDefault(); setProbe(probeF * Math.pow(2, 1 / 12)); }
+  else if (e.key === 'ArrowDown' && probeF){ e.preventDefault(); setProbe(probeF / Math.pow(2, 1 / 12)); }
+});
+
+/* start card: the microphone needs a tap before it can start */
+function hideStart(){ $('start').hidden = true; }
+$('goMic').onclick = () => { hideStart(); startMic(); };
+$('goFile').onclick = () => { hideStart(); $('file').click(); };
+$('goDemo').onclick = () => { hideStart(); setSource('demo'); };
+if (S.source === 'mic'){
+  // he had it listening last time: keep it a setting, not a one-off mode
+  $('goMic').textContent = 'Keep listening';
+}
+
+/* iPhone/iPad suspend audio in the background; pick it back up when the page returns */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && ac && ac.state !== 'running') ac.resume().catch(() => {});
+  if (!document.hidden && source === 'mic' && micStream && micStream.getAudioTracks().every((t) => t.readyState === 'ended')) startMic();
+});
+window.addEventListener('pointerdown', () => { if (ac && ac.state !== 'running') ac.resume().catch(() => {}); }, true);
+
+/* =================================================================
+   Main loop
+   ================================================================= */
+let last = 0, colAcc = 0, uiTick = 0;
+function frame(now){
+  const dt = Math.min(.1, last ? (now - last) / 1000 : 1 / 60); last = now;
+  if (!frozen){
+    if (source === 'demo') demoSpectrum(freqBuf, dt);
+    else if (analyser) analyser.getFloatFrequencyData(freqBuf);
+    // guard against -Infinity from a silent input
+    for (let i = 0; i < nBins; i++) if (!(freqBuf[i] > -200)) freqBuf[i] = -200;
+    specToRows(freqBuf);
+    peaks = findPeaks(freqBuf);
+    // auto level: fast up, slow down
+    const target = clamp(frameMax + 4, -100 + S.range * .3, 0);
+    ceilDb += (target - ceilDb) * (target > ceilDb ? Math.min(1, dt * 4) : Math.min(1, dt / 6));
+    // fundamental, with a little patience before letting go of it
+    const f = findFundamental(peaks);
+    if (f){ f0Miss = 0; f0Smooth = f0Smooth && Math.abs(f / f0Smooth - 1) < .03 ? f0Smooth + (f - f0Smooth) * .5 : f; f0 = f; }
+    else if (++f0Miss > 6){ f0Smooth = 0; f0 = 0; }
+    harmLv = f0Smooth ? harmonicLevels(f0Smooth) : [];
+    const fall = dt * 12;
+    for (let r = 0; r < ROWS; r++) holdDb[r] = rowDb[r] > holdDb[r] - fall ? rowDb[r] : holdDb[r] - fall;
+    updateResonances(dt);
+    colAcc += dt * CPS;
+    let k = 0; while (colAcc >= 1 && k < 6){ pushColumn(f0 ? f0Smooth : 0); colAcc -= 1; k++; }
+    if (colAcc > 1) colAcc = 0;
+    if (ac) stepExcite(dt);
+  }
+  draw();
+  if (++uiTick % 6 === 0) updateReadout();
+  updateProbeCard(false);
+  requestAnimationFrame(frame);
+}
+function updateReadout(){
+  const n = $('rNote'), m = $('rMeta');
+  if (f0Smooth){
+    const nn = noteOf(f0Smooth), got = harmLv.filter(Boolean).length;
+    n.textContent = nn.name; n.classList.remove('dim');
+    m.innerHTML = '<span>' + fmtHz(f0Smooth) + '</span> ' + centsStr(nn.cents) + '<br>' + got + ' of ' + S.harmN + ' overtones';
+  } else if (peaks.length){
+    const p = peaks[0], nn = noteOf(p.f), hm = humOf(p.f);
+    n.textContent = '—'; n.classList.add('dim');
+    m.innerHTML = 'Loudest <span>' + fmtHz(p.f) + '</span> ' + (hm ? 'hum' : nn.name) + '<br>' + (S.res && resList.length ? resList.length + ' steady resonance' + (resList.length > 1 ? 's' : '') : 'no clear note');
+  } else { n.textContent = '—'; n.classList.add('dim'); m.innerHTML = 'Quiet<br>' + (source === 'mic' ? 'make a sound' : ''); }
+  drawBars();
+}
+
+buildPalette(); buildWidths(); syncUI(); resize();
+setSource('demo');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
