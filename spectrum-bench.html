@@ -219,6 +219,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .bg-stars{background:radial-gradient(circle at 20% 30%,#fff 0 .7px,transparent 1px),radial-gradient(circle at 70% 60%,#cfd8ff 0 .8px,transparent 1.1px),radial-gradient(circle at 45% 80%,#fff 0 .5px,transparent .9px),radial-gradient(circle at 85% 20%,#ffe6d2 0 .6px,transparent 1px),#05060c}
 .bg-nebula{background:radial-gradient(circle at 30% 35%,rgba(140,70,220,.55),transparent 60%),radial-gradient(circle at 75% 65%,rgba(0,150,210,.4),transparent 55%),#0b0816}
 .bg-dusk{background:radial-gradient(circle,rgba(200,200,255,.16) 1px,transparent 1.4px) 0 0/9px 9px,radial-gradient(#30305a,#1a1a33)}
+.objs button{min-height:36px;padding:8px 7px;align-content:center}
 .look .note{font-size:12px}
 
 /* ===== Interface: Glass + Rail. The bench fills the whole screen; the header, the parts rail and the settings panel float over it on frosted glass.
@@ -276,7 +277,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <div class="top-acts">
       <button type="button" class="ghost lib-btn" id="b-snd" aria-pressed="false" aria-label="Sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h2M7 8v8M11 4v16M15 8v8M19 10v4M21 12h0"/></svg><span>Sound</span></button>
       <button type="button" class="ghost lib-btn" id="b-lib" aria-pressed="false" aria-label="Setups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5L12 3l9 4.5L12 12z"/><path d="M3 12l9 4.5L21 12"/><path d="M3 16.5L12 21l9-4.5"/></svg><span>Setups</span></button>
-      <button type="button" class="ghost hide-btn" id="b-look" aria-pressed="false" aria-label="Look: bench background" title="Bench background (C)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.7 0-1 .8-1.6 1.9-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/></svg></button>
+      <button type="button" class="ghost hide-btn" id="b-look" aria-pressed="false" aria-label="Look: object style and background" title="Look: object style and background (C)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.7 0-1 .8-1.6 1.9-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/></svg></button>
       <button type="button" class="ghost hide-btn" id="b-hide" aria-label="Hide interface" title="Hide interface (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.1c.5-.1.9-.1 1.4-.1 5 0 9 6 9 6a16.8 16.8 0 0 1-3.2 3.7M6.6 6.6A16.8 16.8 0 0 0 3 12s4 6 9 6c1.5 0 2.9-.4 4.2-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
     </div>
   </header>
@@ -294,6 +295,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
       <div class="pf-res" role="group" aria-label="Beam drawing"><span>Beams</span><button type="button" data-gl="1">GPU</button><button type="button" data-gl="0">Canvas</button></div></div>
     <div class="look" id="look" role="dialog" aria-label="Look" hidden>
       <div class="look-head"><h2>Look</h2><button type="button" id="look-x" aria-label="Close Look"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div><div class="lab"><span>Objects</span></div><div class="bgs objs" id="look-obj" role="group" aria-label="Object style"></div></div>
       <div><div class="lab"><span>Background</span></div><div class="bgs" id="look-bg" role="group" aria-label="Background"></div></div>
       <p class="note">Only changes how this device shows the bench. Setups and setup codes stay the same. Drag a part from the rail onto the bench to place it.</p>
     </div>
@@ -1263,6 +1265,290 @@ function drawLinks(g,sc,px){
 function mirrorTicks(g,P,Q,px){const dx=Q[0]-P[0],dy=Q[1]-P[1],L=Math.hypot(dx,dy)||1,nx=-dy/L*4*px,ny=dx/L*4*px;g.strokeStyle='#e9edf2';g.lineWidth=1.2*px;g.beginPath();g.moveTo(P[0]-nx,P[1]-ny);g.lineTo(P[0]+nx,P[1]+ny);g.stroke();}
 function drawScreen(g,geo,px){const [A,B]=geo.ends;g.strokeStyle='#30353e';g.lineWidth=8*px;pathLine(g,A,B);g.strokeStyle='#c7cbd1';g.lineWidth=4*px;pathLine(g,A,B);}
 
+/* ================= Object styles ================= */
+// How the pieces themselves are drawn (not their light). A look setting kept on this device, chosen in Look; Liquid chrome is the default.
+// Every style draws the same geometry, so nothing about the optics changes. 'current' is the original hairline drawing in drawEl.
+const OBJ=(function(){
+/* ---------- shared helpers ---------- */
+function seeded(n){let s=n*9301+49297;return()=>{s=(s*9301+49297)%233280;return s/233280;};}
+function poly(g,pts,closed,jit,rnd){g.beginPath();pts.forEach((p,i)=>{const x=p[0]+(jit?(rnd()-.5)*jit:0),y=p[1]+(jit?(rnd()-.5)*jit:0);i?g.lineTo(x,y):g.moveTo(x,y);});if(closed)g.closePath();}
+function seg(g,A,B){g.beginPath();g.moveTo(A[0],A[1]);g.lineTo(B[0],B[1]);}
+function dense(pts,step){const o=[];for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step));for(let k=0;k<n;k++)o.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]);}o.push(pts[pts.length-1]);return o;}
+function closedDense(pts,step){return dense(pts.concat([pts[0]]),step).slice(0,-1);}
+function lineOf(geo){return geo.curve||geo.ends;}
+function unitN(A,B){const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy)||1;return[-dy/L,dx/L,dx/L,dy/L];}
+function boxRect(g,x,y,w,h,r){g.beginPath();if(r&&g.roundRect)g.roundRect(x,y,w,h,r);else g.rect(x,y,w,h);}
+function boxOf(el,geo){if(el.type==='amp'){const h=el.len/2;return{x:-h,y:-8,w:2*h,h:16};}return{x:-22,y:-geo.hh/2,w:44,h:geo.hh};}
+const specCol=(el,geo)=>{if(el.type!=='tx')return mixColor(el);const cc=geo&&geo.txc,m=cc?Math.max(cc[0],cc[1],cc[2]):0;return m>0?cc.map(v=>Math.round(255*v/m)):[90,96,108];};
+function hatch(g,pts,side,len,gap,px){ // engineering mirror symbol: short slanted strokes on the back
+  const d=dense(pts,gap*px);g.beginPath();
+  for(let i=0;i<d.length-1;i+=1){const [nx,ny,tx,ty]=unitN(d[i],d[i+1]),p=d[i];g.moveTo(p[0],p[1]);g.lineTo(p[0]+side*nx*len*px-tx*len*.6*px,p[1]+side*ny*len*px-ty*len*.6*px);}
+  g.stroke();
+}
+
+/* ---------- one parameterised drawer for the seven candidate styles ---------- */
+function drawStyled(g,el,geo,px,S){
+  const rnd=seeded(el.id*7+3),J=S.jitter?S.jitter*px:0;
+  const P=(pts,closed)=>poly(g,S.jitter?(closed?closedDense(pts,10*px):dense(pts,10*px)):pts,closed,J,rnd);
+  const strokeTwice=(fn)=>{fn();if(S.jitter){fn();}};
+  g.lineCap=S.cap||'round';g.lineJoin=S.join||'round';
+  const glow=(c,b)=>{if(S.glow){g.shadowColor=c;g.shadowBlur=b||S.glow;}};
+  const noGlow=()=>{g.shadowBlur=0;g.shadowColor='transparent';};
+  const t=el.type;
+  if(t==='prism'||t==='liquid'||(t==='lens'&&!geo.lens.ideal)){
+    const out=geo.outline;
+    if(S.shadow){g.save();g.translate(S.shadow*px,S.shadow*1.4*px);P(out,true);g.fillStyle=S.shadowCol;g.fill();g.restore();}
+    P(out,true);g.fillStyle=typeof S.glassFill==='function'?S.glassFill(g,el,geo):S.glassFill;g.fill();
+    if(el.lv>.02){g.fillStyle=`rgba(255,255,255,${(.14*el.lv).toFixed(3)})`;g.fill();}
+    if(S.glassInner){g.save();P(out,true);g.clip();g.strokeStyle=S.glassInner;g.lineWidth=8*px;P(out,true);g.stroke();g.restore();}
+    glow(S.glassStroke);g.strokeStyle=S.glassStroke;g.lineWidth=S.glassLW*px;strokeTwice(()=>{P(out,true);g.stroke();});noGlow();
+    if(S.glint){const n=out.length,a0=Math.round(n*.55),a1=Math.round(n*.68);const arc=[];for(let i=a0;i<=a1;i++)arc.push(out[i%n]);if(t==='prism'&&el.shape!=='drop'&&el.shape!=='pipe'){const A=out[0],B=out[1];arc.length=0;arc.push([A[0]+(B[0]-A[0])*.15,A[1]+(B[1]-A[1])*.15],[A[0]+(B[0]-A[0])*.55,A[1]+(B[1]-A[1])*.55]);}
+      g.save();g.translate(S.glintOff*px,S.glintOff*px);g.strokeStyle=S.glint;g.lineWidth=S.glintLW*px;P(arc,false);g.stroke();g.restore();}
+    if(S.construct){g.save();g.setLineDash([3*px,4*px]);g.strokeStyle=S.construct;g.lineWidth=.8*px;g.beginPath();g.arc(el.x,el.y,geo.r+8,0,TAU);g.stroke();g.setLineDash([]);
+      g.beginPath();g.moveTo(el.x-6,el.y);g.lineTo(el.x+6,el.y);g.moveTo(el.x,el.y-6);g.lineTo(el.x,el.y+6);g.stroke();g.restore();}
+    return;
+  }
+  if(t==='lens'){ // ideal lens: a line with arrowheads
+    const [A,B]=geo.ends,F=geo.F,h=geo.lens.h,o=el.power==='div'?9:-9;
+    glow(S.glassStroke);g.strokeStyle=S.glassStroke;g.lineWidth=S.glassLW*1.3*px;P([A,B],false);g.stroke();
+    g.beginPath();for(const s of [1,-1]){const tt=F.L(s*h,0),p=F.L(s*(h+o),7),q=F.L(s*(h+o),-7);g.moveTo(p[0],p[1]);g.lineTo(tt[0],tt[1]);g.lineTo(q[0],q[1]);}g.stroke();noGlow();return;
+  }
+  if(t==='mirror'||t==='curved'||t==='splitter'){
+    const pts=lineOf(geo),sp=t==='splitter';
+    if(S.mirrorHatch){g.strokeStyle=S.mirrorHatch;g.lineWidth=.9*px;hatch(g,pts,1,7,7,px);}
+    if(S.shadow){g.save();g.translate(S.shadow*px,S.shadow*1.4*px);g.strokeStyle=S.shadowCol;g.lineWidth=S.mirrorLW*1.6*px;P(pts,false);g.stroke();g.restore();}
+    if(S.mirrorBack){g.strokeStyle=S.mirrorBack;g.lineWidth=S.mirrorBackLW*px;P(pts,false);g.stroke();}
+    let stroke=S.metal;if(S.metalGrad){const A=pts[0],B=pts[pts.length-1],gr=g.createLinearGradient(A[0],A[1],B[0],B[1]);S.metalGrad.forEach((c,i)=>gr.addColorStop(i/(S.metalGrad.length-1),c));stroke=gr;}
+    glow(S.metalGlow||S.metal);g.strokeStyle=stroke;g.lineWidth=S.mirrorLW*px;
+    if(sp){g.save();g.globalAlpha=.4;P(pts,false);g.stroke();g.restore();g.setLineDash([7*px,5*px]);}
+    strokeTwice(()=>{P(pts,false);g.stroke();});g.setLineDash([]);noGlow();
+    if(S.ticks){const A=pts[0],B=pts[pts.length-1],a2=pts[1],b2=pts[pts.length-2];for(const [p,q] of [[A,a2],[B,b2]]){const [nx,ny]=unitN(p,q);g.strokeStyle=S.metal;g.lineWidth=1.2*px;g.beginPath();g.moveTo(p[0]-nx*5*px,p[1]-ny*5*px);g.lineTo(p[0]+nx*5*px,p[1]+ny*5*px);g.stroke();}}
+    if(S.dots){g.fillStyle=S.metal;for(const p of [pts[0],pts[pts.length-1]]){g.beginPath();g.arc(p[0],p[1],S.dots*px,0,TAU);g.fill();}}
+    if(t==='curved'&&S.construct){const F=geo.F,f=F.L(0,el.f);g.fillStyle=S.construct;g.beginPath();g.arc(f[0],f[1],2.2*px,0,TAU);g.fill();g.save();g.setLineDash([2*px,4*px]);g.strokeStyle=S.construct;g.lineWidth=.8*px;seg(g,F.L(0,0),f);g.stroke();g.restore();}
+    return;
+  }
+  if(t==='grating'||t==='filter'||t==='shift'||t==='screen'){
+    const [A,B]=geo.ends,F=geo.F;
+    if(S.shadow){g.save();g.translate(S.shadow*px,S.shadow*1.4*px);g.strokeStyle=S.shadowCol;g.lineWidth=(t==='screen'?S.screenLW:S.plateLW)*1.5*px;P([A,B],false);g.stroke();g.restore();}
+    let c;
+    if(t==='grating'){const gr=g.createLinearGradient(A[0],A[1],B[0],B[1]);[420,470,520,570,620,670].forEach((l,i)=>gr.addColorStop(i/5,rgba(colorOf(l),S.colorAlpha)));c=gr;}
+    else if(t==='filter')c=rgba(passColor(el),S.colorAlpha);
+    else if(t==='shift'){const gr=g.createLinearGradient(A[0],A[1],B[0],B[1]);for(let i=0;i<=6;i++){const l=shiftLam(el,400+i*45);gr.addColorStop(i/6,l==null?'rgba(40,44,52,.9)':rgba(colorOf(l),S.colorAlpha));}c=gr;}
+    else c=S.screen;
+    if(S.plateBack&&t!=='screen'){g.strokeStyle=S.plateBack;g.lineWidth=(S.plateLW+3)*px;P([A,B],false);g.stroke();}
+    glow(t==='screen'?S.screen:typeof c==='string'?c:S.metal,S.glow*.6);g.strokeStyle=c;g.lineWidth=(t==='screen'?S.screenLW:S.plateLW)*px;strokeTwice(()=>{P([A,B],false);g.stroke();});noGlow();
+    g.strokeStyle=S.detail;g.lineWidth=.9*px;g.beginPath();
+    if(t==='grating'){const n=Math.floor(el.len/7);for(let i=0;i<=n;i++){const tt=-el.len/2+i*el.len/n,p=F.L(tt,-5),q=F.L(tt,5);g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1]);}}
+    if(t==='filter'&&el.mode==='dichroic'){seg(g,F.L(-el.len/2,-4),F.L(el.len/2,-4));}
+    if(t==='shift'){const d=el.shift>=0?1:-1,n=Math.max(2,Math.floor(el.len/36));for(let i=0;i<n;i++){const tt=-el.len/2+(i+.5)*el.len/n,p=F.L(tt-3*d,-6),q=F.L(tt+3*d,0),r=F.L(tt-3*d,6);g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1]);g.lineTo(r[0],r[1]);}}
+    g.stroke();
+    if(S.ticks&&t!=='screen'){for(const [p,q] of [[A,B],[B,A]]){const [nx,ny]=unitN(p,q);g.strokeStyle=S.detail;g.lineWidth=1*px;g.beginPath();g.moveTo(p[0]-nx*6*px,p[1]-ny*6*px);g.lineTo(p[0]+nx*6*px,p[1]+ny*6*px);g.stroke();}}
+    return;
+  }
+  if(t==='slit'){
+    for(const s of geo.prims){const A=[s.ax,s.ay],B=[s.ax+s.ex,s.ay+s.ey];
+      if(S.shadow){g.save();g.translate(S.shadow*px,S.shadow*1.4*px);g.strokeStyle=S.shadowCol;g.lineWidth=S.blockLW*px;P([A,B],false);g.stroke();g.restore();}
+      if(S.blockFill){const [nx,ny]=unitN(A,B),w=S.blockLW/2;const q=[[A[0]+nx*w,A[1]+ny*w],[B[0]+nx*w,B[1]+ny*w],[B[0]-nx*w,B[1]-ny*w],[A[0]-nx*w,A[1]-ny*w]];g.fillStyle=S.blockFill;P(q,true);g.fill();g.strokeStyle=S.block;g.lineWidth=S.blockEdge*px;g.stroke();}
+      else{g.strokeStyle=S.block;g.lineWidth=S.blockLW*px;strokeTwice(()=>{P([A,B],false);g.stroke();});}}
+    return;
+  }
+  if(t==='hole'){
+    const h=el.mass,ph=(2+Math.sqrt(3))*h;
+    g.save();g.setLineDash([2*px,6*px]);g.strokeStyle=S.reach;g.lineWidth=1*px;g.beginPath();g.arc(el.x,el.y,el.reach,0,TAU);g.stroke();g.restore();
+    if(S.holeHalo){const gr=g.createRadialGradient(el.x,el.y,h*.9,el.x,el.y,h*2.6);gr.addColorStop(0,S.holeHalo);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.beginPath();g.arc(el.x,el.y,h*2.6,0,TAU);g.fill();}
+    glow(S.holeRing);g.strokeStyle=S.holeRing;g.lineWidth=S.ringLW*px;g.beginPath();g.arc(el.x,el.y,ph,0,TAU);g.stroke();noGlow();
+    if(S.shadow){g.fillStyle=S.shadowCol;g.beginPath();g.arc(el.x+S.shadow*px,el.y+S.shadow*1.4*px,h,0,TAU);g.fill();}
+    g.fillStyle=S.holeCore;g.beginPath();g.arc(el.x,el.y,h,0,TAU);g.fill();
+    g.strokeStyle=S.holeEdge;g.lineWidth=1.2*px;strokeTwice(()=>{g.beginPath();g.arc(el.x+(J?(rnd()-.5)*J:0),el.y,h,0,TAU);g.stroke();});
+    return;
+  }
+  if(t==='light'||t==='tx'||t==='amp'){
+    const b=boxOf(el,geo),c=t==='amp'?(el.pass==='band'?colorOf(el.lam):[255,96,150]):specCol(el,geo);
+    g.save();g.translate(el.x,el.y);g.rotate(el.angle*D2R);
+    const corners=[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]];
+    if(S.shadow){g.fillStyle=S.shadowCol;boxRect(g,b.x+S.shadow*px,b.y+S.shadow*1.4*px,b.w,b.h,S.radius);g.fill();}
+    g.fillStyle=typeof S.boxFill==='function'?S.boxFill(g,b):S.boxFill;
+    if(S.jitter){P(corners,true);}else boxRect(g,b.x,b.y,b.w,b.h,S.radius);g.fill();
+    glow(S.boxStroke,S.glow*.5);g.strokeStyle=S.boxStroke;g.lineWidth=S.boxLW*px;strokeTwice(()=>{if(S.jitter)P(corners,true);else boxRect(g,b.x,b.y,b.w,b.h,S.radius);g.stroke();});noGlow();
+    if(S.boxHighlight){g.strokeStyle=S.boxHighlight;g.lineWidth=1*px;g.beginPath();g.moveTo(b.x+2,b.y+1.5);g.lineTo(b.x+b.w-2,b.y+1.5);g.stroke();}
+    g.strokeStyle=S.detail;g.lineWidth=.9*px;g.beginPath();
+    if(t==='light'){if(S.lightDetail==='fins'){for(const x of [-15,-10,-5]){g.moveTo(x,b.y+5);g.lineTo(x,-b.y-5);}}else if(S.lightDetail==='plate'){g.moveTo(-14,b.y);g.lineTo(-14,-b.y);}else if(S.lightDetail==='dot'){g.moveTo(-12,0);g.arc(-14,0,2,0,TAU);}}
+    if(t==='tx'){for(const r of [4,8]){g.moveTo(-14+r*Math.cos(2.4),r*Math.sin(2.4));g.arc(-14,0,r,2.4,TAU-2.4,true);}}
+    if(t==='amp'){for(const x of [b.x+10,-b.x-10]){g.moveTo(x,b.y);g.lineTo(x,-b.y);}}
+    g.stroke();
+    if(t==='tx'){g.font=`500 10px ${S.font||'"IBM Plex Mono",monospace'}`;g.textAlign='center';g.fillStyle=S.detail;g.save();g.translate(4,0);g.rotate(-el.angle*D2R);g.fillText(String(Math.round(el.ch)),0,4);g.restore();}
+    const prev=g.globalCompositeOperation;if(S.additive)g.globalCompositeOperation='lighter';
+    glow(rgba(c,1),S.glow);
+    if(t==='amp'){g.fillStyle=rgba(c,.95);g.fillRect(b.x+3,-1.5,b.w-6,3);}
+    else{const hw=t==='tx'?Math.min(b.h/2-4,30):Math.max(4,el.width/2);g.fillStyle=rgba(c,1);g.fillRect(b.x+b.w-S.emitW-(S.emitInset||0),-hw,S.emitW,2*hw);
+      if(S.emitHalo){g.fillStyle=rgba(c,S.emitHalo);g.fillRect(b.x+b.w-S.emitW-3,-hw-3,S.emitW+6,2*hw+6);}}
+    noGlow();g.globalCompositeOperation=prev;g.restore();return;
+  }
+}
+
+/* ---------- the styles ---------- */
+const STYLES=[
+  {k:'current',name:'Hairline',desc:'What the app draws today: sharp silver hairlines, flat housings, frosted glass.',bg:'#0a0c10',grid:'board',label:'#8d949f',current:true},
+  {k:'blueprint',name:'Blueprint',desc:'Technical drawing: cyan linework on deep navy, hatched mirror backs, dashed construction circles and focus marks.',
+    bg:'#0c1a33',grid:'blue',label:'#8fb7ff',font:'"IBM Plex Mono",monospace',
+    glassFill:'rgba(120,180,255,.06)',glassStroke:'#9cc8ff',glassLW:1.2,construct:'rgba(156,200,255,.45)',
+    metal:'#e6f1ff',mirrorLW:1.6,mirrorHatch:'rgba(156,200,255,.7)',ticks:true,
+    plateLW:2.4,colorAlpha:.9,detail:'rgba(200,225,255,.8)',screen:'#cfe2ff',screenLW:3,
+    block:'#9cc8ff',blockLW:7,blockFill:'rgba(120,180,255,.12)',blockEdge:1.1,
+    reach:'rgba(156,200,255,.35)',holeRing:'rgba(156,200,255,.7)',ringLW:1,holeCore:'#06101f',holeEdge:'#cfe2ff',
+    boxFill:'rgba(120,180,255,.08)',boxStroke:'#9cc8ff',boxLW:1.1,radius:0,lightDetail:'plate',emitW:1.6,glow:0},
+  {k:'neon',name:'Neon',desc:'Every object is a glowing tube in its own color on black. Pure light, no surfaces.',
+    bg:'#030306',grid:'none',label:'#c79bff',
+    glassFill:'rgba(255,60,200,.04)',glassStroke:'#ff5ad8',glassLW:1.8,glow:14,
+    metal:'#7ff6ff',metalGlow:'#2fe0ff',mirrorLW:2.2,
+    plateLW:2.6,colorAlpha:1,detail:'rgba(255,255,255,.5)',screen:'#f4f4ff',screenLW:2.6,
+    block:'#ffb347',blockLW:3,
+    reach:'rgba(255,120,60,.25)',holeRing:'#ff8a3d',ringLW:2,holeCore:'#000',holeEdge:'#ff8a3d',holeHalo:'rgba(255,120,40,.18)',
+    boxFill:'rgba(0,0,0,.6)',boxStroke:'#b88cff',boxLW:1.8,radius:6,lightDetail:'dot',emitW:2.5,emitHalo:.2,additive:true},
+  {k:'clay',name:'Clay',desc:'Pastel and matte with rounded edges and soft drop shadows, on the moonlit Dusk ground.',
+    bg:'#24244a',grid:'dusk',label:'#c9c6f0',font:'"Fredoka",system-ui,sans-serif',
+    glassFill:(g,el,geo)=>{const R=geo.r||40,gr=g.createRadialGradient(el.x-R*.35,el.y-R*.4,R*.1,el.x,el.y,R*1.1);gr.addColorStop(0,'rgba(220,240,255,.55)');gr.addColorStop(1,'rgba(150,170,235,.28)');return gr;},
+    glassStroke:'#e6ecff',glassLW:2.4,glint:'rgba(255,255,255,.85)',glintLW:3,glintOff:0,shadow:4,shadowCol:'rgba(10,10,35,.45)',
+    metal:'#fff1e4',mirrorLW:5,mirrorBack:'#a7a3dc',mirrorBackLW:8,dots:3.2,
+    plateLW:6,plateBack:'#4a4a85',colorAlpha:.85,detail:'rgba(255,255,255,.65)',screen:'#f7efe6',screenLW:8,
+    block:'#8e8ac9',blockLW:10,
+    reach:'rgba(200,200,255,.2)',holeRing:'#ffd3b0',ringLW:2,holeCore:'#161630',holeEdge:'#ffd3b0',
+    boxFill:'#8f8bd6',boxStroke:'#c9c6ff',boxLW:2,radius:9,lightDetail:'dot',emitW:4,emitInset:-1,boxHighlight:'rgba(255,255,255,.35)',glow:0},
+  {k:'mono',name:'Monoline',desc:'Swiss minimal: one even white line weight, flat black fills, no glow and no color except the light itself.',
+    bg:'#000',grid:'none',label:'#9a9a9a',font:'"Inter",system-ui,sans-serif',cap:'butt',join:'miter',
+    glassFill:'#000',glassStroke:'#f2f2f2',glassLW:1.5,
+    metal:'#f2f2f2',mirrorLW:1.5,
+    plateLW:1.5,colorAlpha:1,detail:'#f2f2f2',screen:'#f2f2f2',screenLW:4,
+    block:'#f2f2f2',blockLW:6,blockFill:'#000',blockEdge:1.5,
+    reach:'rgba(255,255,255,.15)',holeRing:'rgba(255,255,255,.5)',ringLW:1,holeCore:'#000',holeEdge:'#f2f2f2',
+    boxFill:'#000',boxStroke:'#f2f2f2',boxLW:1.5,radius:0,lightDetail:'none',emitW:3,glow:0},
+  {k:'chrome',name:'Chrome',desc:'Realistic: polished metal with highlights and dark backing, cut glass with bright edges and a specular glint.',
+    bg:'#0b0d12',grid:'board',label:'#a9b2bf',
+    glassFill:(g,el,geo)=>{const R=geo.r||40,gr=g.createLinearGradient(el.x-R,el.y-R,el.x+R,el.y+R);gr.addColorStop(0,'rgba(220,235,255,.22)');gr.addColorStop(.5,'rgba(140,170,210,.05)');gr.addColorStop(1,'rgba(190,215,255,.16)');return gr;},
+    glassStroke:'rgba(235,245,255,.9)',glassLW:1.4,glassInner:'rgba(170,205,255,.18)',glint:'rgba(255,255,255,.95)',glintLW:2.2,glintOff:-1.5,
+    metal:'#d9dee5',metalGrad:['#59616d','#f7f9fb','#9aa3ae','#ffffff','#59616d'],mirrorLW:3.2,mirrorBack:'#1a1d23',mirrorBackLW:7,
+    plateLW:3,plateBack:'#14171c',colorAlpha:.85,detail:'rgba(255,255,255,.35)',screen:'#d8dce2',screenLW:5,
+    block:'#4a515c',blockLW:9,blockFill:'#2a2f37',blockEdge:1,
+    reach:'rgba(255,255,255,.08)',holeRing:'rgba(255,200,130,.35)',ringLW:1,holeCore:'#000',holeEdge:'rgba(255,210,150,.6)',holeHalo:'rgba(0,0,0,.9)',
+    boxFill:(g,b)=>{const gr=g.createLinearGradient(0,b.y,0,b.y+b.h);gr.addColorStop(0,'#3a404a');gr.addColorStop(.5,'#1d2128');gr.addColorStop(1,'#121418');return gr;},
+    boxStroke:'#6b7480',boxLW:1,radius:3,lightDetail:'fins',emitW:2.5,emitHalo:.25,boxHighlight:'rgba(255,255,255,.25)',additive:true,glow:0},
+  {k:'pixel',name:'Pixel',desc:'Chunky pixel-art sprites: every object drawn on a coarse grid with a few flat colors, scaled up crisp.',
+    bg:'#0e0b1a',grid:'none',label:'#b7a6ff',font:'"Silkscreen",monospace',pixel:4,cap:'butt',join:'miter',
+    glassFill:'rgba(120,200,255,.22)',glassStroke:'#7fd6ff',glassLW:1,
+    metal:'#ffffff',mirrorLW:1.2,mirrorBack:'#5a5a8c',mirrorBackLW:2.4,
+    plateLW:1.4,colorAlpha:1,detail:'#ffffff',screen:'#e8e8ff',screenLW:2,
+    block:'#8c7cff',blockLW:2.4,
+    reach:'rgba(180,160,255,.35)',holeRing:'#ffb347',ringLW:1,holeCore:'#000',holeEdge:'#ffb347',
+    boxFill:'#2c2450',boxStroke:'#b7a6ff',boxLW:1,radius:0,lightDetail:'plate',emitW:2,glow:0},
+  {k:'ink',name:'Ink sketch',desc:'Hand-drawn: a slightly wobbly double pen stroke in warm white, like a lab notebook, on dark paper.',
+    bg:'#15130f',grid:'paper',label:'#c8bea8',font:'"Caveat",cursive',jitter:1.6,
+    glassFill:'rgba(240,230,210,.05)',glassStroke:'rgba(240,230,210,.85)',glassLW:1.1,
+    metal:'rgba(250,244,232,.9)',mirrorLW:1.4,mirrorHatch:'rgba(240,230,210,.5)',
+    plateLW:2,colorAlpha:.75,detail:'rgba(240,230,210,.6)',screen:'rgba(250,244,232,.85)',screenLW:3,
+    block:'rgba(240,230,210,.8)',blockLW:5,
+    reach:'rgba(240,230,210,.2)',holeRing:'rgba(240,200,150,.6)',ringLW:1,holeCore:'#0a0907',holeEdge:'rgba(240,230,210,.85)',
+    boxFill:'rgba(240,230,210,.04)',boxStroke:'rgba(240,230,210,.85)',boxLW:1.1,radius:0,lightDetail:'fins',emitW:2,glow:0}
+];
+
+/* ---------- Liquid chrome: fat mirrored tubes with dark and bright bands, iridescent glass, cyan and magenta fringes ---------- */
+function tube(g,pathFn,w,px,o){
+  o=o||{};g.lineCap=o.cap||'round';g.lineJoin='round';
+  g.save();g.globalCompositeOperation='lighter';
+  for(const [dx,c] of [[-1.1,'rgba(0,210,255,.4)'],[1.1,'rgba(255,60,200,.34)']]){g.save();g.translate(dx*px,dx*.5*px);g.strokeStyle=c;g.lineWidth=(w+.4)*px;pathFn();g.stroke();g.restore();}
+  g.restore();
+  const hi=o.color||'#b9c4d4',bands=[[1,'#05070b',0],[.9,hi,0],[.7,'#11151c',.05],[.46,o.core||'#dfe8f6',.1],[.3,'#8794a8',.13],[.14,'#ffffff',.2]];
+  for(const [f,c,off] of bands){g.save();g.translate(-off*w*px,-off*w*px);g.strokeStyle=c;g.lineWidth=w*f*px;pathFn();g.stroke();g.restore();}
+}
+function iridFill(g,el,R){
+  const gr=g.createLinearGradient(el.x-R,el.y-R,el.x+R,el.y+R);
+  [[0,'rgba(6,8,12,.95)'],[.18,'rgba(120,205,255,.22)'],[.34,'rgba(238,244,255,.5)'],[.44,'rgba(40,46,58,.85)'],[.56,'rgba(200,170,255,.2)'],[.7,'rgba(8,10,15,.95)'],[.86,'rgba(190,230,235,.26)'],[1,'rgba(230,236,246,.5)']].forEach(([t,c])=>gr.addColorStop(t,c));
+  return gr;
+}
+function drawChrome(g,el,geo,px){
+  const t=el.type,PP=(pts,closed)=>()=>poly(g,pts,closed);
+  if(t==='prism'||t==='liquid'||(t==='lens'&&!geo.lens.ideal)){
+    const out=geo.outline,R=geo.r||40;
+    poly(g,out,true);g.fillStyle=iridFill(g,el,R);g.fill();if(el.lv>.02){g.fillStyle=`rgba(255,255,255,${(.14*el.lv).toFixed(3)})`;g.fill();}
+    g.save();poly(g,out,true);g.clip();
+    g.strokeStyle='rgba(255,255,255,.22)';g.lineWidth=12*px;poly(g,out,true);g.stroke();
+    const rg=g.createRadialGradient(el.x-R*.35,el.y-R*.4,0,el.x-R*.35,el.y-R*.4,R*.7);rg.addColorStop(0,'rgba(255,255,255,.55)');rg.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=rg;g.fillRect(el.x-R*1.5,el.y-R*1.5,R*3,R*3);
+    g.restore();
+    tube(g,PP(out,true),7,px);return;
+  }
+  if(t==='lens'){const [A,B]=geo.ends,F=geo.F,h=geo.lens.h,o=el.power==='div'?10:-10;
+    tube(g,PP([A,B],false),7,px);for(const s of [1,-1])tube(g,PP([F.L(s*(h+o),9),F.L(s*h,0),F.L(s*(h+o),-9)],false),5.5,px);return;}
+  if(t==='mirror'||t==='curved'||t==='splitter'){
+    const pts=lineOf(geo);
+    if(t==='splitter'){g.save();g.globalAlpha=.45;tube(g,PP(pts,false),5,px);g.restore();const d=dense(pts,16*px);for(let i=0;i+1<d.length;i+=2)tube(g,PP([d[i],d[i+1]],false),10,px);}
+    else tube(g,PP(pts,false),10,px);
+    return;
+  }
+  if(t==='grating'||t==='filter'||t==='shift'||t==='screen'){
+    const [A,B]=geo.ends,F=geo.F;let c;
+    if(t==='grating'){const gr=g.createLinearGradient(A[0],A[1],B[0],B[1]);[420,470,520,570,620,670].forEach((l,i)=>gr.addColorStop(i/5,rgba(colorOf(l),1)));c=gr;}
+    else if(t==='filter')c=rgba(passColor(el),1);
+    else if(t==='shift'){const gr=g.createLinearGradient(A[0],A[1],B[0],B[1]);for(let i=0;i<=6;i++){const l=shiftLam(el,400+i*45);gr.addColorStop(i/6,l==null?'#2a2f38':rgba(colorOf(l),1));}c=gr;}
+    tube(g,PP([A,B],false),t==='screen'?11:9,px,c?{color:c}:{color:'#eef2f8',core:'#ffffff'});
+    g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=1*px;g.lineCap='round';g.beginPath();
+    if(t==='grating'){const n=Math.floor(el.len/8);for(let i=1;i<n;i++){const tt=-el.len/2+i*el.len/n,p=F.L(tt,-2.2),q=F.L(tt,2.2);g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1]);}}
+    if(t==='filter'&&el.mode==='dichroic'){const p=F.L(-el.len/2+4,-5.5),q=F.L(el.len/2-4,-5.5);g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1]);}
+    if(t==='shift'){const d=el.shift>=0?1:-1,n=Math.max(2,Math.floor(el.len/36));for(let i=0;i<n;i++){const tt=-el.len/2+(i+.5)*el.len/n,p=F.L(tt-3*d,-8),q=F.L(tt+3*d,0),r=F.L(tt-3*d,8);g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1]);g.lineTo(r[0],r[1]);}}
+    g.stroke();return;
+  }
+  if(t==='slit'){for(const s of geo.prims)tube(g,PP([[s.ax,s.ay],[s.ax+s.ex,s.ay+s.ey]],false),12,px,{color:'#6f7b8c',core:'#aab6c8'});return;}
+  if(t==='hole'){
+    const h=el.mass,ph=(2+Math.sqrt(3))*h;
+    g.save();g.setLineDash([2*px,6*px]);g.strokeStyle='rgba(200,215,240,.25)';g.lineWidth=1*px;g.beginPath();g.arc(el.x,el.y,el.reach,0,TAU);g.stroke();g.restore();
+    tube(g,()=>{g.beginPath();g.arc(el.x,el.y,ph,0,TAU);},9,px);
+    const gr=g.createRadialGradient(el.x,el.y,h,el.x,el.y,ph);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.beginPath();g.arc(el.x,el.y,ph,0,TAU);g.fill();
+    g.fillStyle='#000';g.beginPath();g.arc(el.x,el.y,h,0,TAU);g.fill();
+    tube(g,()=>{g.beginPath();g.arc(el.x,el.y,h,0,TAU);},4,px);return;
+  }
+  if(t==='light'||t==='tx'||t==='amp'){
+    const b=boxOf(el,geo),c=t==='amp'?(el.pass==='band'?colorOf(el.lam):[255,96,150]):specCol(el,geo),r=Math.min(9,b.h/2,b.w/2);
+    g.save();g.translate(el.x,el.y);g.rotate(el.angle*D2R);
+    const gr=g.createLinearGradient(0,b.y,0,b.y+b.h);[[0,'#f2f6fc'],[.16,'#8d99ab'],[.34,'#161a22'],[.5,'#0b0d12'],[.62,'#a9b5c7'],[.74,'#f7faff'],[.88,'#566173'],[1,'#1a1e27']].forEach(([tt,cc])=>gr.addColorStop(tt,cc));
+    g.save();g.globalCompositeOperation='lighter';for(const [dx,cc] of [[-1.1,'rgba(0,210,255,.45)'],[1.1,'rgba(255,60,200,.4)']]){boxRect(g,b.x+dx*px,b.y+dx*.5*px,b.w,b.h,r);g.strokeStyle=cc;g.lineWidth=1.6*px;g.stroke();}g.restore();
+    boxRect(g,b.x,b.y,b.w,b.h,r);g.fillStyle=gr;g.fill();g.strokeStyle='#0b0e14';g.lineWidth=1.2*px;g.stroke();
+    g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=1*px;g.lineCap='round';g.beginPath();
+    if(t==='tx'){for(const rr of [4,8]){g.moveTo(-10+rr*Math.cos(2.4),rr*Math.sin(2.4));g.arc(-10,0,rr,2.4,TAU-2.4,true);}}
+    if(t==='amp'){for(const x of [b.x+12,-b.x-12]){g.moveTo(x,b.y+3);g.lineTo(x,-b.y-3);}}
+    g.stroke();
+    g.globalCompositeOperation='lighter';g.shadowColor=rgba(c,1);g.shadowBlur=10;g.fillStyle=rgba(c,1);
+    if(t==='amp'){boxRect(g,b.x+6,-2,b.w-12,4,2);g.fill();}
+    else{const hw=t==='tx'?Math.min(b.h/2-5,30):Math.max(4,el.width/2);boxRect(g,b.x+b.w-4.5,-hw,3.5,2*hw,1.7);g.fill();}
+    g.shadowBlur=0;g.globalCompositeOperation='source-over';g.restore();return;
+  }
+}
+STYLES.unshift({k:'chrome-liquid',name:'Liquid chrome',desc:'From your references: fat mirrored tubes with dark and bright bands, iridescent glass, and cyan and magenta fringes on black.',
+  bg:'#000',grid:'none',label:'#aeb6c4',draw:drawChrome});
+
+// Pixel: draw the pieces small on a coarse canvas, then scale that up with hard edges.
+let pc=null;
+function pixelPass(g,v,S,items,px){
+  const n=Math.max(2,Math.round(3*v.dpr)),cw=g.canvas.width,ch=g.canvas.height;if(!pc)pc=document.createElement('canvas');
+  const w=Math.ceil(cw/n),h=Math.ceil(ch/n);if(pc.width!==w||pc.height!==h){pc.width=w;pc.height=h;}
+  const og=pc.getContext('2d');og.setTransform(1,0,0,1,0,0);og.clearRect(0,0,w,h);
+  const k=v.dpr*v.scale/n;og.setTransform(k,0,0,k,v.dpr*v.cx/n,v.dpr*v.cy/n);
+  const m=n/v.dpr,S2=Object.assign({},S,{glassLW:S.glassLW*m,mirrorLW:S.mirrorLW*m,mirrorBackLW:S.mirrorBackLW*m,plateLW:S.plateLW*m,screenLW:S.screenLW*m,blockLW:S.blockLW*m,boxLW:S.boxLW*m,ringLW:S.ringLW*m});
+  for(const [el,geo] of items)drawStyled(og,el,geo,px,S2);
+  g.save();g.setTransform(1,0,0,1,0,0);g.imageSmoothingEnabled=false;g.drawImage(pc,0,0,w*n,h*n);g.restore();
+}
+const byKey=k=>STYLES.find(s=>s.k===k)||STYLES[0];
+// Draw a batch of pieces in the chosen style.
+function drawAll(g,v,key,items,px){
+  const S=byKey(key);
+  if(S.pixel){pixelPass(g,v,S,items,px);return;}
+  for(const [el,geo] of items){
+    if(S.current){if(el.type==='screen')drawScreen(g,geo,px);else drawEl(g,el,geo,px);}
+    else if(S.draw)S.draw(g,el,geo,px);else drawStyled(g,el,geo,px,S);
+    g.lineCap='round';g.lineJoin='round';g.shadowBlur=0;
+  }
+}
+return{STYLES,drawAll};
+})();
+let objStyle='chrome-liquid';
+
 function render(g,sc,v,o){
   const useGL=!!o.main&&GLP.want&&glOn();GLB.rec=useGL;GLB.n=0;
   const t0=performance.now(),geos=sc.map(geomOf),T=o.delay?traceDelayed(sc,geos,o):trace(sc,o.bright,geos,o.wave||null),px=(o.lw||1)/v.scale;
@@ -1272,7 +1558,7 @@ function render(g,sc,v,o){
   if(o.main&&!o.delay)lastMaxD=Math.max(300,T.maxD);
   g.setTransform(v.dpr*v.scale,0,0,v.dpr*v.scale,v.dpr*v.cx,v.dpr*v.cy);
   g.lineCap='round';g.lineJoin='round';
-  sc.forEach((el,i)=>{if(el.type==='screen')drawScreen(g,geos[i],px);});
+  OBJ.drawAll(g,v,objStyle,sc.map((el,i)=>[el,geos[i]]).filter(p=>p[0].type==='screen'),px);
   if(T.txc.size||sc.some(e=>e.type==='tx'))drawLinks(g,sc,px);
   if(useGL)glFlush(g,v);else{
   g.globalCompositeOperation='lighter';
@@ -1282,7 +1568,8 @@ function render(g,sc,v,o){
   g.lineWidth=6*px;for(const b of T.splats.values()){g.strokeStyle=rgba(b.c,b.a);g.stroke(b.p);}
   g.globalCompositeOperation='source-over';}
   g.setTransform(v.dpr*v.scale,0,0,v.dpr*v.scale,v.dpr*v.cx,v.dpr*v.cy);
-  sc.forEach((el,i)=>{if(el.type!=='screen'){if(el.type==='tx')geos[i].txc=T.txc.get(el.id);drawEl(g,el,geos[i],px);}});
+  sc.forEach((el,i)=>{if(el.type==='tx')geos[i].txc=T.txc.get(el.id);});
+  OBJ.drawAll(g,v,objStyle,sc.map((el,i)=>[el,geos[i]]).filter(p=>p[0].type!=='screen'),px);
   T.geos=geos;return T;
 }
 
@@ -2421,14 +2708,14 @@ function loadCurrent(){
 /* ================= View, dock size and hidden interface ================= */
 // Remembered on this device apart from the bench, so setup codes stay as they were.
 const UIKEY='spectrum-bench-ui';let uiT=0;
-function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW,res:pixF,gl:GLP.want,bg:bgKind}));}catch(e){}},400);}
+function saveUiSoon(){clearTimeout(uiT);uiT=setTimeout(()=>{try{localStorage.setItem(UIKEY,JSON.stringify({zoom,vx,vy,dockH:ui.dockH,dockW:ui.dockW,res:pixF,gl:GLP.want,bg:bgKind,obj:objStyle}));}catch(e){}},400);}
 const ui={dockH:0,dockW:0};const uiStyle='glass rail'; // one interface now: Glass + Rail (Peter's pick, Nov 2026)
 function applyDock(){const r=document.documentElement.style;ui.dockH?r.setProperty('--dock-h',ui.dockH+'px'):r.removeProperty('--dock-h');ui.dockW?r.setProperty('--dock-w',ui.dockW+'px'):r.removeProperty('--dock-w');}
 try{const u=JSON.parse(localStorage.getItem(UIKEY)||'null');if(u&&typeof u==='object'){
   if(isFinite(u.zoom))zoom=clamp(+u.zoom,ZMIN,ZMAX);if(isFinite(u.vx))vx=clamp(+u.vx,-3000,3000);if(isFinite(u.vy))vy=clamp(+u.vy,-3000,3000);
   if([1,.75,.5].includes(+u.res))pixF=+u.res;if(u.gl===false)GLP.want=false;if(u.dockH>0)ui.dockH=+u.dockH;if(u.dockW>0)ui.dockW=+u.dockW;applyDock();
-  if(BGS.some(b=>b.k===u.bg))bgKind=u.bg;}}catch(e){}
-// Look panel (palette button or C): the bench background. Only this device's view changes.
+  if(BGS.some(b=>b.k===u.bg))bgKind=u.bg;if(OBJ.STYLES.some(x=>x.k===u.obj))objStyle=u.obj;}}catch(e){}
+// Look panel (palette button or C): the object style and the bench background. Only this device's view changes.
 const addBar=document.querySelector('.add'),appEl=document.querySelector('.app');
 function applyUiStyle(){
   document.documentElement.dataset.ui=uiStyle;
@@ -2436,11 +2723,13 @@ function applyUiStyle(){
   const tm=document.querySelector('meta[name=theme-color]');if(tm)tm.content='#000000';
 }
 function renderLook(){
+  $('look-obj').innerHTML=OBJ.STYLES.map(x=>`<button type="button" data-obj="${x.k}" aria-pressed="${x.k===objStyle}">${x.name}</button>`).join('');
   $('look-bg').innerHTML=BGS.map(b=>`<button type="button" data-bg="${b.k}" aria-pressed="${b.k===bgKind}"><i class="bg-${b.k}"></i>${b.name}</button>`).join('');
 }
 function setLook(open){const L=$('look');L.hidden=!open;$('b-look').setAttribute('aria-pressed',String(open));if(open)renderLook();}
 $('b-look').addEventListener('click',()=>setLook($('look').hidden));
 $('look-x').addEventListener('click',()=>setLook(false));
+$('look-obj').addEventListener('click',e=>{const b=e.target.closest('[data-obj]');if(!b)return;objStyle=b.dataset.obj;renderLook();request();saveUiSoon();});
 $('look-bg').addEventListener('click',e=>{const b=e.target.closest('[data-bg]');if(!b)return;bgKind=b.dataset.bg;renderLook();buildBg();request();saveUiSoon();});
 applyUiStyle();
 // The handle sits in the gap between the bench and the dock: below the bench on phones, beside it on wider screens.
