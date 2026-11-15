@@ -2432,7 +2432,7 @@ function applyUiStyle(){
   document.documentElement.dataset.ui=uiStyle;
   if(uiStyle==='rail'){if(addBar.parentNode!==appEl)appEl.insertBefore(addBar,$('split'));}
   else{const d=$('dock');if(addBar.parentNode!==d)d.insertBefore(addBar,d.firstChild);}
-  document.querySelector('meta[name=theme-color]').content=uiStyle==='glass'?'#000000':'#0a0c10';
+  const tm=document.querySelector('meta[name=theme-color]');if(tm)tm.content=uiStyle==='glass'?'#000000':'#0a0c10';
 }
 function renderLook(){
   $('look-bg').innerHTML=BGS.map(b=>`<button type="button" data-bg="${b.k}" aria-pressed="${b.k===bgKind}"><i class="bg-${b.k}"></i>${b.name}</button>`).join('');
