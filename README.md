@@ -130,6 +130,14 @@ Every spring is also a small synth voice driven by its own motion: loudness foll
 
 Tap anywhere to probe a frequency: it snaps to the nearest peak and says what it is (a harmonic of the current note, a steady resonance, hum). **Hear band** plays only that slice of the sound, from a quarter tone to an octave wide, while the rest of the map dims (use headphones with the microphone); **Tone** plays a sine wave at that frequency; the ½ buttons step by semitones. Drag up and down to move, pinch or scroll to zoom, double-tap to reset. **Freeze** (Space) stops the map so you can drag sideways to read any moment. Views (voice and instruments, room resonances, full range, birds and whistles, bass and hum) set the range, detail and speed; palettes are Neon, Ice, Matrix and Note colors, which colors each pitch class its own hue so octaves match. The eye button (or H) hides the controls, and **Save image** shares a PNG. Settings and the last source are kept on the device; it opens on a built-in demo until you tap Listen.
 
+### Far Tide
+
+`far-tide.html` is a small, easy hauling game set on dark, murky water that stands in for space. Your freighter circles a port carrying one cargo, and the port that wants it pulses gold. Drag anywhere to aim (time slows and a dotted line shows where the launch will carry you, with the star and every planet pulling on it), then let go. While flying, hold and drag to steer; let go near a port and its current reels you in. Steering straight through skims past the ports you don't want. Drift off the edge and you are towed back.
+
+Each delivery pays more the farther it went. Enough credits buy a faster drive, and the wormhole at the edge of the map then carries you up a scale: star system, star cluster, galaxy, galaxy group, cosmic web. The story is that a faster drive makes everything seem to circle faster, which is why even a galaxy visibly turns. You can dive back down from your home port at any scale.
+
+The water is drawn on the GPU: ships leave wakes, launches and landings send ripples out, and engines, stars and wormholes bend the picture with heat haze. The palette button (or **C**) opens **Look**: heat haze, ripples, murk, water brightness, orbit and route lines, stars, other ships, when names show, sound and its pitch, and resolution. Two fingers pan and zoom (scroll and right-drag on a computer), **F** is fullscreen, **H** hides the controls, **R** resets the view, and Space aims by timing instead of dragging. Progress and Look settings are kept on the device. To add a setting, add one row to `PARAMS` near the top of the script.
+
 ## Updating
 
 To update an app, replace its page with the new version. Pages refresh themselves the next time you open them online.

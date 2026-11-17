@@ -19,7 +19,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 <!-- Each app's name on its tile is set in that app's own typeface, so the tile looks like the app it opens. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&family=Michroma&display=swap">
 <style>
 /* Layout: a quiet, native-feeling page (system type, graphite wall) holding one dark window per app.
    Each window runs a small live preview drawn in that app's own colors; the apps carry the personality. */
@@ -97,6 +97,7 @@ body{
 .label h2.t-boing{font:400 27px/1 "Chewy","Marker Felt",system-ui,sans-serif;letter-spacing:.03em;color:#ffe9d6;display:inline-block;transform:rotate(-2deg)}
 .label h2.t-tone{font:800 19px/1.1 "Orbitron","Avenir Next",system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#e8f7ff;text-shadow:0 0 8px rgba(255,42,109,.75)}
 .label h2.t-tone span{color:#05d9e8;text-shadow:0 0 8px rgba(5,217,232,.75)}
+.label h2.t-tide{font:400 18px/1.15 "Michroma","Avenir Next",system-ui,sans-serif;letter-spacing:.1em;color:#dff3f7}
 .label h2.t-orrery{font:600 23px/1.1 "Fredoka","Avenir Next",system-ui,sans-serif;letter-spacing:.01em}
 
 .foot{margin-top:28px;font-size:14px;color:var(--muted)}
@@ -261,6 +262,15 @@ const APPS = [
     accent: '#ff2a6d',
     titleClass: 't-tone',
     art: 'tone'
+  },
+  {
+    name: 'Far Tide',
+    href: 'far-tide.html',
+    blurb: 'A tiny freighter on dark, murky water that happens to be space. Drag to aim, let go to launch, and steer in to the port that wants your cargo. Earn a faster drive, take the wormhole, and haul across a star cluster, a galaxy and beyond.',
+    ground: '#03070a',
+    accent: '#7fe9ff',
+    titleClass: 't-tide',
+    art: 'tide'
   }
 ];
 
@@ -1180,6 +1190,41 @@ ARTS.boing = {
     for (const sp of this.list) this.spring(ctx, sp, w, floor, t);
     ctx.restore();
     for (const sp of this.list) this.spring(ctx, sp, w, floor, t);
+  }
+};
+
+// Far Tide: dark water, a soft star, three ports circling it, and one small freighter crossing between them
+// on a curved path with a wake behind it and a ripple where it lands.
+ARTS.tide = {
+  ports: [[.2, 5, '#ffb38a', 2.2], [.36, 9, '#9dffd6', 3.2], [.56, 16, '#9fc2ff', 3], [.8, 27, '#ffe6a3', 4.6]],
+  init(s){ s.leg = -1; },
+  pos(k, t){ const p = this.ports[k], a = k * 2.1 + t * 6.283 / p[1]; return [Math.cos(a) * p[0], Math.sin(a) * p[0], a]; },
+  frame(ctx, s, w, h, t){
+    const U = Math.min(w / 2, h / 2 / .62) / .92, P = (x, y) => [w / 2 + x * U, h / 2 + y * U * .62];
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#03070a'; ctx.fillRect(0, 0, w, h);
+    const blot = (x, y, r, col, a) => { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0)); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
+    for (let i = 0; i < 5; i++) blot(w * (.5 + .42 * Math.sin(t * .07 + i * 1.9)), h * (.5 + .4 * Math.cos(t * .05 + i * 2.6)), Math.max(w, h) * .42, '#12333a', .22);
+    const leg = Math.floor(t / 7), u = t / 7 - leg, a = leg % 4, b = (leg * 3 + 1 + a) % 4 === a ? (a + 1) % 4 : (leg * 3 + 1 + a) % 4;
+    const pa = this.pos(a, leg * 7), pb = this.pos(b, leg * 7 + 7);
+    let da = (pb[2] - pa[2]) % 6.283; if (da < 0) da += 6.283; if (da < 1.6) da += 6.283;
+    const at = (v) => { const e = v * v * (3 - 2 * v), an = pa[2] + da * e, r = this.ports[a][0] + (this.ports[b][0] - this.ports[a][0]) * (1 - Math.cos(Math.PI * e)) / 2; return P(Math.cos(an) * r, Math.sin(an) * r); };
+    const c = P(0, 0);
+    ctx.lineWidth = 1; ctx.setLineDash([1, 5]); ctx.strokeStyle = 'rgba(150,200,215,.12)';
+    for (const p of this.ports){ ctx.beginPath(); ctx.ellipse(c[0], c[1], p[0] * U, p[0] * U * .62, 0, 0, 7); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(127,233,255,.3)'; ctx.setLineDash([1, 6]); ctx.beginPath();
+    for (let i = 0; i <= 24; i++){ const q = at(u + (1 - u) * i / 24); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
+    ctx.stroke(); ctx.setLineDash([]);
+    blot(c[0], c[1], h * .26, '#fff0cf', .32); ctx.fillStyle = '#fff0cf'; ctx.beginPath(); ctx.arc(c[0], c[1], 3.2, 0, 7); ctx.fill();
+    const ring = (q, age) => { if (age < 0 || age > 3) return; ctx.strokeStyle = 'rgba(160,225,235,' + (.3 * (1 - age / 3)) + ')'; ctx.beginPath(); ctx.ellipse(q[0], q[1], 6 + age * 16, (6 + age * 16) * .62, 0, 0, 7); ctx.stroke(); };
+    ring(P(pa[0], pa[1]), u * 7); if (s.leg >= 0) ring(P(this.pos(s.leg, t)[0], this.pos(s.leg, t)[1]), u * 7 + .2);
+    s.leg = a;
+    this.ports.forEach((p, k) => { const q = P(this.pos(k, t)[0], this.pos(k, t)[1]);
+      blot(q[0], q[1], p[3] * 4.5, '#000000', .5); ctx.save(); ctx.translate(q[0], q[1] + p[3] * 2.2); ctx.scale(1, 2.6); blot(0, 0, p[3] * 1.6, p[2], .18); ctx.restore();
+      blot(q[0], q[1], p[3] * 3, p[2], .45); ctx.fillStyle = p[2]; ctx.beginPath(); ctx.arc(q[0], q[1], p[3] * .62, 0, 7); ctx.fill(); });
+    ctx.lineCap = 'round';
+    for (let i = 1; i <= 22; i++){ const v0 = Math.max(0, u - i * .012), v1 = Math.max(0, u - (i - 1) * .012), q0 = at(v0), q1 = at(v1); ctx.strokeStyle = 'rgba(255,255,255,' + (.6 * (1 - i / 22)) + ')'; ctx.lineWidth = 1.4 * (1 - i / 26); ctx.beginPath(); ctx.moveTo(q0[0], q0[1]); ctx.lineTo(q1[0], q1[1]); ctx.stroke(); }
+    const q = at(u); blot(q[0], q[1], 7, '#ffd98a', .6); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(q[0], q[1], 1.5, 0, 7); ctx.fill();
   }
 };
 
