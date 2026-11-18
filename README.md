@@ -138,6 +138,14 @@ Each delivery pays more the farther it went. Enough credits buy a faster drive, 
 
 The water is drawn on the GPU: ships leave wakes, launches and landings send ripples out, and engines, stars and wormholes bend the picture with heat haze. The palette button (or **C**) opens **Look**: heat haze, ripples, murk, water brightness, orbit and route lines, stars, other ships, when names show, sound and its pitch, and resolution. Two fingers pan and zoom (scroll and right-drag on a computer), **F** is fullscreen, **H** hides the controls, **R** resets the view, and Space aims by timing instead of dragging. Progress and Look settings are kept on the device. To add a setting, add one row to `PARAMS` near the top of the script.
 
+### Dab
+
+`dab.html` is paint by numbers, made for iPad and Apple Pencil. Pick a numbered paint along the bottom and the areas that want it glow; paint them in and each area fills and locks once enough of it is covered, ringing its own note. Paint only lands where it belongs unless you turn **Stay in the lines** off.
+
+The brushes follow the Pencil: the **fine pen** and **soft brush** grow with pressure, the **chisel marker** turns its flat nib with the Pencil's tilt, and the **crayon** widens as the Pencil leans over. There is also a **fill** bucket and an **eraser**, each brush keeps its own size, and a hovering Pencil shows the brush outline and the number underneath. Once a Pencil has been used, a resting palm is ignored, one finger moves the picture, a finger tap picks that area's paint, two fingers zoom, a two-finger tap undoes and a three-finger tap redoes. Without a Pencil, fingers and the mouse paint.
+
+**Pictures** has a ringed planet, a rose window, dusk peaks, balloons, and an agate slice that can be regrown as often as you like, plus **Paint one of your photos**, which turns a photo into numbered areas on the device (pick the number of colors and the detail). Paint, progress and photos are kept on the device, and **Save image** shares the picture as a PNG. The sliders button (or **C**) opens **Look**: how much of an area must be covered, pressure, tilt and steadiness, the canvas (night, slate or paper), paint glow, hints, numbers, lines, and the chime's voice, scale and pitch. **H** hides the controls, **F** is fullscreen, **R** fits the picture, **Z** undoes, and `[` `]` change the brush size. To add a setting, add one row to `PARAMS` near the top of the script. There is one more brush for anyone who taps the progress number five times.
+
 ## Updating
 
 To update an app, replace its page with the new version. Pages refresh themselves the next time you open them online.

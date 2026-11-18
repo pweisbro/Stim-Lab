@@ -1,0 +1,1526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07080d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dab">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Dab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,600&family=Figtree:wght@500;600;700&display=swap">
+<style>
+/* Layout: one full-screen canvas (the picture on a dark stage), two small pills in the top corners,
+   a tool rail (left edge on iPad, a row above the paints on a phone), the numbered paints along the
+   bottom, and sheets for Pictures and Look. Single dark theme: the paint is the light. */
+:root{
+  color-scheme:dark;
+  --void:#07080d;
+  --glass:rgba(18,19,28,.78);
+  --line:rgba(225,230,255,.12);
+  --text:#f1f2f8;
+  --muted:#9a9db3;
+  --accent:#ff9db0;
+  --accent-ink:#2a0a12;
+  --font-display:'Fraunces','Iowan Old Style',Georgia,serif;
+  --font-body:'Figtree',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
+  --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
+  --sl:env(safe-area-inset-left,0px); --sr:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--void);color:var(--text);
+  font:500 15px/1.35 var(--font-body);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  overscroll-behavior:none;touch-action:none}
+canvas#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.pill{position:fixed;display:flex;align-items:center;gap:2px;padding:5px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);z-index:5}
+.pill button,.pill a{width:42px;height:42px;border-radius:999px;display:grid;place-items:center;color:var(--text);text-decoration:none}
+.pill button:hover,.pill a:hover{background:rgba(255,255,255,.07)}
+.pill button:disabled{opacity:.3}
+.pill button[aria-pressed="true"],.pill button[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink)}
+.pill .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.home svg{fill:currentColor;stroke:none}
+#tl{top:calc(10px + var(--st));left:calc(10px + var(--sl))}
+#tr{top:calc(10px + var(--st));right:calc(10px + var(--sr))}
+#pct{min-width:54px;padding:0 12px 0 6px;font:700 15px var(--font-body);font-variant-numeric:tabular-nums;color:var(--text);text-align:center}
+
+/* tools */
+#rail{left:calc(10px + var(--sl));top:50%;transform:translateY(-50%);flex-direction:column;border-radius:28px}
+#rail .sep{width:22px;height:1px;margin:4px 0}
+#rail button{position:relative}
+#rail button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+#sizeBtn i{display:block;border-radius:50%;background:currentColor;width:14px;height:14px}
+#btnDoodle[hidden]{display:none}
+#sizePop{position:fixed;z-index:6;left:calc(72px + var(--sl));top:50%;transform:translateY(-50%);padding:14px 16px;border-radius:18px;
+  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);width:230px}
+#sizePop[hidden]{display:none}
+#sizePop label{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-bottom:6px}
+#sizePop label b{color:var(--text);font-weight:600}
+
+/* paints */
+#paints{position:fixed;z-index:5;left:50%;transform:translateX(-50%);bottom:calc(10px + var(--sb));
+  max-width:min(940px,calc(100vw - 20px - var(--sl) - var(--sr)));padding:8px 10px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x}
+#paints::-webkit-scrollbar{display:none}
+.sw{flex:0 0 auto;width:46px;height:46px;border-radius:50%;padding:3px;position:relative;
+  background:conic-gradient(var(--ring,#fff) calc(var(--p,0)*1%),rgba(255,255,255,.13) 0);transition:transform .12s}
+.sw span{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--c);color:var(--ink);
+  font:700 16px var(--font-body);font-variant-numeric:tabular-nums;box-shadow:inset 0 0 0 2px var(--void)}
+.sw[aria-pressed="true"]{transform:scale(1.16);z-index:1}
+.sw[aria-pressed="true"] span{box-shadow:inset 0 0 0 2px var(--void),0 0 16px 1px var(--c)}
+.sw.done{opacity:.45}
+.sw.done span{font-size:0}
+.sw.done span::after{content:"";width:13px;height:7px;border-left:2.5px solid var(--ink);border-bottom:2.5px solid var(--ink);transform:rotate(-45deg) translate(1px,-2px)}
+.sw.nudge{animation:nudge .5s}
+@keyframes nudge{0%,100%{transform:scale(1)}30%{transform:scale(1.4)}60%{transform:scale(1.1)}}
+
+/* sheets */
+.sheet{position:fixed;z-index:8;background:rgba(14,15,23,.94);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain}
+.sheet[hidden]{display:none}
+.sheet h2{font:italic 600 26px/1 var(--font-display);margin:0;letter-spacing:.01em}
+.sheet header{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:2;
+  background:rgba(14,15,23,.96);padding:16px 18px 12px}
+.x{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.07)}
+#look{top:calc(64px + var(--st));right:calc(10px + var(--sr));bottom:calc(10px + var(--sb));width:340px;border-radius:22px}
+#look .body{padding:0 18px 18px}
+#look h3{font:700 12px var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:7px 0}
+.row label{color:var(--text)}
+.row output{color:var(--muted);font-variant-numeric:tabular-nums;font-size:13px}
+.row input[type=range]{grid-column:1/-1}
+.row select{grid-column:1/-1}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:none;margin:0;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);margin-top:-9px;border:0}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent);border:0}
+select{font:inherit;color:var(--text);background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+.tog{width:50px;height:30px;border-radius:15px;background:rgba(255,255,255,.14);position:relative;transition:background .15s}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .15s}
+.tog[aria-checked="true"]{background:var(--accent)}
+.tog[aria-checked="true"]::after{transform:translateX(20px)}
+.btn{padding:10px 16px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);font-weight:600}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn:disabled{opacity:.4}
+.hintline{color:var(--muted);font-size:13px;margin:6px 0 0}
+
+#gallery{inset:calc(14px + var(--st)) calc(14px + var(--sr)) calc(14px + var(--sb)) calc(14px + var(--sl));border-radius:26px;max-width:1000px;margin:0 auto}
+#gallery .body{padding:4px 18px 22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{position:relative;border-radius:18px;overflow:hidden;background:#0b0c13;border:1px solid var(--line);text-align:left;display:block;width:100%}
+.card.cur{border-color:var(--accent)}
+.card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#11131c}
+.card .cap{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px}
+.card .cap b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .cap span{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.card .bar{height:3px;background:rgba(255,255,255,.1)}
+.card .bar i{display:block;height:100%;background:var(--accent)}
+.card .mini{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+.card .mini button{padding:6px 10px;border-radius:999px;background:rgba(7,8,13,.78);border:1px solid var(--line);font-size:12px;font-weight:600}
+.photo{margin-top:18px;padding:16px;border-radius:18px;border:1px dashed rgba(225,230,255,.22);display:grid;gap:10px}
+.photo h3{margin:0;font:600 17px var(--font-body)}
+.photo .opts{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;align-items:end}
+.photo .opts label{color:var(--muted);font-size:13px;display:flex;justify-content:space-between}
+.acts{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px}
+
+#toast{position:fixed;z-index:9;left:50%;top:calc(70px + var(--st));transform:translateX(-50%);padding:10px 16px;border-radius:999px;
+  background:rgba(18,19,28,.92);border:1px solid var(--line);font-weight:600;pointer-events:none;opacity:0;transition:opacity .25s;max-width:calc(100vw - 30px);text-align:center}
+#toast.on{opacity:1}
+#busy{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(7,8,13,.82);font:italic 600 26px var(--font-display)}
+#busy[hidden]{display:none}
+#done{position:fixed;z-index:7;left:50%;top:calc(74px + var(--st));transform:translateX(-50%);padding:14px 18px;border-radius:22px;text-align:center;
+  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:grid;gap:10px}
+#done[hidden]{display:none}
+#done b{font:italic 600 24px var(--font-display)}
+#done div{display:flex;gap:8px;justify-content:center}
+#peek{position:fixed;z-index:6;top:calc(10px + var(--st));right:calc(10px + var(--sr));width:42px;height:42px;border-radius:50%;display:none;place-items:center;color:rgba(255,255,255,.35)}
+
+body.bare .pill,body.bare #paints,body.bare #sizePop,body.bare #done{display:none}
+body.bare #peek{display:grid}
+/* while the Pencil is on the glass, a resting palm must not press buttons */
+body.inking .pill,body.inking #paints,body.inking .sheet,body.inking #done{pointer-events:none}
+.nofs #btnFs{display:none}
+
+@media (max-width:700px){
+  #rail{flex-direction:row;top:auto;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--sb));border-radius:999px;max-width:calc(100vw - 16px)}
+  #rail .sep{width:1px;height:22px;margin:0 3px}
+  #rail button{width:38px;height:38px}
+  #sizePop{left:50%;top:auto;transform:translateX(-50%);bottom:calc(142px + var(--sb))}
+  .pill button,.pill a{width:38px;height:38px}
+  #btnFit,#btnFs{display:none}
+  #look{left:8px;right:8px;width:auto;top:auto;bottom:calc(8px + var(--sb));max-height:62vh}
+  #pct{min-width:44px;padding:0 8px 0 2px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .photo .opts{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.sw,.tog,.tog::after{transition:none}.sw.nudge{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="Paint by numbers picture"></canvas>
+
+<nav class="pill" id="tl" aria-label="Dab">
+  <a class="home" href="./" aria-label="Back to Stim Lab" title="Stim Lab">
+    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+  </a>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="btnPics" aria-expanded="false" aria-label="Pictures" title="Pictures">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>
+  </button>
+  <button id="pct" aria-label="Progress" title="Progress">0%</button>
+</nav>
+
+<nav class="pill" id="tr" aria-label="View">
+  <button id="btnUndo" aria-label="Undo" title="Undo (Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 010 12" transform="translate(0 -5)"/></svg></button>
+  <button id="btnRedo" aria-label="Redo" title="Redo (Shift+Z)" disabled><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 000 12" transform="translate(0 -5)"/></svg></button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="btnFit" aria-label="Fit picture to screen" title="Fit (R)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <button id="btnLook" aria-expanded="false" aria-label="Look and feel" title="Look (C)"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+  <button id="btnFs" aria-label="Fullscreen" title="Fullscreen (F)"><svg viewBox="0 0 24 24"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></svg></button>
+  <button id="btnHide" aria-label="Hide controls" title="Hide controls (H)"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg></button>
+</nav>
+<button id="peek" aria-label="Show controls" title="Show controls (H)"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg></button>
+
+<nav class="pill" id="rail" aria-label="Brushes">
+  <button data-tool="pen" aria-label="Fine pen" title="Fine pen (1)"><svg viewBox="0 0 24 24"><path d="M4 20l1.2-4.6L16.5 4.1a2 2 0 012.8 0l.6.6a2 2 0 010 2.8L8.6 18.8z"/><path d="M14.5 6l3.5 3.5"/></svg></button>
+  <button data-tool="brush" aria-label="Soft brush" title="Soft brush (2)"><svg viewBox="0 0 24 24"><path d="M19.5 3.5c1 1 .6 2.4-.4 3.6L12 15l-3-3 7.9-7.1c1.2-1 2.6-1.4 3.600-.4z"/><path d="M9 12c-3 0-4.500 2-4.500 4.500 0 1.500-1 2.500-2 3 3.500 1 8 .5 9.500-4.500"/></svg></button>
+  <button data-tool="marker" aria-label="Chisel marker" title="Chisel marker (3)"><svg viewBox="0 0 24 24"><path d="M14 3l7 7-9 9H7l-2-2v-5z"/><path d="M5 12l7 7M3 21h6"/></svg></button>
+  <button data-tool="crayon" aria-label="Crayon" title="Crayon (4)"><svg viewBox="0 0 24 24"><path d="M6 21l-3-3L15 6l3 3z"/><path d="M15 6l2.500-2.500a1.400 1.400 0 012 0l1 1a1.400 1.400 0 010 2L18 9M8.500 12.500l3 3M11.500 9.500l3 3"/></svg></button>
+  <button data-tool="doodle" id="btnDoodle" hidden aria-label="Secret stamp" title="Secret stamp (5)"><svg viewBox="0 0 24 24"><circle cx="8" cy="7" r="3.500"/><path d="M9.500 10.500c1 3 3 4.500 6 4.500"/><circle cx="16" cy="14" r="3.500"/><path d="M18.500 11.500L21 8M11 16l-1 5M15 17.500l1 3.500"/></svg></button>
+  <span class="sep" aria-hidden="true"></span>
+  <button data-tool="fill" aria-label="Fill a whole area" title="Fill (G)"><svg viewBox="0 0 24 24"><path d="M10.500 3.500l8 8-7 7a2 2 0 01-2.800 0L4 13.800a2 2 0 010-2.800z"/><path d="M4.500 11.500h13.500M20 15.500s1.500 2 1.500 3.200a1.500 1.500 0 01-3 0c0-1.200 1.500-3.200 1.500-3.200z"/></svg></button>
+  <button data-tool="eraser" aria-label="Eraser" title="Eraser (E)"><svg viewBox="0 0 24 24"><path d="M8.500 19.500L3.500 14.500a1.500 1.500 0 010-2.100l8.400-8.400a1.500 1.500 0 012.100 0l6 6a1.500 1.500 0 010 2.100l-7.400 7.400z"/><path d="M7.500 8.500l8 8M8.500 19.500H21"/></svg></button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="sizeBtn" aria-expanded="false" aria-label="Brush size" title="Brush size ([ and ])"><i></i></button>
+</nav>
+<div id="sizePop" hidden>
+  <label for="size"><span id="sizeName">Size</span><b id="sizeVal"></b></label>
+  <input type="range" id="size" min="2" max="160" step="1">
+</div>
+
+<div id="paints" role="toolbar" aria-label="Paints"></div>
+
+<section class="sheet" id="look" hidden aria-label="Look and feel">
+  <header><h2>Look</h2><button class="x" id="lookX" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="body" id="lookBody"></div>
+</section>
+
+<section class="sheet" id="gallery" hidden aria-label="Pictures">
+  <header><h2>Dab</h2><button class="x" id="galX" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="body">
+    <div class="acts">
+      <button class="btn" id="btnSave">Save image</button>
+      <button class="btn" id="btnRestart">Start this one over</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="photo">
+      <h3>Paint one of your photos</h3>
+      <div class="opts">
+        <div><label for="phCols">Colors <b id="phColsV">18</b></label><input type="range" id="phCols" min="6" max="36" value="18"></div>
+        <div><label for="phDetail">Detail</label><select id="phDetail"><option value="0">Chunky</option><option value="1" selected>Medium</option><option value="2">Fine</option></select></div>
+      </div>
+      <div><button class="btn pri" id="btnPhoto">Choose a photo</button></div>
+      <p class="hintline">The photo is turned into numbered areas on this device. It never leaves it.</p>
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+  </div>
+</section>
+
+<div id="done" hidden><b>Finished!</b><div><button class="btn pri" id="doneSave">Save image</button><button class="btn" id="doneNext">Another picture</button></div></div>
+<div id="toast" role="status"></div>
+<div id="busy" hidden><span id="busyT">Mixing paints…</span></div>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+<script>
+/* ------------------------------------------------------------------
+   Dab: paint by numbers, made for Apple Pencil.
+   A picture is a map of numbered areas. Paint lands on its own layer; an area counts as finished once
+   enough of it is covered with the right paint, and then it fills in.
+   ------------------------------------------------------------------ */
+'use strict';
+
+/* ---------- settings: one row per setting. Add a row here and it shows up in Look and is saved. ---------- */
+const PARAMS = [
+  { key: 'guard',    group: 'Painting', label: 'Stay in the lines', type: 'toggle', def: true },
+  { key: 'finishAt', group: 'Painting', label: 'An area is finished at', type: 'range', min: 60, max: 98, step: 1, def: 88, unit: '%' },
+  { key: 'autoPick', group: 'Painting', label: 'Touching an area picks its paint', type: 'toggle', def: false },
+  { key: 'vary',     group: 'Painting', label: 'Painterly shade changes', type: 'range', min: 0, max: 100, step: 1, def: 40, unit: '%' },
+  { key: 'finger',   group: 'Pencil and fingers', label: 'One finger', type: 'select', def: 'auto',
+    opts: [['auto', 'Paints until a Pencil shows up'], ['paint', 'Always paints'], ['move', 'Always moves the picture']] },
+  { key: 'pSize',    group: 'Pencil and fingers', label: 'Pressure changes size', type: 'range', min: 0, max: 100, step: 1, def: 70, unit: '%' },
+  { key: 'pFlow',    group: 'Pencil and fingers', label: 'Pressure changes strength', type: 'range', min: 0, max: 100, step: 1, def: 55, unit: '%' },
+  { key: 'tilt',     group: 'Pencil and fingers', label: 'Tilt effect', type: 'range', min: 0, max: 100, step: 1, def: 70, unit: '%' },
+  { key: 'smooth',   group: 'Pencil and fingers', label: 'Steady hand', type: 'range', min: 0, max: 90, step: 1, def: 30, unit: '%' },
+  { key: 'cursor',   group: 'Pencil and fingers', label: 'Brush outline when hovering', type: 'toggle', def: true },
+  { key: 'canvas',   group: 'Picture', label: 'Canvas', type: 'select', def: 'night', opts: [['night', 'Night'], ['slate', 'Slate'], ['paper', 'Paper']] },
+  { key: 'glow',     group: 'Picture', label: 'Paint glow', type: 'range', min: 0, max: 100, step: 1, def: 40, unit: '%' },
+  { key: 'hint',     group: 'Picture', label: 'Show where this paint goes', type: 'select', def: 'breathe', opts: [['breathe', 'Breathing glow'], ['steady', 'Steady glow'], ['off', 'Off']] },
+  { key: 'hintAmt',  group: 'Picture', label: 'Hint strength', type: 'range', min: 10, max: 100, step: 1, def: 55, unit: '%' },
+  { key: 'numbers',  group: 'Picture', label: 'Numbers', type: 'select', def: 'all', opts: [['all', 'All'], ['sel', 'This paint only'], ['off', 'Hidden']] },
+  { key: 'numSize',  group: 'Picture', label: 'Number size', type: 'range', min: 60, max: 170, step: 5, def: 100, unit: '%' },
+  { key: 'lines',    group: 'Picture', label: 'Lines on bare canvas', type: 'range', min: 0, max: 100, step: 1, def: 70, unit: '%' },
+  { key: 'linesOver',group: 'Picture', label: 'Lines over paint', type: 'range', min: 0, max: 100, step: 1, def: 28, unit: '%' },
+  { key: 'vol',      group: 'Sound', label: 'Chime volume', type: 'range', min: 0, max: 100, step: 1, def: 45, unit: '%' },
+  { key: 'voice',    group: 'Sound', label: 'Chime voice', type: 'select', def: 'glass', opts: [['glass', 'Glass'], ['marimba', 'Marimba'], ['pad', 'Soft pad']] },
+  { key: 'scale',    group: 'Sound', label: 'Scale', type: 'select', def: 'penta', opts: [['penta', 'Pentatonic'], ['major', 'Major'], ['whole', 'Whole tone'], ['minor', 'Minor']] },
+  { key: 'pitch',    group: 'Sound', label: 'Pitch', type: 'range', min: -12, max: 12, step: 1, def: 0, unit: ' st' }
+];
+const P = {};
+PARAMS.forEach((p) => { P[p.key] = p.def; });
+
+/* ---------- brushes. size is in picture pixels (a picture is 1600 on its long side). ---------- */
+const TOOLS = {
+  pen:    { name: 'Fine pen', size: 12, spacing: .1, opacity: 1, vary: .5 },
+  brush:  { name: 'Soft brush', size: 56, spacing: .09, opacity: 1, vary: .8 },
+  marker: { name: 'Chisel marker', size: 44, spacing: .05, opacity: .94, vary: 1 },
+  crayon: { name: 'Crayon', size: 38, spacing: .3, opacity: 1, vary: 1.4 },
+  doodle: { name: 'Secret stamp', size: 90, spacing: 1.05, opacity: 1, vary: 1 },
+  fill:   { name: 'Fill' },
+  eraser: { name: 'Eraser', size: 50, spacing: .1, opacity: 1 }
+};
+
+/* ---------- saved state ---------- */
+const S = { tool: 'brush', sizes: {}, pic: 'planet', sel: {}, penSeen: false, doodle: false, agate: 1, photos: [] };
+try {
+  const raw = JSON.parse(localStorage.getItem('dab') || 'null');
+  if (raw){
+    if (raw.P) PARAMS.forEach((p) => { if (raw.P[p.key] !== undefined) P[p.key] = raw.P[p.key]; });
+    ['tool', 'sizes', 'pic', 'sel', 'penSeen', 'doodle', 'agate', 'photos'].forEach((k) => { if (raw[k] !== undefined) S[k] = raw[k]; });
+  }
+} catch (e) {}
+function saveState(){ try { localStorage.setItem('dab', JSON.stringify(Object.assign({ P }, S))); } catch (e) {} }
+let THUMBS = {};
+try { THUMBS = JSON.parse(localStorage.getItem('dab-thumbs') || '{}') || {}; } catch (e) {}
+function saveThumbs(){ try { localStorage.setItem('dab-thumbs', JSON.stringify(THUMBS)); } catch (e) {} }
+const toolSize = (t) => S.sizes[t] || TOOLS[t].size || 0;
+
+/* ---------- small helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgbCss = (c, a) => a === undefined ? 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')' : 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+const lum = (c) => (.2126 * c[0] + .7152 * c[1] + .0722 * c[2]) / 255;
+const mix = (a, b, t) => [Math.round(lerp(a[0], b[0], t)), Math.round(lerp(a[1], b[1], t)), Math.round(lerp(a[2], b[2], t))];
+const shade = (c, d) => d >= 0 ? mix(c, [255, 255, 255], d) : mix(c, [0, 0, 0], -d);
+function mulberry(seed){ let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+let toastT = 0;
+function toast(msg, ms){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms || 2200); }
+function busy(msg){ $('busyT').textContent = msg || 'Mixing paints…'; $('busy').hidden = false; return sleep(30); }
+function unbusy(){ $('busy').hidden = true; }
+
+/* ---------- storage for paint and imported photos (IndexedDB; the picture is too big for localStorage) ---------- */
+const DB = (() => {
+  let p = null;
+  const open = () => p || (p = new Promise((res, rej) => {
+    const r = indexedDB.open('dab', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('prog'); r.result.createObjectStore('pics'); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const tx = (store, mode, fn) => open().then((db) => new Promise((res, rej) => {
+    const t = db.transaction(store, mode), rq = fn(t.objectStore(store));
+    t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  })).catch(() => undefined);
+  return {
+    get: (s, k) => tx(s, 'readonly', (o) => o.get(k)),
+    put: (s, k, v) => tx(s, 'readwrite', (o) => o.put(v, k)),
+    del: (s, k) => tx(s, 'readwrite', (o) => o.delete(k))
+  };
+})();
+
+/* ==================================================================
+   Turning a flat-color image into numbered areas
+   ================================================================== */
+// Label every connected patch of one color. `order` lists pixels patch by patch.
+function components(col, w, h){
+  const N = w * h, lab = new Int32Array(N).fill(-1), order = new Int32Array(N), starts = [0], cols = [];
+  let n = 0, op = 0;
+  for (let i = 0; i < N; i++){
+    if (lab[i] >= 0) continue;
+    const c = col[i]; let head = op; lab[i] = n; order[op++] = i;
+    while (head < op){
+      const p = order[head++], x = p % w;
+      if (x > 0 && lab[p - 1] < 0 && col[p - 1] === c){ lab[p - 1] = n; order[op++] = p - 1; }
+      if (x < w - 1 && lab[p + 1] < 0 && col[p + 1] === c){ lab[p + 1] = n; order[op++] = p + 1; }
+      if (p >= w && lab[p - w] < 0 && col[p - w] === c){ lab[p - w] = n; order[op++] = p - w; }
+      if (p < N - w && lab[p + w] < 0 && col[p + w] === c){ lab[p + w] = n; order[op++] = p + w; }
+    }
+    n++; starts.push(op); cols.push(c);
+  }
+  return { lab, order, starts, cols, n };
+}
+// How far each pixel is from the edge of its area (chamfer 3-4), used to find room for the number.
+function edgeDistance(lab, w, h){
+  const N = w * h, d = new Uint16Array(N);
+  for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++){
+    const l = lab[i];
+    const edge = x === 0 || y === 0 || x === w - 1 || y === h - 1 || lab[i - 1] !== l || lab[i + 1] !== l || lab[i - w] !== l || lab[i + w] !== l;
+    d[i] = edge ? 3 : 60000;
+  }
+  for (let y = 1, i = w; y < h; y++){ i = y * w + 1; for (let x = 1; x < w - 1; x++, i++){
+    let v = d[i]; if (v <= 3) continue;
+    let q = d[i - 1] + 3; if (q < v) v = q; q = d[i - w] + 3; if (q < v) v = q; q = d[i - w - 1] + 4; if (q < v) v = q; q = d[i - w + 1] + 4; if (q < v) v = q; d[i] = v;
+  } }
+  for (let y = h - 2; y >= 0; y--){ let i = y * w + w - 2; for (let x = w - 2; x >= 1; x--, i--){
+    let v = d[i]; if (v <= 3) continue;
+    let q = d[i + 1] + 3; if (q < v) v = q; q = d[i + w] + 3; if (q < v) v = q; q = d[i + w + 1] + 4; if (q < v) v = q; q = d[i + w - 1] + 4; if (q < v) v = q; d[i] = v;
+  } }
+  return d;
+}
+// Fold areas that are too small or too thin to paint into whichever neighbor they touch most, then
+// describe what is left: each area's paint, size, box, and the roomiest spot for its number.
+function finalize(col, w, h, minArea, minR){
+  let comp, d, maxd, maxp;
+  for (let iter = 0; iter < 8; iter++){
+    comp = components(col, w, h);
+    d = edgeDistance(comp.lab, w, h);
+    maxd = new Uint16Array(comp.n); maxp = new Int32Array(comp.n);
+    for (let i = 0; i < w * h; i++){ const l = comp.lab[i]; if (d[i] > maxd[l]){ maxd[l] = d[i]; maxp[l] = i; } }
+    const small = [];
+    for (let r = 0; r < comp.n; r++){ const a = comp.starts[r + 1] - comp.starts[r]; if (a < minArea || maxd[r] < minR * 3) small.push(r); }
+    if (!small.length || iter === 7 || comp.n === 1) break;
+    small.sort((a, b) => (comp.starts[a + 1] - comp.starts[a]) - (comp.starts[b + 1] - comp.starts[b]));
+    const tally = new Int32Array(256);
+    for (const r of small){
+      tally.fill(0);
+      for (let k = comp.starts[r]; k < comp.starts[r + 1]; k++){
+        const p = comp.order[k], x = p % w;
+        if (x > 0 && comp.lab[p - 1] !== r) tally[col[p - 1]]++;
+        if (x < w - 1 && comp.lab[p + 1] !== r) tally[col[p + 1]]++;
+        if (p >= w && comp.lab[p - w] !== r) tally[col[p - w]]++;
+        if (p < w * h - w && comp.lab[p + w] !== r) tally[col[p + w]]++;
+      }
+      let best = -1, bv = 0;
+      for (let c = 0; c < 256; c++) if (tally[c] > bv){ bv = tally[c]; best = c; }
+      if (best < 0) continue;
+      for (let k = comp.starts[r]; k < comp.starts[r + 1]; k++) col[comp.order[k]] = best;
+    }
+  }
+  const lab = new Uint16Array(w * h), regs = [];
+  for (let r = 0; r < comp.n; r++) regs.push({ col: comp.cols[r], area: comp.starts[r + 1] - comp.starts[r], x0: w, y0: h, x1: 0, y1: 0, cx: maxp[r] % w, cy: (maxp[r] / w) | 0, r: maxd[r] / 3 });
+  for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++){
+    const l = comp.lab[i]; lab[i] = l; const g = regs[l];
+    if (x < g.x0) g.x0 = x; if (x > g.x1) g.x1 = x; if (y < g.y0) g.y0 = y; if (y > g.y1) g.y1 = y;
+  }
+  return { lab, regs };
+}
+// A scene drawn on a canvas in exact palette colors becomes a color map; the soft pixels along
+// every edge take the color of whichever clean neighbor reaches them first.
+function canvasToMap(ctx, w, h, pal){
+  const data = ctx.getImageData(0, 0, w, h).data, N = w * h, col = new Uint8Array(N), key = new Map();
+  pal.forEach((c, i) => key.set(c[0] << 16 | c[1] << 8 | c[2], i));
+  let unknown = 0;
+  for (let i = 0; i < N; i++){ const k = key.get(data[i * 4] << 16 | data[i * 4 + 1] << 8 | data[i * 4 + 2]); if (k === undefined){ col[i] = 255; unknown++; } else col[i] = k; }
+  for (let pass = 0; pass < 10 && unknown; pass++){
+    const prev = col.slice();
+    for (let i = 0; i < N; i++){
+      if (prev[i] !== 255) continue;
+      const x = i % w; let c = 255;
+      if (x > 0 && prev[i - 1] !== 255) c = prev[i - 1]; else if (x < w - 1 && prev[i + 1] !== 255) c = prev[i + 1];
+      else if (i >= w && prev[i - w] !== 255) c = prev[i - w]; else if (i < N - w && prev[i + w] !== 255) c = prev[i + w];
+      if (c !== 255){ col[i] = c; unknown--; }
+    }
+  }
+  if (unknown) for (let i = 0; i < N; i++) if (col[i] === 255){
+    let best = 0, bd = 1e9;
+    for (let k = 0; k < pal.length; k++){ const dr = data[i * 4] - pal[k][0], dg = data[i * 4 + 1] - pal[k][1], db = data[i * 4 + 2] - pal[k][2], dd = dr * dr + dg * dg + db * db; if (dd < bd){ bd = dd; best = k; } }
+    col[i] = best;
+  }
+  return col;
+}
+// Drop paints nobody uses and renumber.
+function compactPalette(col, pal){
+  const used = new Int32Array(256); for (let i = 0; i < col.length; i++) used[col[i]]++;
+  const map = new Int32Array(256).fill(-1), out = [];
+  pal.forEach((c, i) => { if (used[i]){ map[i] = out.length; out.push(c); } });
+  for (let i = 0; i < col.length; i++) col[i] = map[col[i]];
+  return out;
+}
+
+/* ---------- a photo into numbered areas ---------- */
+function toOklab(r, g, b){
+  r /= 255; g /= 255; b /= 255;
+  r = r <= .04045 ? r / 12.92 : Math.pow((r + .055) / 1.055, 2.4); g = g <= .04045 ? g / 12.92 : Math.pow((g + .055) / 1.055, 2.4); b = b <= .04045 ? b / 12.92 : Math.pow((b + .055) / 1.055, 2.4);
+  const l = Math.cbrt(.4122214708 * r + .5363325363 * g + .0514459929 * b), m = Math.cbrt(.2119034982 * r + .6806995451 * g + .1073969566 * b), s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
+  return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s];
+}
+async function photoToMap(img, nCol, detail){
+  const long = 1600, sc = long / Math.max(img.width, img.height);
+  const w = Math.max(64, Math.round(img.width * sc)), h = Math.max(64, Math.round(img.height * sc)), N = w * h;
+  const blur = [7, 4.500, 2.800][detail], minArea = Math.round(N * [.0011, .00042, .00016][detail]), minR = [9, 6.500, 4.500][detail];
+  const sm = mkCanvas(Math.round(w / blur), Math.round(h / blur)), sx = sm.getContext('2d');
+  sx.imageSmoothingQuality = 'high'; sx.drawImage(img, 0, 0, sm.width, sm.height);
+  const big = mkCanvas(w, h), bx = big.getContext('2d', { willReadFrequently: true });
+  bx.imageSmoothingQuality = 'high'; bx.drawImage(sm, 0, 0, w, h);
+  const data = bx.getImageData(0, 0, w, h).data;
+  // k-means in a perceptual color space, on a sample of the pixels
+  const rnd = mulberry(7), stepS = Math.max(1, Math.floor(N / 24000)), samp = [];
+  for (let i = 0; i < N; i += stepS) samp.push(toOklab(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]));
+  const cen = [samp[Math.floor(rnd() * samp.length)].slice()], dist = new Float32Array(samp.length).fill(1e9);
+  while (cen.length < nCol){
+    const c = cen[cen.length - 1]; let sum = 0;
+    for (let i = 0; i < samp.length; i++){ const s = samp[i], dd = (s[0] - c[0]) ** 2 + (s[1] - c[1]) ** 2 + (s[2] - c[2]) ** 2; if (dd < dist[i]) dist[i] = dd; sum += dist[i]; }
+    let t = rnd() * sum, pick = 0; for (let i = 0; i < samp.length; i++){ t -= dist[i]; if (t <= 0){ pick = i; break; } }
+    cen.push(samp[pick].slice());
+  }
+  const near = (s) => { let b = 0, bd = 1e9; for (let k = 0; k < cen.length; k++){ const c = cen[k], dd = (s[0] - c[0]) ** 2 + (s[1] - c[1]) ** 2 + (s[2] - c[2]) ** 2; if (dd < bd){ bd = dd; b = k; } } return b; };
+  for (let it = 0; it < 14; it++){
+    const acc = cen.map(() => [0, 0, 0, 0]);
+    for (const s of samp){ const a = acc[near(s)]; a[0] += s[0]; a[1] += s[1]; a[2] += s[2]; a[3]++; }
+    acc.forEach((a, k) => { if (a[3]) cen[k] = [a[0] / a[3], a[1] / a[3], a[2] / a[3]]; });
+  }
+  await sleep(0);
+  // every pixel to its nearest paint, and each paint's true average color
+  const col = new Uint8Array(N), sums = cen.map(() => [0, 0, 0, 0]), cache = new Map();
+  for (let i = 0; i < N; i++){
+    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2], kq = (r >> 2) << 12 | (g >> 2) << 6 | (b >> 2);
+    let k = cache.get(kq); if (k === undefined){ k = near(toOklab(r, g, b)); cache.set(kq, k); }
+    col[i] = k; const a = sums[k]; a[0] += r; a[1] += g; a[2] += b; a[3]++;
+  }
+  await sleep(0);
+  // smooth ragged edges: each pixel takes the most common paint around it
+  const K = cen.length, cnt = new Uint8Array(K), R = detail === 2 ? 2 : 3;
+  for (let pass = 0; pass < 2; pass++){
+    const src = col.slice();
+    for (let y = R; y < h - R; y++){
+      for (let x = R; x < w - R; x++){
+        const i = y * w + x, c0 = src[i];
+        if (src[i - R] === c0 && src[i + R] === c0 && src[i - R * w] === c0 && src[i + R * w] === c0 && src[i - R * w - R] === c0 && src[i + R * w + R] === c0 && src[i - R * w + R] === c0 && src[i + R * w - R] === c0) continue;
+        cnt.fill(0); let best = c0, bv = 0;
+        for (let dy = -R; dy <= R; dy++){ const row = i + dy * w; for (let dx = -R; dx <= R; dx++){ const c = src[row + dx], v = ++cnt[c]; if (v > bv){ bv = v; best = c; } } }
+        col[i] = best;
+      }
+    }
+    await sleep(0);
+  }
+  let pal = sums.map((a) => a[3] ? [Math.round(a[0] / a[3]), Math.round(a[1] / a[3]), Math.round(a[2] / a[3])] : [0, 0, 0]);
+  // number the paints from light to dark
+  const orderIdx = pal.map((c, i) => i).sort((a, b) => lum(pal[b]) - lum(pal[a])), remap = new Uint8Array(K);
+  orderIdx.forEach((o, i) => { remap[o] = i; });
+  for (let i = 0; i < N; i++) col[i] = remap[col[i]];
+  pal = orderIdx.map((o) => pal[o]);
+  return { w, h, col, pal, minArea, minR };
+}
+
+/* ==================================================================
+   The built-in pictures. Each is drawn in flat palette colors on a 1600-wide canvas
+   (or made straight into a color map), then cut into numbered areas.
+   ================================================================== */
+function wavyBand(ctx, w, h, y, amp, len, ph){
+  ctx.beginPath(); ctx.moveTo(-10, h + 10); ctx.lineTo(-10, y);
+  for (let x = -10; x <= w + 20; x += 20) ctx.lineTo(x, y + amp * Math.sin(x / len + ph) + amp * .4 * Math.sin(x / (len * .37) + ph * 2.3));
+  ctx.lineTo(w + 10, h + 10); ctx.closePath(); ctx.fill();
+}
+function star4(ctx, x, y, r, rot){
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++){ const a = rot + i * Math.PI / 4, rr = i % 2 ? r * .5 : r; ctx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
+  ctx.closePath(); ctx.fill();
+}
+function disc(ctx, x, y, r){ ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+function blob(ctx, x, y, r, a1, a2, ph){
+  ctx.beginPath();
+  for (let i = 0; i <= 72; i++){ const t = i / 72 * Math.PI * 2, rr = r * (1 + a1 * Math.sin(3 * t + ph) + a2 * Math.sin(5 * t + ph * 1.7)); ctx.lineTo(x + rr * Math.cos(t) * 1.25, y + rr * Math.sin(t)); }
+  ctx.closePath(); ctx.fill();
+}
+
+const PICS = [
+  {
+    id: 'planet', name: 'Ringed planet', w: 1600, h: 1200,
+    pal: ['#0b1030', '#172055', '#2b1c5e', '#fff3c4', '#f6dfae', '#f2c27c', '#e79a55', '#c96f3f', '#8f4a36', '#5b2c3c', '#160c26', '#d9c8ff', '#9a86e0', '#5f52ad', '#a8ecdc', '#4f9a9c', '#ff9db0'],
+    paint(ctx, C){
+      const rnd = mulberry(11);
+      ctx.fillStyle = C[0]; ctx.fillRect(0, 0, 1600, 1200);
+      ctx.fillStyle = C[1]; blob(ctx, 330, 300, 250, .16, .09, 1); blob(ctx, 1290, 930, 260, .15, .1, 4);
+      ctx.fillStyle = C[2]; blob(ctx, 330, 300, 130, .18, .1, 2); blob(ctx, 1290, 930, 135, .16, .1, 5); blob(ctx, 1180, 170, 120, .15, .1, 3);
+      ctx.fillStyle = C[3];
+      [[110, 110, 40], [560, 80, 32], [860, 150, 36], [1040, 60, 30], [1500, 110, 42], [1500, 560, 32], [80, 590, 34], [120, 1060, 40], [470, 1100, 34], [800, 1120, 30], [1060, 1110, 36], [1540, 1120, 32], [640, 270, 28], [1450, 400, 28]]
+        .forEach((s) => star4(ctx, s[0], s[1], s[2], rnd() * .5));
+      const cx = 780, cy = 610, R = 330, tilt = -.33;
+      const rings = (front) => {
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(tilt);
+        if (front){ ctx.beginPath(); ctx.rect(-760, 0, 1520, 400); ctx.clip(); }
+        [[650, 168, 560, 140, 11], [560, 140, 490, 118, 12], [490, 118, 425, 98, 13]].forEach((r) => {
+          ctx.fillStyle = C[r[4]]; ctx.beginPath(); ctx.ellipse(0, 0, r[0], r[1], 0, 0, 7); ctx.ellipse(0, 0, r[2], r[3], 0, 0, 7); ctx.fill('evenodd');
+        });
+        ctx.restore();
+      };
+      rings(false);
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+      const bands = [4, 5, 6, 5, 7, 8, 7, 6, 9];
+      ctx.fillStyle = C[4]; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+      bands.forEach((b, i) => { if (!i) return; ctx.fillStyle = C[b]; wavyBand(ctx, 1600, 1200, cy - R + i * (2 * R / bands.length) + 6, 13, 70 + i * 9, i * 1.9); });
+      ctx.fillStyle = C[9]; ctx.beginPath(); ctx.ellipse(cx - 70, cy + 62, 84, 38, -.08, 0, 7); ctx.fill();
+      ctx.fillStyle = C[16]; ctx.beginPath(); ctx.ellipse(cx - 70, cy + 62, 44, 17, -.08, 0, 7); ctx.fill();
+      ctx.fillStyle = C[10]; ctx.beginPath(); ctx.arc(cx, cy, R + 4, 0, 7); ctx.arc(cx - 105, cy - 38, R * 1.03, 0, 7); ctx.fill('evenodd');
+      ctx.restore();
+      rings(true);
+      ctx.fillStyle = C[14]; disc(ctx, 1340, 300, 66);
+      ctx.save(); ctx.beginPath(); ctx.arc(1340, 300, 66, 0, 7); ctx.clip(); ctx.fillStyle = C[15]; disc(ctx, 1378, 322, 66); ctx.restore();
+      ctx.fillStyle = C[16]; disc(ctx, 230, 900, 42);
+      ctx.save(); ctx.beginPath(); ctx.arc(230, 900, 42, 0, 7); ctx.clip(); ctx.fillStyle = C[9]; disc(ctx, 256, 916, 42); ctx.restore();
+    }
+  },
+  {
+    id: 'rose', name: 'Rose window', w: 1400, h: 1400,
+    pal: ['#0e1238', '#1d2a78', '#3f6fe0', '#7fd0f5', '#c8245a', '#ff6b6b', '#ffb23e', '#ffe38a', '#3fb984', '#1f7a5c', '#8b4fd9', '#f4a6d7', '#fff6dc'],
+    paint(ctx, C){
+      const cx = 700, cy = 700, T = Math.PI * 2;
+      const petal = (a, r0, r1, hw) => {
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(a); const L = r1 - r0;
+        ctx.beginPath(); ctx.moveTo(r0, 0); ctx.bezierCurveTo(r0 + L * .25, hw * 1.3, r0 + L * .68, hw * 1.05, r1, 0); ctx.bezierCurveTo(r0 + L * .68, -hw * 1.05, r0 + L * .25, -hw * 1.3, r0, 0);
+        ctx.fill(); ctx.restore();
+      };
+      const sector = (a0, a1, r0, r1) => { ctx.beginPath(); ctx.arc(cx, cy, r1, a0, a1); ctx.arc(cx, cy, r0, a1, a0, true); ctx.closePath(); ctx.fill(); };
+      ctx.fillStyle = C[0]; ctx.fillRect(0, 0, 1400, 1400);
+      [[0, 0], [1400, 0], [0, 1400], [1400, 1400]].forEach((p) => {
+        ctx.fillStyle = C[1]; disc(ctx, p[0], p[1], 250); ctx.fillStyle = C[10]; disc(ctx, p[0], p[1], 165); ctx.fillStyle = C[6]; disc(ctx, p[0], p[1], 85);
+      });
+      ctx.fillStyle = C[2]; disc(ctx, cx, cy, 672);
+      ctx.fillStyle = C[3]; for (let i = 0; i < 24; i += 2) sector(i * T / 24, (i + 1) * T / 24, 604, 673);
+      ctx.fillStyle = C[1]; disc(ctx, cx, cy, 606);
+      for (let i = 0; i < 12; i++){
+        const a = (i + .5) * T / 12, x = cx + 515 * Math.cos(a), y = cy + 515 * Math.sin(a);
+        ctx.fillStyle = i % 2 ? C[8] : C[6]; disc(ctx, x, y, 50); ctx.fillStyle = C[12]; disc(ctx, x, y, 24);
+      }
+      for (let i = 0; i < 12; i++){
+        const a = i * T / 12;
+        ctx.fillStyle = i % 2 ? C[10] : C[4]; petal(a, 285, 598, 96);
+        ctx.fillStyle = i % 2 ? C[11] : C[5]; petal(a, 325, 545, 52);
+        ctx.fillStyle = C[7]; disc(ctx, cx + 420 * Math.cos(a), cy + 420 * Math.sin(a), 21);
+      }
+      ctx.fillStyle = C[9]; disc(ctx, cx, cy, 292);
+      ctx.fillStyle = C[8]; for (let i = 0; i < 16; i += 2) sector(i * T / 16, (i + 1) * T / 16, 226, 293);
+      ctx.fillStyle = C[12]; disc(ctx, cx, cy, 228);
+      for (let i = 0; i < 8; i++){
+        const a = i * T / 8 + T / 16;
+        ctx.fillStyle = i % 2 ? C[3] : C[11]; petal(a, 48, 222, 60);
+        ctx.fillStyle = i % 2 ? C[2] : C[4]; petal(a, 88, 180, 27);
+      }
+      ctx.fillStyle = C[6]; disc(ctx, cx, cy, 64); ctx.fillStyle = C[4]; disc(ctx, cx, cy, 30);
+    }
+  },
+  {
+    id: 'peaks', name: 'Dusk peaks', w: 1600, h: 1200,
+    pal: ['#2a1b5e', '#4b2a86', '#7a3a9a', '#b84a8f', '#e8637a', '#f78c5e', '#fdb863', '#fff0b8', '#ffd27a', '#9d8ed0', '#6f5fae', '#4a3f8a', '#2f2a66', '#1c1a44', '#0d0c26', '#c9bcf0', '#34549c', '#5a7fc4', '#f7a67a'],
+    paint(ctx, C){
+      const rnd = mulberry(5);
+      ctx.fillStyle = C[0]; ctx.fillRect(0, 0, 1600, 1200);
+      for (let b = 1; b < 7; b++){ ctx.fillStyle = C[b]; wavyBand(ctx, 1600, 1200, 70 + b * 104, 16, 150 + b * 20, b * 1.3); }
+      ctx.fillStyle = C[7]; [[150, 90, 38], [470, 160, 30], [760, 70, 34], [1150, 130, 32], [1470, 80, 38], [300, 270, 28], [1330, 280, 28]].forEach((s) => star4(ctx, s[0], s[1], s[2], .1));
+      ctx.fillStyle = C[8]; disc(ctx, 1040, 650, 200);
+      ctx.fillStyle = C[7]; disc(ctx, 1040, 650, 128);
+      const ridge = (base, hMin, hMax, slope, n, col, lit) => {
+        const pk = []; for (let i = 0; i < n; i++) pk.push([(i + .15 + rnd() * .7) * 1600 / n, lerp(hMin, hMax, rnd())]);
+        const yAt = (x) => { let m = 0; for (const p of pk){ const v = p[1] - slope * Math.abs(x - p[0]); if (v > m) m = v; } return base - m - 10 * Math.sin(x / 90); };
+        const path = () => { ctx.beginPath(); ctx.moveTo(-10, 1210); for (let x = -10; x <= 1612; x += 6) ctx.lineTo(x, yAt(x)); ctx.lineTo(1610, 1210); ctx.closePath(); };
+        ctx.fillStyle = C[col]; path(); ctx.fill();
+        ctx.save(); path(); ctx.clip(); ctx.fillStyle = C[lit];
+        for (const p of pk){
+          const top = base - p[1] - 10 * Math.sin(p[0] / 90), hh = p[1] * .62;
+          ctx.beginPath(); ctx.moveTo(p[0], top - 30); ctx.lineTo(p[0] - hh / slope - 30, top + hh); ctx.lineTo(p[0] - hh * .22, top + hh * .8); ctx.lineTo(p[0] + hh * .1, top + hh * .5); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      };
+      ridge(830, 250, 430, 1.05, 4, 9, 15);
+      ridge(880, 170, 300, .85, 5, 10, 9);
+      ridge(930, 110, 210, .7, 6, 11, 10);
+      ridge(965, 60, 130, .55, 7, 12, 11);
+      ctx.fillStyle = C[16]; ctx.fillRect(0, 960, 1600, 240);
+      ctx.fillStyle = C[17];
+      [[300, 1010, 250, 15], [1380, 1035, 210, 14], [640, 1085, 230, 15], [200, 1140, 170, 13], [1300, 1150, 240, 15]].forEach((e) => { ctx.beginPath(); ctx.ellipse(e[0], e[1], e[2], e[3], 0, 0, 7); ctx.fill(); });
+      ctx.fillStyle = C[18];
+      [[985, 150, 16], [1030, 118, 15], [1078, 88, 14], [1122, 60, 13], [1162, 36, 12]].forEach((e) => { ctx.beginPath(); ctx.ellipse(1040, e[0], e[1], e[2], 0, 0, 7); ctx.fill(); });
+      const shore = (side) => {
+        ctx.fillStyle = C[13]; ctx.beginPath();
+        if (side < 0){ ctx.moveTo(-10, 1210); ctx.lineTo(-10, 930); ctx.bezierCurveTo(160, 940, 330, 1010, 520, 1210); }
+        else { ctx.moveTo(1610, 1210); ctx.lineTo(1610, 900); ctx.bezierCurveTo(1480, 930, 1330, 1040, 1180, 1210); }
+        ctx.closePath(); ctx.fill();
+      };
+      shore(-1); shore(1);
+      const pine = (x, y, s) => {
+        ctx.fillStyle = C[14];
+        ctx.beginPath();
+        ctx.moveTo(x, y - 250 * s); ctx.lineTo(x + 46 * s, y - 150 * s); ctx.lineTo(x + 22 * s, y - 150 * s); ctx.lineTo(x + 66 * s, y - 62 * s); ctx.lineTo(x + 30 * s, y - 62 * s);
+        ctx.lineTo(x + 84 * s, y + 30 * s); ctx.lineTo(x - 84 * s, y + 30 * s); ctx.lineTo(x - 30 * s, y - 62 * s); ctx.lineTo(x - 66 * s, y - 62 * s); ctx.lineTo(x - 22 * s, y - 150 * s); ctx.lineTo(x - 46 * s, y - 150 * s);
+        ctx.closePath(); ctx.fill();
+      };
+      pine(95, 1000, 1.25); pine(250, 1060, 1); pine(380, 1150, .8); pine(1520, 990, 1.3); pine(1390, 1080, 1); pine(1275, 1165, .75);
+    }
+  },
+  {
+    id: 'balloons', name: 'Balloon morning', w: 1600, h: 1200,
+    pal: ['#7cc8f2', '#a6dbf6', '#d3eefb', '#ffffff', '#ffe08a', '#8ed08c', '#58b06b', '#2f8a55', '#ef5d5d', '#ffc145', '#3d7dd8', '#ff8e4f', '#8a5cd6', '#2fb7a8', '#7a4a2a', '#f6ead0', '#1c6444'],
+    paint(ctx, C){
+      ctx.fillStyle = C[0]; ctx.fillRect(0, 0, 1600, 1200);
+      ctx.fillStyle = C[1]; wavyBand(ctx, 1600, 1200, 330, 22, 210, 1);
+      ctx.fillStyle = C[2]; wavyBand(ctx, 1600, 1200, 640, 22, 240, 3);
+      ctx.fillStyle = C[4]; disc(ctx, 1400, 180, 96);
+      const cloud = (x, y, s) => { ctx.fillStyle = C[3]; ctx.beginPath(); [[-90, 10, 52], [-30, -28, 66], [48, -14, 58], [104, 16, 44]].forEach((c) => { ctx.moveTo(x + c[0] * s + c[2] * s, y + c[1] * s); ctx.arc(x + c[0] * s, y + c[1] * s, c[2] * s, 0, 7); }); ctx.rect(x - 110 * s, y + 10 * s, 230 * s, 50 * s); ctx.fill(); };
+      cloud(250, 620, 1.1); cloud(900, 150, 1); cloud(1380, 470, .9); cloud(820, 760, .8);
+      ctx.fillStyle = C[5]; wavyBand(ctx, 1600, 1200, 900, 34, 260, 0);
+      ctx.fillStyle = C[6]; wavyBand(ctx, 1600, 1200, 990, 30, 190, 2);
+      ctx.fillStyle = C[7]; wavyBand(ctx, 1600, 1200, 1085, 24, 150, 4);
+      ctx.fillStyle = C[16]; [[140, 925, 44], [215, 950, 34], [1210, 1000, 48], [1295, 1025, 36], [620, 1010, 40], [1500, 930, 40]].forEach((t) => disc(ctx, t[0], t[1], t[2]));
+      const balloon = (cx, cy, R, cols) => {
+        const shape = (k) => { ctx.beginPath(); ctx.moveTo(cx - R * k, cy); ctx.bezierCurveTo(cx - R * k, cy - R * 1.36, cx + R * k, cy - R * 1.36, cx + R * k, cy); ctx.bezierCurveTo(cx + R * k, cy + R * .62, cx + R * .34 * k, cy + R * .95, cx + R * .27 * k, cy + R * 1.28); ctx.lineTo(cx - R * .27 * k, cy + R * 1.28); ctx.bezierCurveTo(cx - R * .34 * k, cy + R * .95, cx - R * k, cy + R * .62, cx - R * k, cy); ctx.closePath(); ctx.fill(); };
+        [1, .74, .46, .17].forEach((k, i) => { ctx.fillStyle = C[cols[i % cols.length]]; shape(k); });
+        ctx.fillStyle = C[15]; ctx.beginPath(); ctx.moveTo(cx - R * .27, cy + R * 1.28); ctx.lineTo(cx + R * .27, cy + R * 1.28); ctx.lineTo(cx + R * .2, cy + R * 1.5); ctx.lineTo(cx - R * .2, cy + R * 1.5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = C[14]; ctx.fillRect(cx - R * .19, cy + R * 1.58, R * .38, R * .3);
+      };
+      balloon(560, 420, 235, [8, 9, 8, 15]);
+      balloon(1090, 420, 160, [10, 13, 10, 9]);
+      balloon(1385, 720, 110, [12, 11, 12, 9]);
+      balloon(215, 300, 92, [11, 15, 11, 8]);
+    }
+  },
+  {
+    id: 'agate', name: 'Agate slice', w: 1600, h: 1200, seeded: true,
+    pal: ['#f4f1ff', '#d6ccff', '#b9a2f2', '#9477e0', '#6f5fd0', '#4c3fa8', '#49b6d6', '#2b86b0', '#8fe6d6', '#56c2b2', '#f7e7c4', '#efcd92', '#cf8f5e', '#a56a44', '#4f3d3a', '#2e2428'],
+    // jittered-grid crystal cells, colored by how far each cell sits from a wobbly center
+    gen(w, h, seed){
+      const rnd = mulberry(seed * 7919 + 3), GX = 19, GY = 14.250, cw = w / GX, ch = h / GY, nx = Math.ceil(GX) + 2, ny = Math.ceil(GY) + 2;
+      const px = new Float32Array(nx * ny), py = new Float32Array(nx * ny), pc = new Uint8Array(nx * ny);
+      const ph1 = rnd() * 7, ph2 = rnd() * 7, ox = .5 + (rnd() - .5) * .12, oy = .5 + (rnd() - .5) * .12;
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++){
+        const k = j * nx + i; px[k] = (i - 1 + .12 + rnd() * .76) * cw; py[k] = (j - 1 + .12 + rnd() * .76) * ch;
+        const dx = (px[k] / w - ox) * 1.333, dy = py[k] / h - oy, th = Math.atan2(dy, dx);
+        const rr = Math.hypot(dx, dy) * (1 + .17 * Math.sin(3 * th + ph1) + .09 * Math.sin(5 * th + ph2));
+        pc[k] = Math.min(7, Math.floor(rr / .074)) * 2 + (rnd() < .5 ? 0 : 1);
+      }
+      const col = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++){
+        const gj = Math.floor(y / ch) + 1;
+        for (let x = 0; x < w; x++){
+          const gi = Math.floor(x / cw) + 1; let bd = 1e12, bk = 0;
+          for (let j = gj - 1; j <= gj + 1; j++){ if (j < 0 || j >= ny) continue; for (let i = gi - 1; i <= gi + 1; i++){ if (i < 0 || i >= nx) continue; const k = j * nx + i, ddx = x - px[k], ddy = y - py[k], dd = ddx * ddx + ddy * ddy; if (dd < bd){ bd = dd; bk = k; } } }
+          col[y * w + x] = pc[bk];
+        }
+      }
+      return col;
+    }
+  }
+];
+PICS.forEach((p) => { p.palRgb = p.pal.map(hexRgb); });
+
+// The finished look of a built-in picture, small, for the Pictures sheet.
+function previewOf(def){
+  const tw = 320, th = Math.round(tw * def.h / def.w), c = mkCanvas(tw, th), x = c.getContext('2d');
+  if (def.gen){
+    const col = def.gen(tw, th, S.agate), img = x.createImageData(tw, th);
+    for (let i = 0; i < tw * th; i++){ const q = def.palRgb[col[i]]; img.data[i * 4] = q[0]; img.data[i * 4 + 1] = q[1]; img.data[i * 4 + 2] = q[2]; img.data[i * 4 + 3] = 255; }
+    x.putImageData(img, 0, 0);
+  } else { x.scale(tw / def.w, th / def.h); def.paint(x, def.pal); }
+  return c.toDataURL('image/jpeg', .8);
+}
+// Build the full-size numbered picture for an id (built-in, or a photo saved earlier).
+async function buildPicture(id){
+  const def = PICS.find((p) => p.id === id);
+  if (def){
+    let col;
+    if (def.gen) col = def.gen(def.w, def.h, S.agate);
+    else { const c = mkCanvas(def.w, def.h), x = c.getContext('2d', { willReadFrequently: true }); def.paint(x, def.pal); col = canvasToMap(x, def.w, def.h, def.palRgb); }
+    await sleep(0);
+    const fin = finalize(col, def.w, def.h, 520, 5);
+    const pal = compactPalette(col, def.palRgb);
+    fin.regs.forEach((r, i) => { r.col = col[r.cy * def.w + r.cx]; });
+    return { id, name: def.name, w: def.w, h: def.h, pal, lab: fin.lab, regs: fin.regs };
+  }
+  const rec = await DB.get('pics', id);
+  if (!rec) return null;
+  const col = new Uint8Array(rec.col), fin = finalize(col, rec.w, rec.h, 1, 0);
+  return { id, name: rec.name, w: rec.w, h: rec.h, pal: rec.pal, lab: fin.lab, regs: fin.regs };
+}
+
+/* ==================================================================
+   The easel: layers, view, drawing the screen
+   ================================================================== */
+const cv = $('stage'), ctx = cv.getContext('2d');
+let DPR = 1, VW = 0, VH = 0;
+const paintC = mkCanvas(8, 8), pctx = paintC.getContext('2d');       // the paint you have laid down
+const spareC = mkCanvas(8, 8), spctx = spareC.getContext('2d');      // the paint as it was before this stroke (for undo)
+const strokeC = mkCanvas(8, 8), sctx = strokeC.getContext('2d');     // the stroke in progress
+const linesC = mkCanvas(8, 8), lctx = linesC.getContext('2d');       // outlines of every area
+const hintC = mkCanvas(8, 8), hctx = hintC.getContext('2d');         // unfinished areas of the chosen paint
+const undoneC = mkCanvas(8, 8), uctx = undoneC.getContext('2d');     // every unfinished area
+const bloomC = mkCanvas(8, 8), bctx = bloomC.getContext('2d');       // a small soft copy of the paint, for glow
+const tmpC = mkCanvas(8, 8), tctx = tmpC.getContext('2d');
+let pic = null, W = 0, H = 0, st = null, cnt = null, done = null, colArea = [], colCnt = [];
+let hintDirty = true, undoneDirty = true, bloomDirty = true, need = true, finished = false;
+const view = { s: 1, tx: 0, ty: 0, fitS: 1, fitted: true };
+const fx = [];
+let hover = null, stroke = null;
+const undoStack = [], redoStack = [];
+
+const THEMES = {
+  night: { stage: '#07080d', board: '#11131d', line: [176, 186, 230], num: 'rgba(214,220,255,.62)', numSel: '#ffffff', lift: .38 },
+  slate: { stage: '#0a0b0f', board: '#2b2e39', line: [205, 212, 240], num: 'rgba(226,230,255,.66)', numSel: '#ffffff', lift: .3 },
+  paper: { stage: '#0b0a09', board: '#efe6d3', line: [70, 58, 48], num: 'rgba(60,48,40,.7)', numSel: '#1a1210', lift: -.12 }
+};
+const TH = () => THEMES[P.canvas] || THEMES.night;
+
+function setPicture(p){
+  pic = p; W = p.w; H = p.h;
+  [paintC, spareC, strokeC, linesC, hintC, undoneC].forEach((c) => { c.width = W; c.height = H; });
+  bloomC.width = Math.ceil(W / 8); bloomC.height = Math.ceil(H / 8);
+  st = new Uint8Array(W * H); cnt = new Int32Array(p.regs.length); done = new Uint8Array(p.regs.length);
+  colArea = p.pal.map(() => 0); p.regs.forEach((r) => { colArea[r.col] += r.area; });
+  undoStack.length = 0; redoStack.length = 0; fx.length = 0; finished = false; $('done').hidden = true;
+  let sel = S.sel[p.id] || 0; if (sel >= p.pal.length) sel = 0; pic.sel = sel;
+  buildLines(); recount(); buildPaints(); view.fitted = true; fit(); syncButtons();
+}
+function buildLines(){
+  const img = lctx.createImageData(W, H), d = new Uint32Array(img.data.buffer), lab = pic.lab, c = TH().line;
+  const v = (255 << 24 | c[2] << 16 | c[1] << 8 | c[0]) >>> 0;
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){
+    const l = lab[i];
+    if ((x < W - 1 && lab[i + 1] !== l) || (y < H - 1 && lab[i + W] !== l)) d[i] = v;
+  }
+  lctx.putImageData(img, 0, 0);
+}
+function regionMask(c2d, test, rgb){
+  const img = c2d.createImageData(W, H), d = new Uint32Array(img.data.buffer), lab = pic.lab, n = pic.regs.length, val = new Uint32Array(n);
+  const v = (255 << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0]) >>> 0;
+  for (let r = 0; r < n; r++) val[r] = test(r) ? v : 0;
+  for (let i = 0; i < W * H; i++) d[i] = val[lab[i]];
+  c2d.putImageData(img, 0, 0);
+}
+function ensureMasks(wantUndone){
+  if (hintDirty){
+    const t = TH().lift, c = pic.pal[pic.sel];
+    regionMask(hctx, (r) => !done[r] && pic.regs[r].col === pic.sel, t >= 0 ? mix(c, [255, 255, 255], t) : mix(c, [0, 0, 0], -t));
+    hintDirty = false;
+  }
+  if (wantUndone && undoneDirty){ regionMask(uctx, (r) => !done[r], [255, 255, 255]); undoneDirty = false; }
+}
+function recount(){
+  cnt.fill(0); const lab = pic.lab;
+  for (let i = 0; i < W * H; i++) if (st[i] === 1) cnt[lab[i]]++;
+  for (let r = 0; r < done.length; r++) done[r] = cnt[r] >= pic.regs[r].area ? 1 : 0;
+  hintDirty = undoneDirty = bloomDirty = true; need = true;
+}
+
+/* ---------- view ---------- */
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2); VW = window.innerWidth; VH = window.innerHeight;
+  cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR); tmpC.width = cv.width; tmpC.height = cv.height;
+  if (pic){ const was = view.fitS; fit(true); if (!view.fitted){ view.s = clamp(view.s, view.fitS * .4, view.fitS * 16); } }
+  need = true;
+}
+function pads(){
+  if (document.body.classList.contains('bare')) return [12, 12, 12, 12];
+  const narrow = VW <= 700;
+  return [66, 12, narrow ? 150 : 84, narrow ? 12 : 78];   // top, right, bottom, left
+}
+function fit(keep){
+  const p = pads(), aw = VW - p[1] - p[3], ah = VH - p[0] - p[2];
+  view.fitS = Math.max(.02, Math.min(aw / W, ah / H));
+  if (keep && !view.fitted) return;
+  view.s = view.fitS; view.tx = p[3] + (aw - W * view.s) / 2; view.ty = p[0] + (ah - H * view.s) / 2; view.fitted = true; need = true;
+}
+function zoomAt(x, y, f){
+  const s2 = clamp(view.s * f, view.fitS * .4, view.fitS * 16), k = s2 / view.s;
+  view.tx = x - (x - view.tx) * k; view.ty = y - (y - view.ty) * k; view.s = s2; view.fitted = false; need = true;
+}
+const toPic = (e) => [(e.clientX - view.tx) / view.s, (e.clientY - view.ty) / view.s];
+function regionAt(x, y){ x = Math.floor(x); y = Math.floor(y); return x < 0 || y < 0 || x >= W || y >= H ? -1 : pic.lab[y * W + x]; }
+
+/* ---------- drawing the screen ---------- */
+let lastDraw = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if (!pic) return;
+  const breathing = P.hint === 'breathe';
+  if (!need && !fx.length && !(breathing && now - lastDraw > 40)) return;
+  need = false; lastDraw = now; draw(now);
+}
+function draw(now){
+  const th = TH(), s = view.s * DPR, tx = view.tx * DPR, ty = view.ty * DPR;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = th.stage; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(s, 0, 0, s, tx, ty);
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 36 * DPR; ctx.fillStyle = th.board; ctx.fillRect(0, 0, W, H); ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+  ctx.imageSmoothingEnabled = true;
+  ensureMasks(false);
+  if (P.hint !== 'off' && !finished){
+    ctx.globalAlpha = P.hintAmt / 100 * (P.hint === 'breathe' ? .62 + .38 * Math.sin(now / 620) : 1) * (th.lift < 0 ? .5 : .62);
+    ctx.drawImage(hintC, 0, 0);
+  }
+  ctx.globalAlpha = P.lines / 100 * (finished ? .3 : 1); ctx.drawImage(linesC, 0, 0);
+  ctx.globalAlpha = 1; ctx.drawImage(paintC, 0, 0);
+  if (stroke && !stroke.erase){ ctx.globalAlpha = stroke.op; ctx.drawImage(strokeC, 0, 0); ctx.globalAlpha = 1; }
+  if (P.linesOver > 0){
+    tctx.setTransform(1, 0, 0, 1, 0, 0); tctx.globalCompositeOperation = 'source-over'; tctx.clearRect(0, 0, tmpC.width, tmpC.height);
+    tctx.setTransform(s, 0, 0, s, tx, ty); tctx.drawImage(linesC, 0, 0);
+    tctx.globalCompositeOperation = 'source-in'; tctx.fillStyle = '#05060c'; tctx.fillRect(0, 0, W, H);
+    tctx.globalCompositeOperation = 'destination-in'; tctx.drawImage(paintC, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = P.linesOver / 100 * (finished ? .45 : 1); ctx.drawImage(tmpC, 0, 0);
+    ctx.setTransform(s, 0, 0, s, tx, ty); ctx.globalAlpha = 1;
+  }
+  if (P.glow > 0){
+    if (bloomDirty){ bctx.globalCompositeOperation = 'copy'; bctx.drawImage(paintC, 0, 0, bloomC.width, bloomC.height); bloomDirty = false; }
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = P.glow / 100 * (th.lift < 0 ? .22 : .5); ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bloomC, -6, -6, W + 12, H + 12);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  // rings where an area was just finished
+  for (let i = fx.length - 1; i >= 0; i--){
+    const f = fx[i], k = (now - f.t0) / f.len;
+    if (k >= 1){ fx.splice(i, 1); continue; }
+    if (k < 0) continue;
+    ctx.globalAlpha = (1 - k) * .9; ctx.strokeStyle = f.col; ctx.lineWidth = (3 + 5 * (1 - k)) / view.s;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (.4 + 1.1 * (1 - (1 - k) * (1 - k))), 0, 7); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // numbers
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (P.numbers !== 'off' && !finished){
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const regs = pic.regs, k = P.numSize / 100; let lastFont = '';
+    for (let r = 0; r < regs.length; r++){
+      if (done[r]) continue; const g = regs[r], isSel = g.col === pic.sel;
+      if (!isSel && P.numbers === 'sel') continue;
+      const fs = Math.round(Math.min(g.r * view.s * 1.1, 19) * k); if (fs < 7) continue;
+      const x = g.cx * view.s + view.tx, y = g.cy * view.s + view.ty;
+      if (x < -20 || y < -20 || x > VW + 20 || y > VH + 20) continue;
+      const font = (isSel ? '700 ' : '600 ') + fs + 'px Figtree,system-ui,sans-serif';
+      if (font !== lastFont){ ctx.font = font; lastFont = font; }
+      ctx.fillStyle = isSel ? th.numSel : th.num; ctx.fillText(g.col + 1, x, y + .5);
+    }
+  }
+  // brush outline under a hovering Pencil or mouse
+  if (hover && P.cursor && !stroke && S.tool !== 'fill'){
+    const r = Math.max(2, toolSize(S.tool) / 2 * view.s);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.arc(hover.x, hover.y, r + 1, 0, 7); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(hover.x, hover.y, r, 0, 7); ctx.stroke();
+    const reg = regionAt((hover.x - view.tx) / view.s, (hover.y - view.ty) / view.s);
+    if (reg >= 0 && !done[reg]){
+      const c = pic.pal[pic.regs[reg].col], bx = hover.x + r * .72 + 16, by = hover.y - r * .72 - 16;
+      ctx.fillStyle = rgbCss(c); ctx.beginPath(); ctx.arc(bx, by, 13, 0, 7); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.stroke();
+      ctx.fillStyle = lum(c) > .55 ? '#111' : '#fff'; ctx.font = '700 13px Figtree,system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(pic.regs[reg].col + 1, bx, by + .5);
+    }
+  }
+}
+
+/* ==================================================================
+   Brushes and strokes
+   ================================================================== */
+const SPR = {};
+(function makeSprites(){
+  const soft = mkCanvas(128, 128), sx = soft.getContext('2d'), g = sx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.45, 'rgba(255,255,255,.85)'); g.addColorStop(.8, 'rgba(255,255,255,.3)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  sx.fillStyle = g; sx.fillRect(0, 0, 128, 128); SPR.brush = soft;
+  const gr = mkCanvas(96, 96), gx = gr.getContext('2d'), img = gx.createImageData(96, 96), rnd = mulberry(3);
+  const coarse = new Float32Array(48 * 48); for (let i = 0; i < coarse.length; i++) coarse[i] = rnd();
+  for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++){
+    const d = Math.hypot(x - 47.500, y - 47.500) / 47.500, edge = clamp((1 - d) / .16, 0, 1), n = coarse[(y >> 1) * 48 + (x >> 1)] * .6 + rnd() * .4;
+    const i = (y * 96 + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 255; img.data[i + 3] = 255 * edge * (n < .2 ? .12 : .5 + .5 * n);
+  }
+  gx.putImageData(img, 0, 0); SPR.crayon = gr;
+  // the secret stamp: a cheeky little doodle
+  const dd = mkCanvas(256, 256), x = dd.getContext('2d');
+  x.strokeStyle = x.fillStyle = '#fff'; x.lineCap = x.lineJoin = 'round';
+  x.lineWidth = 26; x.beginPath(); x.moveTo(190, 138); x.lineTo(226, 92); x.stroke();
+  x.globalCompositeOperation = 'destination-out'; x.lineWidth = 10; x.beginPath(); x.moveTo(190, 138); x.lineTo(226, 92); x.stroke();
+  x.globalCompositeOperation = 'source-over'; x.lineWidth = 8;
+  x.beginPath(); x.arc(88, 70, 38, 0, 7); x.stroke();                                     // head
+  x.beginPath(); x.arc(74, 62, 5, 0, 7); x.arc(100, 58, 5, 0, 7); x.fill();               // eyes
+  x.beginPath(); x.arc(88, 72, 18, .25, 2.4); x.stroke();                                // grin
+  x.beginPath(); x.moveTo(100, 106); x.bezierCurveTo(108, 130, 104, 160, 122, 186); x.stroke();   // back
+  x.beginPath(); x.moveTo(78, 106); x.bezierCurveTo(70, 140, 80, 176, 104, 196); x.stroke();      // belly
+  x.beginPath(); x.arc(150, 170, 36, -2.500, 2.300); x.stroke();                          // cheek
+  x.beginPath(); x.arc(170, 146, 30, -2.900, 1.200); x.stroke();                          // cheek
+  x.beginPath(); x.moveTo(78, 126); x.lineTo(44, 150); x.stroke();                        // arm
+  x.beginPath(); x.moveTo(108, 196); x.lineTo(98, 240); x.lineTo(82, 240); x.stroke();    // leg
+  x.beginPath(); x.moveTo(146, 206); x.lineTo(148, 240); x.lineTo(132, 240); x.stroke();  // leg
+  SPR.doodle = dd;
+})();
+function tinted(sprite, rgb){
+  const c = mkCanvas(sprite.width, sprite.height), x = c.getContext('2d');
+  x.drawImage(sprite, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = rgbCss(rgb); x.fillRect(0, 0, c.width, c.height);
+  return c;
+}
+const pressureOf = (e) => e.pointerType === 'pen' ? clamp(e.pressure || 0, 0, 1) : .5;
+function penAngles(e){
+  if (e.pointerType !== 'pen') return [Math.PI / 2, 0];
+  if (typeof e.altitudeAngle === 'number' && typeof e.azimuthAngle === 'number') return [e.altitudeAngle, e.azimuthAngle];
+  const tx = (e.tiltX || 0) * Math.PI / 180, ty = (e.tiltY || 0) * Math.PI / 180;
+  if (!tx && !ty) return [Math.PI / 2, 0];
+  const a = Math.tan(tx), b = Math.tan(ty);
+  return [Math.atan(1 / Math.sqrt(a * a + b * b)), Math.atan2(b, a)];
+}
+
+function startStroke(e){
+  const [x, y] = toPic(e), tool = S.tool, reg = regionAt(x, y);
+  if (tool !== 'eraser' && reg >= 0 && !done[reg] && pic.regs[reg].col !== pic.sel && P.autoPick) selectPaint(pic.regs[reg].col, true);
+  if (tool === 'fill'){ fillAt(x, y, reg); return; }
+  const erase = tool === 'eraser', T = TOOLS[tool];
+  ensureMasks(erase || !P.guard);
+  spctx.globalCompositeOperation = 'copy'; spctx.drawImage(paintC, 0, 0);
+  const base = pic.pal[pic.sel], rgb = erase ? [255, 255, 255] : shade(base, (Math.random() - .5) * .2 * (P.vary / 100) * T.vary);
+  const ang = penAngles(e);
+  stroke = { id: e.pointerId, tool, erase, col: pic.sel, op: T.opacity, size: toolSize(tool), spacing: T.spacing, pen: e.pointerType === 'pen',
+    mask: erase || !P.guard ? undoneC : hintC, x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9, lx: x, ly: y, lp: pressureOf(e), sx: x, sy: y, sp: pressureOf(e),
+    acc: 0, alt: ang[0], az: ang[1], startReg: reg, cx0: e.clientX, cy0: e.clientY, far: 0, t0: performance.now(),
+    sprite: tool === 'brush' || tool === 'crayon' || tool === 'doodle' ? tinted(SPR[tool], rgb) : null, seg: null };
+  sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.globalCompositeOperation = 'source-over'; sctx.globalAlpha = 1; sctx.clearRect(0, 0, W, H); sctx.fillStyle = rgbCss(rgb);
+  stroke.seg = [1e9, 1e9, -1e9, -1e9];
+  stampAt(stroke, x, y, stroke.sp); flushSeg(stroke);
+}
+function stampAt(s, x, y, p){
+  const t = s.tool, ps = P.pSize / 100, pf = P.pFlow / 100; let r;
+  if (t === 'pen' || t === 'eraser'){
+    r = Math.max(.6, s.size / 2 * lerp(1, .22 + 1.56 * p, ps)); sctx.beginPath(); sctx.arc(x, y, r, 0, 7); sctx.fill();
+  } else if (t === 'brush'){
+    r = s.size / 2 * lerp(1, .45 + 1.1 * p, ps); sctx.globalAlpha = clamp(.3 * lerp(1, .2 + 1.6 * p, pf), .03, 1);
+    sctx.drawImage(s.sprite, x - r, y - r, 2 * r, 2 * r); sctx.globalAlpha = 1;
+  } else if (t === 'marker'){
+    r = s.size / 2; const tilted = s.pen && P.tilt > 0 && s.alt < 1.4;
+    sctx.beginPath(); sctx.ellipse(x, y, r, Math.max(1, r * .28), tilted ? s.az + Math.PI / 2 : -Math.PI / 4, 0, 7); sctx.fill();
+  } else if (t === 'crayon'){
+    const lean = s.pen ? clamp(1 - s.alt / (Math.PI / 2), 0, 1) : .2;
+    r = s.size / 2 * (1 + P.tilt / 100 * lean * 2); sctx.globalAlpha = clamp(lerp(.8, .3 + .95 * p, pf) * (1 - lean * .35 * P.tilt / 100), .08, 1);
+    sctx.save(); sctx.translate(x, y); sctx.rotate(Math.random() * 7); sctx.drawImage(s.sprite, -r, -r, 2 * r, 2 * r); sctx.restore(); sctx.globalAlpha = 1;
+  } else {
+    r = s.size / 2 * lerp(1, .5 + p, ps);
+    sctx.save(); sctx.translate(x, y); sctx.rotate((Math.random() - .5) * .6); sctx.drawImage(s.sprite, -r, -r, 2 * r, 2 * r); sctx.restore();
+  }
+  const g = s.seg; r += 2;
+  if (x - r < g[0]) g[0] = x - r; if (y - r < g[1]) g[1] = y - r; if (x + r > g[2]) g[2] = x + r; if (y + r > g[3]) g[3] = y + r;
+}
+// Keep only the part of the new stamps that lands on areas this stroke may paint.
+function flushSeg(s){
+  const g = s.seg; if (g[2] < g[0]) return;
+  const x = Math.max(0, Math.floor(g[0])), y = Math.max(0, Math.floor(g[1])), x2 = Math.min(W, Math.ceil(g[2])), y2 = Math.min(H, Math.ceil(g[3]));
+  s.seg = [1e9, 1e9, -1e9, -1e9];
+  if (x2 <= x || y2 <= y) return;
+  const w = x2 - x, h = y2 - y;
+  sctx.save(); sctx.beginPath(); sctx.rect(x, y, w, h); sctx.clip(); sctx.globalCompositeOperation = 'destination-in'; sctx.drawImage(s.mask, x, y, w, h, x, y, w, h); sctx.restore();
+  if (s.erase){
+    pctx.save(); pctx.beginPath(); pctx.rect(x, y, w, h); pctx.clip(); pctx.globalCompositeOperation = 'destination-out'; pctx.drawImage(strokeC, x, y, w, h, x, y, w, h); pctx.restore();
+    sctx.clearRect(x, y, w, h); bloomDirty = true;
+  }
+  if (x < s.x0) s.x0 = x; if (y < s.y0) s.y0 = y; if (x2 > s.x1) s.x1 = x2; if (y2 > s.y1) s.y1 = y2;
+  need = true;
+}
+function addPoint(s, x, y, p, hard){
+  const k = hard ? 0 : P.smooth / 100 * .88;
+  s.sx += (x - s.sx) * (1 - k); s.sy += (y - s.sy) * (1 - k); s.sp += (p - s.sp) * (hard ? 1 : .45);
+  const dx = s.sx - s.lx, dy = s.sy - s.ly, len = Math.hypot(dx, dy);
+  if (len < .05) return;
+  const step = Math.max(.7, s.spacing * s.size * (s.tool === 'pen' ? lerp(1, .3 + 1.4 * s.sp, P.pSize / 100) : 1));
+  let pos = step - s.acc;
+  while (pos <= len){ const f = pos / len; stampAt(s, s.lx + dx * f, s.ly + dy * f, lerp(s.lp, s.sp, f)); pos += step; }
+  s.acc = len - (pos - step); s.lx = s.sx; s.ly = s.sy; s.lp = s.sp;
+  flushSeg(s);
+}
+function moveStroke(e){
+  const s = stroke, list = e.getCoalescedEvents ? e.getCoalescedEvents() : null, evs = list && list.length ? list : [e];
+  const ang = penAngles(e); s.alt = ang[0]; s.az = ang[1];
+  for (const q of evs){ const [x, y] = toPic(q); addPoint(s, x, y, pressureOf(q), false); }
+  s.far = Math.max(s.far, Math.hypot(e.clientX - s.cx0, e.clientY - s.cy0));
+}
+function cancelStroke(){
+  if (!stroke) return;
+  if (stroke.erase){ pctx.globalCompositeOperation = 'copy'; pctx.drawImage(spareC, 0, 0); pctx.globalCompositeOperation = 'source-over'; bloomDirty = true; }
+  sctx.clearRect(0, 0, W, H); stroke = null; need = true;
+}
+const sliceSt = (x, y, w, h) => { const out = new Uint8Array(w * h); for (let j = 0; j < h; j++) out.set(st.subarray((y + j) * W + x, (y + j) * W + x + w), j * w); return out; };
+const grab = (x, y, w, h, c2d) => ({ x, y, w, h, img: (c2d || pctx).getImageData(x, y, w, h), st: sliceSt(x, y, w, h) });
+function applyPatch(p){ pctx.putImageData(p.img, p.x, p.y); for (let j = 0; j < p.h; j++) st.set(p.st.subarray(j * p.w, (j + 1) * p.w), (p.y + j) * W + p.x); }
+
+function endStroke(e){
+  const s = stroke; if (!s) return;
+  if (e){ const [x, y] = toPic(e); addPoint(s, x, y, s.sp, true); }
+  stroke = null; need = true;
+  const tap = s.far < 6 && performance.now() - s.t0 < 320;
+  if (s.x1 <= s.x0){ if (tap) explain(s.startReg); return; }
+  const x = s.x0, y = s.y0, w = s.x1 - s.x0, h = s.y1 - s.y0;
+  const patches = [grab(x, y, w, h, spctx)];
+  let sd = null;
+  if (!s.erase){
+    sd = sctx.getImageData(x, y, w, h).data;
+    pctx.globalAlpha = s.op; pctx.drawImage(strokeC, x, y, w, h, x, y, w, h); pctx.globalAlpha = 1;
+    sctx.clearRect(x, y, w, h);
+  }
+  const pd = pctx.getImageData(x, y, w, h).data, lab = pic.lab, regs = pic.regs, touched = new Set();
+  let changed = false, landed = false;
+  for (let j = 0; j < h; j++){
+    let i = (y + j) * W + x, q = j * w * 4 + 3;
+    for (let k = 0; k < w; k++, i++, q += 4){
+      const cur = st[i];
+      if (s.erase){ if (cur && pd[q] < 90){ st[i] = 0; changed = true; if (cur === 1){ cnt[lab[i]]--; touched.add(lab[i]); } } continue; }
+      const sa = sd[q]; if (sa < 8) continue;
+      landed = true;
+      const r = lab[i];
+      if (regs[r].col === s.col){
+        if (cur !== 1 && (sa >= 120 || (cur === 0 && pd[q] >= 90))){ st[i] = 1; cnt[r]++; touched.add(r); changed = true; }
+      } else if (sa >= 120 && cur !== 2){ if (cur === 1){ cnt[r]--; touched.add(r); } st[i] = 2; changed = true; }
+    }
+  }
+  if (!landed && !s.erase){ if (tap) explain(s.startReg); return; }
+  const finishedNow = [];
+  touched.forEach((r) => { if (!done[r] && cnt[r] >= regs[r].area * P.finishAt / 100) finishedNow.push(r); });
+  finishedNow.forEach((r) => { const g = regs[r]; patches.push(grab(g.x0, g.y0, g.x1 - g.x0 + 1, g.y1 - g.y0 + 1)); complete(r); });
+  pushUndo({ patches });
+  afterChange(finishedNow);
+}
+// Fill whatever is still bare in an area with its paint and lock it.
+function complete(r){
+  const g = pic.regs[r], x = g.x0, y = g.y0, w = g.x1 - g.x0 + 1, h = g.y1 - g.y0 + 1, img = pctx.getImageData(x, y, w, h), d = img.data, lab = pic.lab, c = pic.pal[g.col];
+  for (let j = 0; j < h; j++){
+    let i = (y + j) * W + x, q = j * w * 4;
+    for (let k = 0; k < w; k++, i++, q += 4){
+      if (lab[i] !== r) continue;
+      if (st[i] === 1 && d[q + 3] > 0){ const a = d[q + 3] / 255; d[q] = d[q] * a + c[0] * (1 - a); d[q + 1] = d[q + 1] * a + c[1] * (1 - a); d[q + 2] = d[q + 2] * a + c[2] * (1 - a); }
+      else { d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; }
+      d[q + 3] = 255; st[i] = 1;
+    }
+  }
+  pctx.putImageData(img, x, y); cnt[r] = g.area; done[r] = 1;
+}
+function fillAt(x, y, reg){
+  if (reg < 0 || done[reg]) return;
+  const g = pic.regs[reg];
+  if (g.col !== pic.sel){ explain(reg); return; }
+  const patch = grab(g.x0, g.y0, g.x1 - g.x0 + 1, g.y1 - g.y0 + 1);
+  complete(reg); pushUndo({ patches: [patch] }); afterChange([reg], [x, y]);
+}
+// A tap that could not paint: say which paint the area wants.
+function explain(reg){
+  if (reg < 0 || done[reg]) return;
+  const c = pic.regs[reg].col; if (c === pic.sel) return;
+  toast('That area is paint ' + (c + 1)); nudge(c);
+}
+function nudge(c){ const b = $('paints').children[c]; if (!b) return; b.classList.remove('nudge'); void b.offsetWidth; b.classList.add('nudge'); b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }
+
+/* ---------- undo ---------- */
+const patchBytes = (rec) => rec.patches.reduce((a, p) => a + p.w * p.h * 5, 0);
+function pushUndo(rec){
+  undoStack.push(rec); redoStack.length = 0;
+  let total = undoStack.reduce((a, r) => a + patchBytes(r), 0);
+  while (undoStack.length > 1 && (undoStack.length > 60 || total > 9e7)) total -= patchBytes(undoStack.shift());
+  syncButtons();
+}
+function swapHistory(from, to, reverse){
+  if (stroke) cancelStroke();
+  const rec = from.pop(); if (!rec) return;
+  to.push({ patches: rec.patches.map((p) => grab(p.x, p.y, p.w, p.h)) });
+  const list = reverse ? rec.patches.slice().reverse() : rec.patches;
+  list.forEach(applyPatch);
+  recount(); finished = false; $('done').hidden = true; updateProgress(); syncButtons(); scheduleSave();
+}
+const undo = () => swapHistory(undoStack, redoStack, true);
+const redo = () => swapHistory(redoStack, undoStack, false);
+
+/* ---------- progress ---------- */
+function updateProgress(){
+  colCnt = pic.pal.map(() => 0); let total = 0;
+  pic.regs.forEach((g, r) => { colCnt[g.col] += cnt[r]; total += cnt[r]; });
+  const kids = $('paints').children;
+  for (let c = 0; c < pic.pal.length; c++){
+    const b = kids[c]; if (!b) continue;
+    const p = colArea[c] ? colCnt[c] / colArea[c] : 1, full = pic.regs.every((g, r) => g.col !== c || done[r]);
+    b.style.setProperty('--p', (full ? 100 : Math.min(99, p * 100)).toFixed(1)); b.classList.toggle('done', full);
+  }
+  pic.pct = Math.floor(total / (W * H) * 100);
+  if (done.every((v) => v)) pic.pct = 100; else if (pic.pct > 99) pic.pct = 99;
+  $('pct').textContent = pic.pct + '%';
+}
+function afterChange(finishedNow, at){
+  hintDirty = undoneDirty = bloomDirty = true; need = true;
+  const now = performance.now();
+  (finishedNow || []).forEach((r, i) => {
+    const g = pic.regs[r];
+    fx.push({ x: at ? at[0] : g.cx, y: at ? at[1] : g.cy, r: Math.max(26, Math.min(220, Math.sqrt(g.area) * .7)), t0: now + i * 70, len: 620, col: rgbCss(shade(pic.pal[g.col], .45)) });
+    chime(g.col, i * .07, .8);
+  });
+  updateProgress(); scheduleSave();
+  if (finishedNow && finishedNow.length){
+    if (done.every((v) => v)) celebrate();
+    else if (pic.regs.every((g, r) => g.col !== pic.sel || done[r])){
+      const n = pic.pal.length; let c = pic.sel;
+      for (let k = 1; k <= n; k++){ const t = (pic.sel + k) % n; if (pic.regs.some((g, r) => g.col === t && !done[r])){ c = t; break; } }
+      toast('Paint ' + (pic.sel + 1) + ' is done. On to ' + (c + 1) + '.'); selectPaint(c, true);
+    }
+  }
+}
+function celebrate(){
+  finished = true; const now = performance.now(), rnd = mulberry(now | 0);
+  for (let i = 0; i < 26; i++){ const g = pic.regs[Math.floor(rnd() * pic.regs.length)]; fx.push({ x: g.cx, y: g.cy, r: 60 + rnd() * 160, t0: now + i * 90, len: 900, col: rgbCss(shade(pic.pal[g.col], .5)) }); }
+  [0, 2, 4, 5, 7, 9, 12].forEach((d, i) => chime(d, .25 + i * .13, 1));
+  $('toast').classList.remove('on'); $('done').hidden = false;
+}
+
+/* ---------- chimes: each paint number is a note ---------- */
+let AC = null;
+const SCALES = { penta: [0, 2, 4, 7, 9], major: [0, 2, 4, 5, 7, 9, 11], whole: [0, 2, 4, 6, 8, 10], minor: [0, 2, 3, 5, 7, 8, 10] };
+function audio(){
+  if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function chime(deg, delay, gain){
+  if (!AC || P.vol <= 0) return;
+  const sc = SCALES[P.scale] || SCALES.penta, d = deg % (sc.length * 2), semi = sc[d % sc.length] + 12 * Math.floor(d / sc.length) + P.pitch;
+  const f = 261.630 * Math.pow(2, semi / 12), t = AC.currentTime + (delay || 0) + .01, vol = P.vol / 100 * .22 * (gain || 1);
+  const out = AC.createGain(); out.connect(AC.destination);
+  const tone = (type, freq, peak, att, dec) => {
+    const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak * vol, t + att); g.gain.exponentialRampToValueAtTime(.0001, t + att + dec);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + att + dec + .05);
+  };
+  if (P.voice === 'marimba'){ tone('sine', f, 1, .004, .45); tone('sine', f * 4, .35, .003, .1); }
+  else if (P.voice === 'pad'){ tone('triangle', f, .7, .09, 1.500); tone('sine', f * 2.005, .25, .12, 1.200); }
+  else { tone('sine', f, .9, .005, 1.300); tone('sine', f * 2.760, .28, .004, .5); tone('sine', f * 5.400, .1, .003, .22); }
+}
+
+/* ==================================================================
+   Paints, tools and sheets
+   ================================================================== */
+function buildPaints(){
+  const box = $('paints'); box.textContent = '';
+  pic.pal.forEach((c, i) => {
+    const b = document.createElement('button'), s = document.createElement('span');
+    b.className = 'sw'; b.setAttribute('aria-label', 'Paint ' + (i + 1)); b.setAttribute('aria-pressed', i === pic.sel);
+    b.style.setProperty('--c', rgbCss(c)); b.style.setProperty('--ink', lum(c) > .55 ? '#14141c' : '#ffffff'); b.style.setProperty('--ring', rgbCss(shade(c, .35)));
+    s.textContent = i + 1; b.appendChild(s); b.addEventListener('click', () => selectPaint(i));
+    box.appendChild(b);
+  });
+  updateProgress();
+}
+function selectPaint(c, scroll){
+  if (!pic || c === pic.sel) return;
+  pic.sel = c; S.sel[pic.id] = c; hintDirty = true; need = true;
+  const kids = $('paints').children;
+  for (let i = 0; i < kids.length; i++) kids[i].setAttribute('aria-pressed', i === c);
+  if (scroll && kids[c]) kids[c].scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  if (S.tool === 'eraser') setTool('brush');
+  saveState();
+}
+function setTool(t){
+  if (!TOOLS[t] || (t === 'doodle' && !S.doodle)) return;
+  S.tool = t; syncButtons(); saveState(); need = true;
+}
+function setSize(v){
+  if (S.tool === 'fill') return;
+  S.sizes[S.tool] = clamp(Math.round(v), 2, 160); syncButtons(); saveState(); need = true;
+}
+function syncButtons(){
+  $('btnUndo').disabled = !undoStack.length; $('btnRedo').disabled = !redoStack.length;
+  $('btnDoodle').hidden = !S.doodle;
+  document.querySelectorAll('#rail [data-tool]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tool === S.tool));
+  const sz = toolSize(S.tool), dot = $('sizeBtn').firstElementChild, px = clamp(4 + sz * .2, 5, 26);
+  dot.style.width = dot.style.height = px + 'px'; $('sizeBtn').disabled = S.tool === 'fill';
+  $('size').value = sz; $('sizeVal').textContent = sz; $('sizeName').textContent = (TOOLS[S.tool].name || 'Brush') + ' size';
+  if (S.tool === 'fill') $('sizePop').hidden = true;
+  $('sizeBtn').setAttribute('aria-expanded', !$('sizePop').hidden);
+}
+document.querySelectorAll('#rail [data-tool]').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
+$('sizeBtn').addEventListener('click', () => { $('sizePop').hidden = !$('sizePop').hidden; syncButtons(); });
+$('size').addEventListener('input', (e) => setSize(+e.target.value));
+$('btnUndo').addEventListener('click', undo); $('btnRedo').addEventListener('click', redo);
+$('btnFit').addEventListener('click', () => fit());
+
+// The secret: five quick taps on the progress number turn the stamp brush on or off.
+let secretN = 0, secretT = 0;
+$('pct').addEventListener('click', () => {
+  const now = performance.now(); secretN = now - secretT < 700 ? secretN + 1 : 1; secretT = now;
+  if (secretN >= 5){
+    secretN = 0; S.doodle = !S.doodle;
+    if (S.doodle){ setTool('doodle'); toast('Secret stamp unlocked'); } else { if (S.tool === 'doodle') S.tool = 'brush'; toast('Secret stamp put away'); }
+    syncButtons(); saveState();
+  }
+});
+
+/* ---------- Look: built from PARAMS ---------- */
+function buildLook(){
+  const body = $('lookBody'); body.textContent = ''; let group = '';
+  PARAMS.forEach((p) => {
+    if (p.group !== group){ group = p.group; const h = document.createElement('h3'); h.textContent = group; body.appendChild(h); }
+    const row = document.createElement('div'), lab = document.createElement('label'); row.className = 'row'; lab.textContent = p.label; lab.htmlFor = 'p_' + p.key; row.appendChild(lab);
+    let el;
+    if (p.type === 'toggle'){
+      el = document.createElement('button'); el.className = 'tog'; el.setAttribute('role', 'switch'); el.setAttribute('aria-checked', !!P[p.key]);
+      el.addEventListener('click', () => { setParam(p, !P[p.key]); el.setAttribute('aria-checked', !!P[p.key]); });
+    } else if (p.type === 'select'){
+      row.appendChild(document.createElement('span'));
+      el = document.createElement('select'); p.opts.forEach((o) => { const op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; el.appendChild(op); });
+      el.value = P[p.key]; el.addEventListener('change', () => setParam(p, el.value));
+    } else {
+      const out = document.createElement('output'); out.textContent = P[p.key] + (p.unit || ''); row.appendChild(out);
+      el = document.createElement('input'); el.type = 'range'; el.min = p.min; el.max = p.max; el.step = p.step; el.value = P[p.key];
+      el.addEventListener('input', () => { setParam(p, +el.value); out.textContent = P[p.key] + (p.unit || ''); });
+    }
+    el.id = 'p_' + p.key; row.appendChild(el); body.appendChild(row);
+  });
+  const reset = document.createElement('button'); reset.className = 'btn'; reset.textContent = 'Reset Look'; reset.style.marginTop = '14px';
+  reset.addEventListener('click', () => { PARAMS.forEach((p) => { P[p.key] = p.def; }); saveState(); buildLook(); if (pic){ buildLines(); hintDirty = true; } need = true; });
+  body.appendChild(reset);
+  const tip = document.createElement('p'); tip.className = 'hintline';
+  tip.textContent = 'Two fingers move and zoom. Two-finger tap undoes, three-finger tap redoes. Once a Pencil is used, a single finger moves the picture and a tap picks that area\'s paint.';
+  body.appendChild(tip);
+}
+function setParam(p, v){
+  P[p.key] = v; saveState(); need = true;
+  if (p.key === 'canvas' && pic){ buildLines(); hintDirty = true; }
+  if (p.key === 'vol' || p.key === 'voice' || p.key === 'scale' || p.key === 'pitch'){ audio(); chime(pic ? pic.sel : 0, 0, .8); }
+}
+function openSheet(id, on){
+  ['look', 'gallery'].forEach((k) => { $(k).hidden = k !== id || !on; });
+  $('btnLook').setAttribute('aria-expanded', !$('look').hidden); $('btnPics').setAttribute('aria-expanded', !$('gallery').hidden);
+  if (id === 'gallery' && on) buildGallery();
+}
+$('btnLook').addEventListener('click', () => openSheet('look', $('look').hidden));
+$('lookX').addEventListener('click', () => openSheet('look', false));
+$('btnPics').addEventListener('click', () => openSheet('gallery', $('gallery').hidden));
+$('galX').addEventListener('click', () => openSheet('gallery', false));
+function setBare(on){ document.body.classList.toggle('bare', on); if (on){ openSheet('', false); $('sizePop').hidden = true; } if (pic) fit(true); need = true; }
+$('btnHide').addEventListener('click', () => setBare(true)); $('peek').addEventListener('click', () => setBare(false));
+const fsEl = document.documentElement, canFs = !!(fsEl.requestFullscreen || fsEl.webkitRequestFullscreen);
+if (!canFs) document.body.classList.add('nofs');
+function toggleFs(){
+  if (!canFs) return;
+  if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else { const p = (fsEl.requestFullscreen || fsEl.webkitRequestFullscreen).call(fsEl); if (p && p.catch) p.catch(() => {}); }
+}
+$('btnFs').addEventListener('click', toggleFs);
+
+/* ---------- Pictures ---------- */
+const previews = {};
+function buildGallery(){
+  const grid = $('grid'); grid.textContent = '';
+  const add = (id, name, img, extra) => {
+    const card = document.createElement('div'); card.className = 'card' + (pic && pic.id === id ? ' cur' : ''); card.setAttribute('role', 'button'); card.tabIndex = 0;
+    const t = THUMBS[id], im = document.createElement('img'); im.alt = ''; im.src = t && t.pct > 0 && t.img ? t.img : img; card.appendChild(im);
+    const bar = document.createElement('div'); bar.className = 'bar'; const fill = document.createElement('i'); fill.style.width = (t ? t.pct : 0) + '%'; bar.appendChild(fill); card.appendChild(bar);
+    const cap = document.createElement('div'); cap.className = 'cap'; const b = document.createElement('b'); b.textContent = name; const sp = document.createElement('span'); sp.textContent = t && t.pct ? t.pct + '%' : 'New'; cap.append(b, sp); card.appendChild(cap);
+    if (extra){ const mini = document.createElement('div'); mini.className = 'mini'; const bt = document.createElement('button'); bt.textContent = extra[0]; bt.addEventListener('click', (e) => { e.stopPropagation(); extra[1](bt); }); mini.appendChild(bt); card.appendChild(mini); }
+    card.addEventListener('click', () => { openSheet('gallery', false); if (!pic || pic.id !== id) openPicture(id); });
+    grid.appendChild(card);
+  };
+  PICS.forEach((d) => {
+    if (!previews[d.id]) previews[d.id] = previewOf(d);
+    add(d.id, d.name, previews[d.id], d.seeded ? ['New slice', (bt) => confirmTwice(bt, 'Replace it?', async () => {
+      S.agate = (S.agate % 9999) + 1 + Math.floor(Math.random() * 50); delete previews.agate; delete THUMBS.agate; saveThumbs(); saveState(); await DB.del('prog', 'agate');
+      openSheet('gallery', false); openPicture('agate', true);
+    })] : null);
+  });
+  S.photos.forEach((ph) => add(ph.id, ph.name, ph.thumb, ['Delete', (bt) => confirmTwice(bt, 'Really delete?', async () => {
+    S.photos = S.photos.filter((q) => q.id !== ph.id); delete THUMBS[ph.id]; saveThumbs(); saveState(); await DB.del('prog', ph.id); await DB.del('pics', ph.id);
+    if (pic && pic.id === ph.id){ openSheet('gallery', false); openPicture('planet', true); } else buildGallery();
+  })]));
+}
+// Destructive buttons ask once more in place instead of opening a dialog.
+function confirmTwice(bt, ask, fn){
+  if (bt.dataset.sure){ fn(); return; }
+  const was = bt.textContent; bt.dataset.sure = '1'; bt.textContent = ask;
+  setTimeout(() => { delete bt.dataset.sure; bt.textContent = was; }, 2600);
+}
+$('btnRestart').addEventListener('click', (e) => confirmTwice(e.currentTarget, 'Wipe all the paint?', async () => {
+  pctx.clearRect(0, 0, W, H); st.fill(0); recount(); undoStack.length = 0; redoStack.length = 0; finished = false; $('done').hidden = true;
+  delete THUMBS[pic.id]; saveThumbs(); await DB.del('prog', pic.id); updateProgress(); syncButtons(); openSheet('gallery', false);
+}));
+$('phCols').addEventListener('input', (e) => { $('phColsV').textContent = e.target.value; });
+$('btnPhoto').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  await busy('Turning your photo into numbered areas…');
+  try {
+    const url = URL.createObjectURL(f), img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    const m = await photoToMap(img, +$('phCols').value, +$('phDetail').value); URL.revokeObjectURL(url);
+    finalize(m.col, m.w, m.h, m.minArea, m.minR); await sleep(0);
+    const pal = compactPalette(m.col, m.pal);
+    const tw = 320, th = Math.round(tw * m.h / m.w), full = mkCanvas(m.w, m.h), fx2 = full.getContext('2d'), im = fx2.createImageData(m.w, m.h);
+    for (let i = 0; i < m.w * m.h; i++){ const q = pal[m.col[i]]; im.data[i * 4] = q[0]; im.data[i * 4 + 1] = q[1]; im.data[i * 4 + 2] = q[2]; im.data[i * 4 + 3] = 255; }
+    fx2.putImageData(im, 0, 0);
+    const tc = mkCanvas(tw, th); tc.getContext('2d').drawImage(full, 0, 0, tw, th);
+    const id = 'photo-' + Date.now(), name = 'Photo ' + (S.photos.length + 1);
+    await DB.put('pics', id, { name, w: m.w, h: m.h, col: m.col, pal });
+    S.photos.push({ id, name, thumb: tc.toDataURL('image/jpeg', .8) }); saveState();
+    openSheet('gallery', false); await openPicture(id, true);
+  } catch (err) { unbusy(); toast('That photo could not be opened'); }
+});
+
+/* ---------- saving ---------- */
+let saveT = 0, saveDirty = false;
+function scheduleSave(){ saveDirty = true; clearTimeout(saveT); saveT = setTimeout(saveNow, 900); }
+function flat(scale){
+  const c = mkCanvas(Math.round(W * scale), Math.round(H * scale)), x = c.getContext('2d'); x.scale(c.width / W, c.height / H);
+  x.fillStyle = TH().board; x.fillRect(0, 0, W, H); x.globalAlpha = P.lines / 100 * (done.every((v) => v) ? 0 : 1); x.drawImage(linesC, 0, 0); x.globalAlpha = 1; x.drawImage(paintC, 0, 0);
+  return c;
+}
+async function saveNow(){
+  if (!pic || !saveDirty) return; saveDirty = false; clearTimeout(saveT);
+  const id = pic.id, stCopy = st.slice(), pct = pic.pct;
+  THUMBS[id] = { pct, img: flat(320 / W).toDataURL('image/jpeg', .72) }; saveThumbs(); saveState();
+  const blob = await new Promise((r) => paintC.toBlob(r, 'image/png')); if (!blob) return;
+  const png = await blob.arrayBuffer();
+  await DB.put('prog', id, { png, st: stCopy });
+}
+async function loadProgress(){
+  const rec = await DB.get('prog', pic.id);
+  if (!rec || !rec.st || rec.st.length !== W * H) return;
+  try {
+    const blob = new Blob([rec.png], { type: 'image/png' }), url = URL.createObjectURL(blob), img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    pctx.clearRect(0, 0, W, H); pctx.drawImage(img, 0, 0); URL.revokeObjectURL(url);
+    st.set(rec.st); recount(); updateProgress();
+  } catch (e) {}
+}
+async function openPicture(id, fresh){
+  await busy('Mixing paints…');
+  if (pic && !fresh) await saveNow();
+  let p = null;
+  try { p = await buildPicture(id); } catch (e) {}
+  if (!p){ id = 'planet'; p = await buildPicture(id); }
+  setPicture(p); S.pic = id; saveState();
+  await loadProgress();
+  unbusy(); need = true;
+}
+async function exportImage(){
+  const c = flat(1), blob = await new Promise((r) => c.toBlob(r, 'image/png')); if (!blob) return;
+  const file = new File([blob], 'dab-' + pic.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.png', { type: 'image/png' });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })){ await navigator.share({ files: [file] }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+$('btnSave').addEventListener('click', exportImage); $('doneSave').addEventListener('click', exportImage);
+$('doneNext').addEventListener('click', () => { $('done').hidden = true; openSheet('gallery', true); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+window.addEventListener('pagehide', () => { saveNow(); });
+
+/* ==================================================================
+   Pencil, fingers, mouse and keys
+   A Pencil always paints. Fingers paint until a Pencil has been seen; after that one finger moves the
+   picture and a tap picks a paint. Two fingers always move and zoom. Touches that land while the Pencil
+   is down or hovering are treated as a resting palm and ignored.
+   ================================================================== */
+const touches = new Map(), palms = new Set();
+let penDown = false, lastPen = -1e9, gesture = null, tapInfo = null, mousePan = null, spaceHeld = false, inkT = 0;
+const fingerPaints = () => P.finger === 'paint' || (P.finger === 'auto' && !S.penSeen);
+function closePops(){ if (!$('sizePop').hidden){ $('sizePop').hidden = true; syncButtons(); } if (VW <= 700 && !$('look').hidden) openSheet('look', false); }
+
+cv.addEventListener('pointerdown', (e) => {
+  audio(); closePops();
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  if (e.pointerType === 'pen'){
+    if (!S.penSeen){ S.penSeen = true; saveState(); if (P.finger === 'auto') toast('Pencil found. Fingers now move the picture.', 3200); }
+    lastPen = performance.now(); penDown = true; clearTimeout(inkT); document.body.classList.add('inking');
+    // anything already touching is the hand holding the Pencil
+    touches.forEach((t, id) => palms.add(id));
+    if (stroke) cancelStroke();
+    if (gesture && gesture.moved < 40){ view.s = gesture.v0.s; view.tx = gesture.v0.tx; view.ty = gesture.v0.ty; }
+    gesture = null; tapInfo = null; touches.clear();
+    hover = null; startStroke(e); return;
+  }
+  if (e.pointerType === 'mouse'){
+    if (e.button === 0 && !spaceHeld){ startStroke(e); }
+    else { mousePan = { x: e.clientX, y: e.clientY }; cv.style.cursor = 'grabbing'; }
+    return;
+  }
+  // touch
+  const now = performance.now();
+  if (penDown || now - lastPen < 380 || e.width > 64 || e.height > 64){ palms.add(e.pointerId); return; }
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 1){
+    tapInfo = { n: 1, t0: now, moved: 0, x: e.clientX, y: e.clientY };
+    if (fingerPaints()){ gesture = { mode: 'stroke' }; startStroke(e); }
+    else gesture = { mode: 'pan', v0: { s: view.s, tx: view.tx, ty: view.ty }, moved: 0 };
+  } else {
+    if (tapInfo) tapInfo.n = Math.max(tapInfo.n, touches.size);
+    if (stroke) cancelStroke();
+    beginPinch();
+  }
+});
+function beginPinch(){
+  const pts = Array.from(touches.values()).slice(0, 2), a = pts[0], b = pts[1];
+  gesture = { mode: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, v0: { s: view.s, tx: view.tx, ty: view.ty }, moved: gesture && gesture.moved || 0 };
+}
+cv.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'pen') lastPen = performance.now();
+  if (stroke && e.pointerId === stroke.id){ moveStroke(e); if (tapInfo) tapInfo.moved = Math.max(tapInfo.moved, stroke.far); return; }
+  if (e.pointerType === 'mouse' && mousePan){ view.tx += e.clientX - mousePan.x; view.ty += e.clientY - mousePan.y; mousePan = { x: e.clientX, y: e.clientY }; view.fitted = false; need = true; return; }
+  if (e.pointerType !== 'touch'){ hover = { x: e.clientX, y: e.clientY }; need = true; return; }
+  const t = touches.get(e.pointerId); if (!t || !gesture) return;
+  const dx = e.clientX - t.x, dy = e.clientY - t.y; t.x = e.clientX; t.y = e.clientY;
+  if (tapInfo) tapInfo.moved += Math.hypot(dx, dy);
+  if (gesture.mode === 'pan'){ gesture.moved += Math.hypot(dx, dy); if (gesture.moved > 5){ view.tx += dx; view.ty += dy; view.fitted = false; need = true; } }
+  else if (gesture.mode === 'pinch' && touches.size >= 2){
+    const pts = Array.from(touches.values()).slice(0, 2), a = pts[0], b = pts[1], d = Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const s2 = clamp(gesture.v0.s * d / gesture.d0, view.fitS * .4, view.fitS * 16), k = s2 / gesture.v0.s;
+    view.s = s2; view.tx = mx - (gesture.mx - gesture.v0.tx) * k; view.ty = my - (gesture.my - gesture.v0.ty) * k; view.fitted = false; need = true;
+    gesture.moved += Math.hypot(dx, dy);
+  }
+});
+function pointerEnd(e){
+  if (stroke && e.pointerId === stroke.id){
+    if (e.type === 'pointercancel') cancelStroke(); else endStroke(e);
+  }
+  if (e.pointerType === 'pen'){
+    penDown = false; lastPen = performance.now(); clearTimeout(inkT); inkT = setTimeout(() => document.body.classList.remove('inking'), 250); return;
+  }
+  if (e.pointerType === 'mouse'){ mousePan = null; cv.style.cursor = ''; return; }
+  if (palms.delete(e.pointerId)) return;
+  if (!touches.delete(e.pointerId)) return;
+  if (touches.size >= 2){ beginPinch(); return; }
+  if (touches.size === 1){ const m = gesture ? gesture.moved : 0; gesture = { mode: 'pan', v0: { s: view.s, tx: view.tx, ty: view.ty }, moved: m + 100 }; return; }
+  // last finger up: was it a tap?
+  const ti = tapInfo, g = gesture; tapInfo = null; gesture = null;
+  if (ti && e.type !== 'pointercancel' && ti.moved < 14 && performance.now() - ti.t0 < 380){
+    if (ti.n === 2) undo(); else if (ti.n === 3) redo();
+    else if (ti.n === 1 && g && g.mode === 'pan'){
+      const x = (ti.x - view.tx) / view.s, y = (ti.y - view.ty) / view.s, reg = regionAt(x, y);
+      if (reg >= 0 && !done[reg]){
+        if (S.tool === 'fill' && pic.regs[reg].col === pic.sel) fillAt(x, y, reg);
+        else { selectPaint(pic.regs[reg].col, true); nudge(pic.regs[reg].col); }
+      }
+    }
+  }
+}
+cv.addEventListener('pointerup', pointerEnd); cv.addEventListener('pointercancel', pointerEnd);
+cv.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch'){ hover = null; need = true; } });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * (e.ctrlKey ? .012 : .0018))); }, { passive: false });
+cv.addEventListener('contextmenu', (e) => e.preventDefault());
+['gesturestart', 'gesturechange', 'gestureend'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault()));
+document.addEventListener('touchmove', (e) => { if (e.target === cv) e.preventDefault(); }, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+  if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === ' '){ spaceHeld = true; e.preventDefault(); return; }
+  if ((e.metaKey || e.ctrlKey) && k === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (k === 'z') e.shiftKey ? redo() : undo();
+  else if (k === '1') setTool('pen'); else if (k === '2') setTool('brush'); else if (k === '3') setTool('marker'); else if (k === '4') setTool('crayon'); else if (k === '5') setTool('doodle');
+  else if (k === 'g') setTool('fill'); else if (k === 'e') setTool('eraser');
+  else if (k === '[') setSize(toolSize(S.tool) * .85 - 1); else if (k === ']') setSize(toolSize(S.tool) * 1.18 + 1);
+  else if (k === 'h') setBare(!document.body.classList.contains('bare'));
+  else if (k === 'f') toggleFs(); else if (k === 'c') openSheet('look', $('look').hidden); else if (k === 'r') fit();
+  else if (k === 'arrowright' || k === 'arrowdown'){ if (pic) selectPaint((pic.sel + 1) % pic.pal.length, true); e.preventDefault(); }
+  else if (k === 'arrowleft' || k === 'arrowup'){ if (pic) selectPaint((pic.sel + pic.pal.length - 1) % pic.pal.length, true); e.preventDefault(); }
+  else if (k === 'escape'){ openSheet('', false); closePops(); }
+});
+window.addEventListener('keyup', (e) => { if (e.key === ' ') spaceHeld = false; });
+window.addEventListener('resize', resize);
+
+/* ---------- go ---------- */
+if (!TOOLS[S.tool] || (S.tool === 'doodle' && !S.doodle)) S.tool = 'brush';
+buildLook(); resize(); syncButtons();
+requestAnimationFrame(frame);
+openPicture(S.pic, true);
+window.__dab = { get pic(){ return pic; }, P, S, view };
+</script>
+</body>
+</html>
