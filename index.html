@@ -19,7 +19,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 <!-- Each app's name on its tile is set in that app's own typeface, so the tile looks like the app it opens. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&family=Michroma&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&family=Michroma&family=Fraunces:ital,opsz,wght@1,9..144,600&display=swap">
 <style>
 /* Layout: a quiet, native-feeling page (system type, graphite wall) holding one dark window per app.
    Each window runs a small live preview drawn in that app's own colors; the apps carry the personality. */
@@ -98,6 +98,7 @@ body{
 .label h2.t-tone{font:800 19px/1.1 "Orbitron","Avenir Next",system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#e8f7ff;text-shadow:0 0 8px rgba(255,42,109,.75)}
 .label h2.t-tone span{color:#05d9e8;text-shadow:0 0 8px rgba(5,217,232,.75)}
 .label h2.t-tide{font:400 18px/1.15 "Michroma","Avenir Next",system-ui,sans-serif;letter-spacing:.1em;color:#dff3f7}
+.label h2.t-dab{font:italic 600 27px/1 "Fraunces","Iowan Old Style",Georgia,serif;letter-spacing:.01em;color:#ffe3ea}
 .label h2.t-orrery{font:600 23px/1.1 "Fredoka","Avenir Next",system-ui,sans-serif;letter-spacing:.01em}
 
 .foot{margin-top:28px;font-size:14px;color:var(--muted)}
@@ -132,6 +133,8 @@ body{
         <li><a class="tile" href="doom.html"><div class="label"><h2>DOOM</h2></div></a></li>
         <li><a class="tile" href="boing.html"><div class="label"><h2>Boing</h2></div></a></li>
         <li><a class="tile" href="overtone.html"><div class="label"><h2>Overtone</h2></div></a></li>
+        <li><a class="tile" href="far-tide.html"><div class="label"><h2>Far Tide</h2></div></a></li>
+        <li><a class="tile" href="dab.html"><div class="label"><h2>Dab</h2></div></a></li>
       </ul>
     </noscript>
   </main>
@@ -271,6 +274,15 @@ const APPS = [
     accent: '#7fe9ff',
     titleClass: 't-tide',
     art: 'tide'
+  },
+  {
+    name: 'Dab',
+    href: 'dab.html',
+    blurb: 'Paint by numbers made for Apple Pencil. A fine pen, soft brush, chisel marker and crayon follow pressure and tilt, the paint glows on a night canvas, and each finished area rings its own note. Paint a planet, a rose window, dusk peaks, balloons, an endless supply of agate slices, or one of your own photos.',
+    ground: '#07080d',
+    accent: '#ff9db0',
+    titleClass: 't-dab',
+    art: 'dab'
   }
 ];
 
@@ -1190,6 +1202,50 @@ ARTS.boing = {
     for (const sp of this.list) this.spring(ctx, sp, w, floor, t);
     ctx.restore();
     for (const sp of this.list) this.spring(ctx, sp, w, floor, t);
+  }
+};
+
+// Dab: a small rose window painted in by number, one paint at a time, with a glowing brush tip
+// moving to whichever area is filling. When it is done it rests, then starts over.
+ARTS.dab = {
+  cols: ['#3f6fe0', '#7fd0f5', '#c8245a', '#ff6b6b', '#ffb23e', '#8b4fd9', '#3fb984', '#fff6dc'],
+  init(s){
+    const R = [];
+    R.push({ a0: 0, a1: 7, r0: 0, r1: .16, c: 4 });
+    for (let i = 0; i < 8; i++) R.push({ a0: i * Math.PI / 4, a1: (i + 1) * Math.PI / 4, r0: .16, r1: .42, c: i % 2 ? 3 : 7 });
+    for (let i = 0; i < 12; i++) R.push({ a0: i * Math.PI / 6, a1: (i + 1) * Math.PI / 6, r0: .42, r1: .56, c: i % 2 ? 6 : 5 });
+    for (let i = 0; i < 12; i++) R.push({ a0: (i + .5) * Math.PI / 6, a1: (i + 1.5) * Math.PI / 6, r0: .56, r1: .82, c: i % 3 === 0 ? 2 : i % 3 === 1 ? 0 : 5 });
+    for (let i = 0; i < 24; i++) R.push({ a0: i * Math.PI / 12, a1: (i + 1) * Math.PI / 12, r0: .82, r1: 1, c: i % 2 ? 1 : 0 });
+    R.sort((a, b) => a.c - b.c || a.r0 - b.r0 || a.a0 - b.a0);
+    s.regs = R;
+  },
+  frame(ctx, s, w, h, t){
+    const cx = w / 2, cy = h / 2, R = Math.min(w, h) * .46, n = s.regs.length, step = .19, cycle = n * step + 4.500, u = t % cycle;
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.fillStyle = s.ground; ctx.fillRect(0, 0, w, h);
+    const path = (g) => { ctx.beginPath(); if (g.r0 === 0) ctx.arc(cx, cy, g.r1 * R, 0, 7); else { ctx.arc(cx, cy, g.r1 * R, g.a0, g.a1); ctx.arc(cx, cy, g.r0 * R, g.a1, g.a0, true); ctx.closePath(); } };
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '600 ' + Math.max(7, R * .085) + 'px system-ui,sans-serif';
+    let tip = null;
+    s.regs.forEach((g, i) => {
+      const k = Math.max(0, Math.min(1, (u - i * step) / .5)), fade = Math.max(0, Math.min(1, (cycle - u) / .7));
+      path(g); ctx.fillStyle = '#11131d'; ctx.fill();
+      if (k > 0){ ctx.globalAlpha = k * fade; ctx.fillStyle = this.cols[g.c]; ctx.fill(); ctx.globalAlpha = 1; }
+      ctx.strokeStyle = 'rgba(176,186,230,' + (.3 - .2 * k * fade) + ')'; ctx.lineWidth = 1; ctx.stroke();
+      const am = (g.a0 + g.a1) / 2, rm = g.r0 === 0 ? 0 : (g.r0 + g.r1) / 2 * R, x = cx + rm * Math.cos(am), y = cy + rm * Math.sin(am);
+      if (k * fade < 1 && g.r1 - g.r0 > .15){ ctx.fillStyle = 'rgba(214,220,255,' + (.6 * (1 - k * fade)) + ')'; ctx.fillText(g.c + 1, x, y); }
+      if (k > 0 && k < 1) tip = [x, y, this.cols[g.c]];
+    });
+    ctx.globalCompositeOperation = 'lighter';
+    const done = Math.max(0, Math.min(1, u / (n * step))) * Math.max(0, Math.min(1, (cycle - u) / .7));
+    const gl = ctx.createRadialGradient(cx, cy, R * .2, cx, cy, R * 1.5);
+    gl.addColorStop(0, 'rgba(255,157,176,' + (.16 * done) + ')'); gl.addColorStop(1, 'rgba(255,157,176,0)');
+    ctx.fillStyle = gl; ctx.fillRect(0, 0, w, h);
+    if (tip){
+      const g2 = ctx.createRadialGradient(tip[0], tip[1], 0, tip[0], tip[1], R * .2);
+      g2.addColorStop(0, 'rgba(255,255,255,.9)'); g2.addColorStop(.25, rgba(tip[2], .5)); g2.addColorStop(1, rgba(tip[2], 0));
+      ctx.fillStyle = g2; ctx.fillRect(tip[0] - R * .2, tip[1] - R * .2, R * .4, R * .4);
+    }
+    ctx.globalCompositeOperation = 'source-over';
   }
 };
 
