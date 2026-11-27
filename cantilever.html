@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cantilever">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Cantilever</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one full-screen canvas holds the beam (top), the frequency response (middle) and the mode
+   cards (bottom). Over it float the drive bar (frequency and magnitude, always in reach), a pill dock
+   and one settings sheet. Single dark theme: the beam glows, the stage stays dark. */
+:root{
+  color-scheme: dark;
+  --void:#07090e;
+  --glass:rgba(14,17,26,.76);
+  --line:rgba(220,230,255,.11);
+  --text:#eef1f7;
+  --muted:#8f97ab;
+  --accent:#ffd23f;
+  --accent-ink:#1a1402;
+  --font-display:'Big Shoulders Display','Arial Narrow',Impact,system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --font-body:-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
+}
+html{box-sizing:border-box;height:100%;overflow:hidden;background:var(--void)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  height:100%;overflow:hidden;margin:0;
+  background:var(--void);color:var(--text);
+  font-family:var(--font-body);font-size:14px;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;overscroll-behavior:none;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+.brand{
+  position:fixed;z-index:5;pointer-events:none;
+  top:calc(12px + env(safe-area-inset-top, 0px));
+  left:calc(16px + env(safe-area-inset-left, 0px));
+}
+.brand h1{margin:0;font:800 1.9rem/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:#f4f6fb}
+.brand h1 span{color:var(--accent);text-shadow:0 0 14px rgba(255,210,63,.45)}
+.brand p{margin:3px 0 0;font:500 .7rem/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.hint{
+  position:fixed;z-index:5;left:50%;transform:translateX(-50%);
+  bottom:calc(178px + env(safe-area-inset-bottom, 0px));
+  width:max-content;max-width:calc(100vw - 32px);
+  padding:8px 14px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  font-size:.84rem;font-weight:600;text-align:center;pointer-events:none;
+  transition:opacity .6s;
+}
+.hint.gone{opacity:0}
+
+/* the drive bar: the two things you play with most */
+.drive{
+  position:fixed;z-index:6;left:50%;transform:translateX(-50%);
+  bottom:calc(72px + env(safe-area-inset-bottom, 0px));
+  width:min(600px,calc(100vw - 16px));
+  padding:6px 12px 6px;border-radius:18px;
+  background:var(--glass);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);
+}
+.drive .row{grid-template-columns:82px 1fr 92px}
+.drive .row label{font:700 .74rem/1 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.drive .row output{font:700 .86rem/1 var(--font-mono);color:var(--text)}
+
+.dock{
+  position:fixed;z-index:6;left:50%;transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+  display:flex;gap:2px;padding:4px;
+  background:var(--glass);border:1px solid var(--line);border-radius:999px;
+  -webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);
+}
+.dock button,.dock .home,.ghost{
+  width:44px;height:44px;border:0;border-radius:999px;background:transparent;
+  display:grid;place-items:center;cursor:pointer;color:var(--text);
+}
+.dock button:hover,.dock .home:hover{background:rgba(255,255,255,.07)}
+/* back to the Stim Lab homepage (a home-screen web app has no back button) */
+.dock .home{text-decoration:none}
+.dock .sep{width:1px;margin:10px 3px;background:var(--line)}
+@media (max-width:400px){ .dock button,.dock .home{width:40px} .dock .sep{margin:10px 1px} }
+.dock button[aria-pressed="true"],.dock button[aria-expanded="true"]{color:var(--accent)}
+.dock [hidden]{display:none}
+.dock svg,.ghost svg,.sheet svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ghost{
+  position:fixed;z-index:6;
+  right:calc(14px + env(safe-area-inset-right, 0px));
+  top:calc(14px + env(safe-area-inset-top, 0px));
+  background:var(--glass);border:1px solid var(--line);opacity:.4;
+}
+.ghost:hover{opacity:1}
+.ui-hidden .brand,.ui-hidden .dock,.ui-hidden .hint,.ui-hidden .sheet,.ui-hidden .drive{opacity:0;pointer-events:none}
+
+/* The sheet: bottom sheet on phones, a floating side panel on wider screens */
+.sheet{
+  position:fixed;z-index:7;
+  left:calc(8px + env(safe-area-inset-left, 0px));right:calc(8px + env(safe-area-inset-right, 0px));
+  bottom:calc(70px + env(safe-area-inset-bottom, 0px));
+  max-height:min(62vh, 580px);display:flex;flex-direction:column;
+  background:rgba(14,17,26,.9);border:1px solid var(--line);border-radius:22px;
+  -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);
+  box-shadow:0 18px 50px rgba(0,0,0,.5);
+  transform:translateY(16px);opacity:0;pointer-events:none;transition:transform .2s ease-out,opacity .2s;
+}
+.sheet.open{transform:none;opacity:1;pointer-events:auto}
+@media (min-width:760px){
+  .sheet{left:auto;right:calc(16px + env(safe-area-inset-right, 0px));top:calc(16px + env(safe-area-inset-top, 0px));bottom:calc(80px + env(safe-area-inset-bottom, 0px));width:370px;max-height:none}
+}
+.sheet-head{display:flex;align-items:center;gap:4px;padding:8px 8px 4px 10px}
+.tabs{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+.tabs button{border:0;background:transparent;padding:8px 11px;border-radius:999px;font-weight:700;font-size:.84rem;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected="true"]{background:rgba(255,255,255,.1);color:var(--text)}
+.sheet-head .x{width:38px;height:38px;border:0;border-radius:999px;background:transparent;display:grid;place-items:center;cursor:pointer}
+.sheet-body{overflow:auto;padding:4px 14px 16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.sheet-body section[hidden]{display:none}
+.sheet h3{margin:14px 0 6px;font:700 .7rem/1.2 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sheet h3:first-child{margin-top:6px}
+
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.preset{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:14px;padding:9px 12px;text-align:left;cursor:pointer}
+.preset b{display:block;font:800 1.15rem/1.05 var(--font-display);letter-spacing:.05em;text-transform:uppercase}
+.preset span{display:block;margin-top:3px;font-size:.75rem;color:var(--muted);line-height:1.3}
+.preset[aria-pressed="true"]{border-color:var(--accent);background:rgba(255,210,63,.1)}
+
+.row{display:grid;grid-template-columns:100px 1fr 76px;align-items:center;gap:8px;min-height:36px}
+.row label{font-weight:600;font-size:.84rem}
+.row output{font:500 .78rem/1 var(--font-mono);color:var(--muted);text-align:right;white-space:nowrap}
+.row.off{opacity:.4}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:transparent;margin:0;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);margin-top:-9px;box-shadow:0 0 0 4px rgba(255,210,63,.15),0 1px 4px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px}
+.chips button{border:1px solid var(--line);background:rgba(255,255,255,.04);padding:7px 11px;border-radius:999px;font-weight:600;font-size:.8rem;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.small{color:var(--muted);font-size:.78rem;line-height:1.45;margin:8px 0 0}
+.small code{font-family:var(--font-mono);font-size:.74rem;color:var(--text)}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.actions button{border:1px solid var(--line);background:rgba(255,255,255,.05);padding:9px 14px;border-radius:999px;font-weight:700;font-size:.82rem;cursor:pointer}
+.modelist{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;font:500 .78rem/1.5 var(--font-mono);color:var(--muted);margin-top:4px}
+.modelist b{font-weight:700}
+
+@media (prefers-reduced-motion:reduce){ .hint,.sheet{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="A cantilever beam clamped to a wall, its frequency response curve and its first mode shapes. Drag the beam to pluck it, drag across the curve to change the drive frequency." role="img"></canvas>
+
+<div class="brand">
+  <h1>Canti<span>lever</span></h1>
+  <p id="presetName">Steel ruler</p>
+</div>
+
+<div class="hint" id="hint">Drag the beam and let go, or slide Frequency onto a peak</div>
+
+<button class="ghost" id="btnShow" aria-label="Show controls" title="Show controls (H)" hidden>
+  <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+</button>
+
+<div class="drive" id="drive">
+  <div class="row"><label for="d-fr">Frequency</label><input type="range" id="d-fr" min="0" max="1000" step="1"><output id="o-fr"></output></div>
+  <div class="row"><label for="d-mag">Magnitude</label><input type="range" id="d-mag" min="0" max="1" step="0.01"><output id="o-mag"></output></div>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-label="Cantilever settings">
+  <div class="sheet-head">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-beam" aria-selected="true">Beam</button>
+      <button role="tab" id="tab-drive" aria-selected="false">Input</button>
+      <button role="tab" id="tab-look" aria-selected="false">Look</button>
+      <button role="tab" id="tab-sound" aria-selected="false">Sound</button>
+    </div>
+    <button class="x" id="btnClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="sheet-body" id="sheetBody">
+    <section id="pane-beam"><h3>Beams</h3><div class="presets" id="presetList"></div></section>
+    <section id="pane-drive" hidden></section>
+    <section id="pane-look" hidden></section>
+    <section id="pane-sound" hidden></section>
+  </div>
+</div>
+
+<nav class="dock" aria-label="Cantilever">
+  <a class="home" href="./" aria-label="Back to Stim Lab" title="Stim Lab">
+    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+  </a>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="btnSheet" aria-expanded="false" aria-label="Beam and settings" title="Beam and settings">
+    <svg viewBox="0 0 24 24"><path d="M3 4v16"/><path d="M3 9h3M3 15h3"/><path d="M6 12c5 0 10-1 15-4"/><path d="M6 12c5 0 10 1 15 4" opacity=".45"/></svg>
+  </button>
+  <button id="btnSweep" aria-pressed="false" aria-label="Sweep the frequency" title="Sweep the frequency (S)">
+    <svg viewBox="0 0 24 24"><path d="M2 12c1.5-6 2.5-6 4 0s2.2 6 3.4 0 1.8-6 2.8 0 1.4 6 2.2 0 1-6 1.6 0 .8 6 1.2 0 .6-6 .8-3"/></svg>
+  </button>
+  <button id="btnKick" aria-label="Tap the tip" title="Tap the tip (Space)">
+    <svg viewBox="0 0 24 24"><path d="M14 4l6 6-3 3-6-6z"/><path d="M11 10l-7 7 3 3 7-7"/><path d="M3 4l2 2M8 2v2"/></svg>
+  </button>
+  <button id="btnSound" aria-pressed="true" aria-label="Sound" title="Sound">
+    <svg viewBox="0 0 24 24" id="icoSound"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+  </button>
+  <button id="btnFull" hidden aria-label="Fullscreen" title="Fullscreen (F)">
+    <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+  <button id="btnHide" aria-label="Hide controls" title="Hide controls (H)">
+    <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+  </button>
+</nav>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+<script>
+/* ------------------------------------------------------------------
+   Cantilever: a modal response lab for a clamped-free beam.
+
+   Physics (Euler-Bernoulli): a uniform rectangular beam of length L, thickness h and width b,
+   clamped at x = 0 and free at x = L. Its bending modes are
+     phi_n(x) = cosh(bx) - cos(bx) - s_n (sinh(bx) - sin(bx)),  b = beta_n / L,
+   with beta_n L = 1.875, 4.694, 7.855, 10.996, ... and natural frequencies
+     f_n = (beta_n L)^2 / (2 pi L^2) * sqrt(E I / (rho A)).
+   Each mode is a damped oscillator u_n driven by the input:
+     u_n'' + 2 z w_n u_n' + w_n^2 u_n = phi_n(x_F) F / (m L)   (point force F at x_F)
+                                      = -a J_n                 (base shake, J_n = mean of phi_n)
+   and the deflection is w(x, t) = sum phi_n(x) u_n(t).
+
+   Each mode's motion is split into the steady response to the sine input (exact, from its
+   complex amplitude) plus a free ring-down (also exact for any time step). Plucks, taps and
+   sudden changes go into the ring-down, so nothing has to be integrated in small steps and
+   slow motion costs nothing.
+
+   Settings: PARAMS is the one table of sliders, CHOICES the chip rows, TOGGLES the switches.
+   Add an entry and it gets a control, saving and preset support.
+   ------------------------------------------------------------------ */
+const $ = (s) => document.querySelector(s);
+const canvas = $('#stage');
+const ctx = canvas.getContext('2d', { alpha: false });
+const STORE = 'cantilever';
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------- formatting ---------- */
+function fmtLen(mm){
+  const a = Math.abs(mm);
+  if (a >= 1000) return +(mm / 1000).toPrecision(3) + ' m';
+  if (a >= 1) return +mm.toPrecision(3) + ' mm';
+  if (a >= .001) return +(mm * 1000).toPrecision(3) + ' µm';
+  return +(mm * 1e6).toPrecision(3) + ' nm';
+}
+function fmtHz(f){
+  if (f >= 1e6) return +(f / 1e6).toPrecision(3) + ' MHz';
+  if (f >= 1e4) return +(f / 1e3).toPrecision(3) + ' kHz';
+  if (f >= 1000) return (f / 1e3).toFixed(2) + ' kHz';
+  if (f >= 100) return f.toFixed(0) + ' Hz';
+  if (f >= 10) return f.toFixed(1) + ' Hz';
+  return f.toFixed(2) + ' Hz';
+}
+function fmtSI(v, unit){
+  const a = Math.abs(v);
+  if (a === 0) return '0 ' + unit;
+  const P = [[1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p']];
+  for (const [s, p] of P) if (a >= s * .9995) return +(v / s).toPrecision(3) + ' ' + p + unit;
+  return v.toExponential(1) + ' ' + unit;
+}
+const pct = (v) => Math.round(v * 100) + '%';
+const axisHz = (f) => f >= 1e6 ? +(f / 1e6).toPrecision(2) + 'MHz' : f >= 1e3 ? +(f / 1e3).toPrecision(2) + 'kHz' : +f.toPrecision(2) + 'Hz';
+
+/* ---------- settings ---------- */
+const MATERIALS = {
+  steel: { label: 'Steel', E: 200e9, rho: 7850 },
+  aluminium: { label: 'Aluminium', E: 69e9, rho: 2700 },
+  brass: { label: 'Brass', E: 100e9, rho: 8500 },
+  titanium: { label: 'Titanium', E: 114e9, rho: 4430 },
+  carbon: { label: 'Carbon fibre', E: 135e9, rho: 1600 },
+  silicon: { label: 'Silicon', E: 169e9, rho: 2330 },
+  oak: { label: 'Oak', E: 11e9, rho: 750 },
+  acrylic: { label: 'Acrylic', E: 3.2e9, rho: 1180 },
+  rubber: { label: 'Rubber', E: .05e9, rho: 1100 }
+};
+// [key, label, min, max, step, default, tab, format, log]  (log sliders run 0..1000 internally)
+const PARAMS = [
+  ['length', 'Length', .05, 3000, 0, 200, 'beam', fmtLen, true],
+  ['thick', 'Thickness', .001, 100, 0, .8, 'beam', fmtLen, true],
+  ['width', 'Width', .01, 600, 0, 25, 'beam', fmtLen, true],
+  ['zeta', 'Damping', .0005, .2, 0, .005, 'beam', (v) => (v * 100).toFixed(v < .01 ? 2 : 1) + '%', true],
+  ['modes', 'Modes', 1, 8, 1, 6, 'beam', (v) => v],
+  ['pos', 'Push at', .05, 1, .01, 1, 'drive', (v) => v >= 1 ? 'the tip' : Math.round(v * 100) + '% out'],
+  ['sweepTime', 'Sweep time', 4, 60, 1, 20, 'drive', (v) => v + ' s'],
+  ['exag', 'Exaggerate', 1, 2000, 0, 20, 'look', (v) => '×' + +v.toPrecision(3), true],
+  ['sndDrive', 'Drive tone', 0, 1, .01, .7, 'sound', pct],
+  ['sndRing', 'Ringing', 0, 1, .01, .8, 'sound', pct],
+  ['tone', 'Brightness', 0, 1, .01, .5, 'sound', pct],
+  ['reverb', 'Reverb', 0, 1, .01, .25, 'sound', pct],
+  ['volume', 'Volume', 0, 1, .01, .7, 'sound', pct]
+];
+const CHOICES = [
+  ['material', 'Material', Object.fromEntries(Object.entries(MATERIALS).map(([k, v]) => [k, v.label])), 'beam'],
+  ['input', 'Input', { force: 'Push with a force', base: 'Shake the clamp' }, 'drive'],
+  ['build', 'When you change the input', { instant: 'Jump straight there', ring: 'Ring in (true)' }, 'drive'],
+  ['scale', 'Drawing scale', { auto: 'Auto fit', fixed: 'Fixed' }, 'look'],
+  ['slow', 'Slow motion', { auto: 'Auto', '1': 'Real time', '0.1': '1/10', '0.01': '1/100', '0.001': '1/1000' }, 'look'],
+  ['voice', 'Voice', { sine: 'Sine', triangle: 'Triangle', sawtooth: 'Saw', square: 'Square' }, 'sound'],
+  ['oct', 'Pitch', { auto: 'Auto', '-2': '−2 oct', '-1': '−1 oct', '0': 'True', '1': '+1 oct', '2': '+2 oct', '3': '+3 oct' }, 'sound']
+];
+const TOGGLES = [
+  ['env', 'Swing envelope', 'look'], ['heat', 'Stress glow', 'look'], ['ghosts', 'Each mode’s part', 'look'],
+  ['nodes', 'Mark nodes', 'look'], ['phase', 'Phase curve', 'look']
+];
+const DEFAULTS = Object.fromEntries(PARAMS.map((p) => [p[0], p[5]]));
+Object.assign(DEFAULTS, {
+  material: 'steel', input: 'force', build: 'instant', scale: 'auto', slow: 'auto', voice: 'triangle', oct: 'auto',
+  env: true, heat: true, ghosts: false, nodes: true, phase: false,
+  fr: 6.267, mag: .5
+});
+const BEAM_KEYS = ['length', 'thick', 'width', 'zeta', 'modes', 'material', 'pos', 'input', 'fr', 'mag'];
+const PRESETS = [
+  { id: 'ruler', name: 'Steel ruler', blurb: '20 cm over the desk edge', set: {} },
+  { id: 'fork', name: 'Tuning fork', blurb: 'One tine, rings near A440', set: { length: 96, thick: 5, width: 5, zeta: .0005, fr: 1 } },
+  { id: 'kalimba', name: 'Kalimba tine', blurb: 'Short, stiff, singing', set: { length: 50, thick: 1.2, width: 3, zeta: .002, fr: 1 } },
+  { id: 'board', name: 'Diving board', blurb: 'Oak, 2.4 m, bouncy', set: { material: 'oak', length: 2400, thick: 60, width: 500, zeta: .02, fr: 1, mag: .4 } },
+  { id: 'shaker', name: 'Shaker table', blurb: 'Aluminium bar, clamp shaken', set: { material: 'aluminium', length: 500, thick: 6, width: 25, zeta: .01, input: 'base', fr: 17.55 } },
+  { id: 'rod', name: 'Fishing rod', blurb: 'Long carbon, slow and whippy', set: { material: 'carbon', length: 1500, thick: 8, width: 8, zeta: .015, fr: 2.8 } },
+  { id: 'jelly', name: 'Rubber strip', blurb: 'Floppy and heavily damped', set: { material: 'rubber', length: 150, thick: 6, width: 20, zeta: .08, fr: 1 } },
+  { id: 'afm', name: 'AFM probe', blurb: 'Silicon, 125 µm, 300 kHz', set: { material: 'silicon', length: .125, thick: .004, width: .03, zeta: .0017, fr: 1 } }
+];
+
+let S = { ...DEFAULTS, preset: 'ruler', sound: true };
+try { const saved = JSON.parse(localStorage.getItem(STORE) || 'null'); if (saved) S = { ...S, ...saved }; } catch (e) {}
+let saveTimer = 0;
+function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }, 250); }
+
+/* ---------- mode shapes (unit-length beam, xi = x / L) ---------- */
+const BETA = [1.875104069, 4.694091133, 7.854757438, 10.99554073, 14.13716839, 17.27875953, 20.42035225, 23.5619449];
+const NM = BETA.length, G = 121;
+const PHI = [], CURV = [], JN = [], TIPV = [];
+(function buildModes(){
+  for (let n = 0; n < NM; n++){
+    const b = BETA[n];
+    const den = Math.sinh(b) + Math.sin(b);
+    const sig = (Math.cosh(b) + Math.cos(b)) / den;
+    const oms = (Math.sin(b) - Math.cos(b) - Math.exp(-b)) / den;   // 1 - sigma, without cancellation
+    const ch = (z) => (oms * Math.exp(z) + (1 + sig) * Math.exp(-z)) / 2;  // cosh z - sigma sinh z
+    const p = new Float64Array(G), c = new Float64Array(G);
+    for (let i = 0; i < G; i++){
+      const z = b * i / (G - 1);
+      p[i] = ch(z) - Math.cos(z) + sig * Math.sin(z);
+      c[i] = b * b * (ch(z) + Math.cos(z) - sig * Math.sin(z));
+    }
+    // normalize so the integral of phi^2 over the beam is 1 (Simpson's rule)
+    let s2 = 0, s1 = 0;
+    for (let i = 0; i < G; i++){ const wgt = (i === 0 || i === G - 1) ? 1 : (i % 2 ? 4 : 2); s2 += wgt * p[i] * p[i]; s1 += wgt * p[i]; }
+    s2 /= 3 * (G - 1); s1 /= 3 * (G - 1);
+    const k = 1 / Math.sqrt(s2);
+    for (let i = 0; i < G; i++){ p[i] *= k; c[i] *= k; }
+    PHI.push(p); CURV.push(c); JN.push(s1 * k); TIPV.push(p[G - 1]);
+  }
+})();
+// phi_n at any xi in [0,1], by linear interpolation on the grid
+function phiAt(n, xi){ const f = clamp(xi, 0, 1) * (G - 1), i = Math.min(G - 2, Math.floor(f)), t = f - i; return PHI[n][i] * (1 - t) + PHI[n][i + 1] * t; }
+
+// mode colors: a spectrum from red (mode 1) to violet (mode 8)
+function waveRGB(nm){
+  let r = 0, g = 0, b = 0;
+  if (nm < 440){ r = (440 - nm) / 60; b = 1; } else if (nm < 490){ g = (nm - 440) / 50; b = 1; }
+  else if (nm < 510){ g = 1; b = (510 - nm) / 20; } else if (nm < 580){ r = (nm - 510) / 70; g = 1; }
+  else if (nm < 645){ r = 1; g = (645 - nm) / 65; } else r = 1;
+  return [r, g, b].map((v) => Math.round(255 * Math.pow(v, .8)));
+}
+const MODE_RGB = BETA.map((_, n) => { const c = waveRGB(655 - n * 31); return [Math.max(c[0], 60), Math.max(c[1], 60), Math.max(c[2], 60)]; });
+const modeCol = (n, a) => 'rgba(' + MODE_RGB[n].join(',') + ',' + a + ')';
+
+/* ---------- the model for the current settings ---------- */
+const M = {};
+function rebuild(){
+  const mat = MATERIALS[S.material] || MATERIALS.steel;
+  const L = S.length / 1000, h = S.thick / 1000, b = S.width / 1000;
+  M.L = L; M.EI = mat.E * b * h * h * h / 12; M.m = mat.rho * b * h;
+  M.N = clamp(S.modes | 0, 1, NM);
+  const c = Math.sqrt(M.EI / (M.m * L * L * L * L));
+  M.w = BETA.map((bb) => bb * bb * c);
+  M.f = M.w.map((w) => w / TAU);
+  M.z = S.zeta;
+  M.wd = M.w.map((w) => w * Math.sqrt(Math.max(1e-6, 1 - M.z * M.z)));
+  // full scale: the force (or clamp acceleration) that would bend the tip 2% of the length if held still
+  M.ref = .02 * L;
+  M.Fmax = 3 * M.EI * M.ref / (L * L * L);
+  M.Amax = M.ref * 8 * M.EI / (M.m * L * L * L * L);
+  M.frMax = Math.pow(BETA[M.N - 1] / BETA[0], 2) * 1.7;
+  M.frMin = .2;
+  S.fr = clamp(S.fr, M.frMin, M.frMax);
+  computeFRF();
+  computeDrive(false);
+}
+// modal forcing per unit of drive, for the current input type and push point
+function forcing(out){
+  for (let n = 0; n < NM; n++){
+    out[n] = S.input === 'base' ? -M.Amax * JN[n] : phiAt(n, S.pos) * M.Fmax / (M.m * M.L);
+  }
+  return out;
+}
+const GN = new Float64Array(NM);
+// complex tip response per unit drive at angular frequency w (relative to the clamp, plus the clamp itself)
+function tipResponse(w){
+  forcing(GN);
+  let re = 0, im = 0;
+  for (let n = 0; n < M.N; n++){
+    const a = M.w[n] * M.w[n] - w * w, bb = 2 * M.z * M.w[n] * w, d = a * a + bb * bb;
+    const g = GN[n] * TIPV[n];
+    re += g * a / d; im -= g * bb / d;
+  }
+  if (S.input === 'base') re -= M.Amax / (w * w);
+  return [re, im];
+}
+const FRF = { n: 320, x: new Float64Array(320), amp: new Float64Array(320), ph: new Float64Array(320), top: 1, bot: 1e-4 };
+function computeFRF(){
+  const lo = Math.log(M.frMin), hi = Math.log(M.frMax);
+  let mx = 0;
+  for (let i = 0; i < FRF.n; i++){
+    const fr = Math.exp(lo + (hi - lo) * i / (FRF.n - 1));
+    const [re, im] = tipResponse(fr * M.w[0]);
+    FRF.x[i] = fr; FRF.amp[i] = Math.hypot(re, im); FRF.ph[i] = ((-Math.atan2(im, re)) % TAU + TAU) % TAU; // lag behind the input, 0..2pi
+    mx = Math.max(mx, FRF.amp[i]);
+  }
+  FRF.top = mx * 2.2; FRF.bot = FRF.top / 3e4;
+  trail.length = 0;
+}
+
+/* ---------- live state ---------- */
+const U = { re: new Float64Array(NM), im: new Float64Array(NM) };   // steady complex modal amplitudes
+const TR = { x: new Float64Array(NM), v: new Float64Array(NM) };    // free ring-down part
+let theta = 0, omega = 1, simT = 0, base = { re: 0 };
+function steadyAt(n, th){
+  const c = Math.cos(th), s = Math.sin(th);
+  return [U.re[n] * c - U.im[n] * s, -omega * (U.re[n] * s + U.im[n] * c)];
+}
+// recompute the steady response; with build = 'ring', the jump goes into the ring-down so it rings in
+function computeDrive(ring){
+  const old = [];
+  if (ring) for (let n = 0; n < NM; n++) old.push(steadyAt(n, theta));
+  omega = S.fr * M.w[0];
+  forcing(GN);
+  const amp = S.mag;
+  for (let n = 0; n < NM; n++){
+    if (n >= M.N){ U.re[n] = U.im[n] = 0; continue; }
+    const a = M.w[n] * M.w[n] - omega * omega, bb = 2 * M.z * M.w[n] * omega, d = a * a + bb * bb;
+    U.re[n] = GN[n] * amp * a / d; U.im[n] = -GN[n] * amp * bb / d;
+  }
+  base.re = S.input === 'base' ? -M.Amax * amp / (omega * omega) : 0;
+  if (ring) for (let n = 0; n < NM; n++){ const s = steadyAt(n, theta); TR.x[n] += old[n][0] - s[0]; TR.v[n] += old[n][1] - s[1]; }
+}
+function resetRing(){ TR.x.fill(0); TR.v.fill(0); }
+// exact free decay of each mode over dt
+function ringStep(dt){
+  for (let n = 0; n < M.N; n++){
+    const w = M.w[n], wd = M.wd[n], zw = M.z * w;
+    const x0 = TR.x[n], v0 = TR.v[n];
+    if (x0 === 0 && v0 === 0) continue;
+    const e = Math.exp(-zw * dt), c = Math.cos(wd * dt), s = Math.sin(wd * dt);
+    const B = (v0 + zw * x0) / wd;
+    TR.x[n] = e * (x0 * c + B * s);
+    TR.v[n] = e * ((-zw) * (x0 * c + B * s) + (-x0 * wd * s + B * wd * c));
+    if (Math.abs(TR.x[n]) < 1e-14 * M.L && Math.abs(TR.v[n]) < 1e-14 * M.L * w){ TR.x[n] = 0; TR.v[n] = 0; }
+  }
+  for (let n = M.N; n < NM; n++){ TR.x[n] = 0; TR.v[n] = 0; }
+}
+const UN = new Float64Array(NM), VN = new Float64Array(NM);
+function totals(){
+  for (let n = 0; n < NM; n++){
+    const [x, v] = steadyAt(n, theta);
+    UN[n] = n < M.N ? x + TR.x[n] : 0; VN[n] = n < M.N ? v + TR.v[n] : 0;
+  }
+}
+const baseNow = () => base.re * Math.cos(theta);
+
+/* ---------- pluck, tap, snap ---------- */
+let drag = null;
+// shape of a beam held still by one push at a (normalized so the push point moves 1), projected on each mode
+function heldShape(a){
+  const s = new Float64Array(NM);
+  for (let n = 0; n < NM; n++){
+    let acc = 0;
+    for (let i = 0; i < G; i++){
+      const x = i / (G - 1);
+      const w = x <= a ? x * x * (3 * a - x) / (2 * a * a * a) : (3 * x - a) / (2 * a);
+      const wgt = (i === 0 || i === G - 1) ? 1 : (i % 2 ? 4 : 2);
+      acc += wgt * w * PHI[n][i];
+    }
+    s[n] = acc / (3 * (G - 1));
+  }
+  return s;
+}
+function holdAt(shape, wTarget){
+  for (let n = 0; n < M.N; n++){
+    const [x] = steadyAt(n, theta);
+    TR.x[n] = shape[n] * wTarget - x;
+    TR.v[n] = -steadyAt(n, theta)[1];
+  }
+}
+// a quick hammer tap at xi: enough to swing the drawing most of the way to its edge
+function tap(xi, dir){
+  xi = clamp(xi, .05, 1);
+  const target = view.Ymax * .75 / (view.pxPerM * view.exag);
+  let g = 0; for (let n = 0; n < M.N; n++) g += TIPV[n] * phiAt(n, xi) / M.w[n];
+  g = Math.abs(g) || 1;
+  const k = target / g * (dir || 1);
+  for (let n = 0; n < M.N; n++) TR.v[n] += phiAt(n, xi) * k;
+  wakeAudio();
+}
+function snapToMode(n){
+  stopSweep();
+  setFr(Math.pow(BETA[n] / BETA[0], 2) * Math.sqrt(Math.max(.01, 1 - 2 * M.z * M.z)));
+}
+
+/* ---------- sweep ---------- */
+let sweep = null;
+const trail = [];
+function startSweep(){
+  sweep = { dir: 1 };
+  trail.length = 0;
+  if (S.build !== 'ring') resetRing();
+  if (S.fr > M.frMax * .9) S.fr = M.frMin;
+  $('#btnSweep').setAttribute('aria-pressed', 'true');
+  wakeAudio();
+}
+function stopSweep(){ sweep = null; $('#btnSweep').setAttribute('aria-pressed', 'false'); }
+function sweepStep(dt){
+  const span = Math.log(M.frMax / M.frMin);
+  let l = Math.log(S.fr) + sweep.dir * span * dt / S.sweepTime;
+  if (l > Math.log(M.frMax)){ l = Math.log(M.frMax); sweep.dir = -1; }
+  if (l < Math.log(M.frMin)){ l = Math.log(M.frMin); sweep.dir = 1; }
+  S.fr = Math.exp(l);
+  computeDrive(S.build === 'ring');
+}
+
+/* ---------- layout ---------- */
+let W = 0, H = 0, DPR = 1;
+const view = { beam: null, frf: null, cards: null, x0: 0, y0: 0, Lpx: 1, pxPerM: 1, Ymax: 1, exag: 20, exagTarget: 20 };
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  layout();
+}
+function layout(){
+  const hidden = document.body.classList.contains('ui-hidden');
+  const top = hidden ? 16 : 70;
+  const bottom = hidden ? H - 16 : Math.min(H - 16, $('#drive').getBoundingClientRect().top - 8);
+  const left = 12, right = W - 12;
+  const avail = Math.max(200, bottom - top);
+  const wide = W > H * 1.15 && W > 640;
+  if (wide){
+    const split = left + (right - left) * .6;
+    view.beam = { x: left, y: top, w: split - left - 8, h: avail };
+    const fh = avail * .58;
+    view.frf = { x: split + 8, y: top, w: right - split - 8, h: fh };
+    view.cards = { x: split + 8, y: top + fh + 10, w: right - split - 8, h: avail - fh - 10 };
+  } else {
+    const bh = avail * .5, fh = avail * .29;
+    view.beam = { x: left, y: top, w: right - left, h: bh };
+    view.frf = { x: left, y: top + bh + 6, w: right - left, h: fh - 6 };
+    view.cards = { x: left, y: top + bh + fh + 8, w: right - left, h: avail - bh - fh - 8 };
+  }
+  const B = view.beam;
+  const clampW = Math.max(26, Math.min(48, B.w * .06));
+  view.clampW = clampW;
+  view.x0 = B.x + clampW + 10;
+  view.Lpx = B.w - clampW - 30;
+  view.y0 = B.y + B.h * .54;
+  view.Ymax = B.h * .4;
+}
+
+/* ---------- drawing helpers ---------- */
+const disp = (y) => view.Ymax * Math.tanh(y / view.Ymax);           // soft limit so huge swings stay on screen
+const undisp = (yd) => view.Ymax * Math.atanh(clamp(yd / view.Ymax, -.985, .985));
+function heatRGB(t){
+  t = clamp(t, 0, 1);
+  const st = [[0, [70, 92, 130]], [.35, [120, 110, 210]], [.6, [255, 80, 60]], [.82, [255, 170, 40]], [1, [255, 248, 200]]];
+  for (let i = 1; i < st.length; i++){
+    if (t <= st[i][0]){
+      const [a, ca] = st[i - 1], [b, cb] = st[i], f = (t - a) / (b - a);
+      return [0, 1, 2].map((k) => Math.round(ca[k] + (cb[k] - ca[k]) * f));
+    }
+  }
+  return st[st.length - 1][1];
+}
+function rrect(x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+const WY = new Float64Array(G), ENV = new Float64Array(G), KAP = new Float64Array(G);
+let heatNorm = 1, meas = 0, envMaxNow = 0, lastBars = new Float64Array(NM);
+
+function frame(now){
+  const dt = Math.min(.05, frame.last ? (now - frame.last) / 1000 : 1 / 60);
+  frame.last = now;
+
+  if (sweep) sweepStep(dt);
+  // slow motion: Auto shows the drive at about one swing a second
+  const fDrive = omega / TAU;
+  const slow = S.slow === 'auto' ? Math.min(1, 1 / Math.max(fDrive, .5)) : +S.slow;
+  const dtS = dt * slow;
+  theta = (theta + omega * dtS) % (TAU * 1e6);
+  simT += dtS;
+  ringStep(dtS);
+  if (drag) holdAt(drag.shape, drag.w);
+  totals();
+
+  // deflection along the beam (absolute, so a shaken clamp moves everything)
+  const yb = baseNow();
+  for (let i = 0; i < G; i++){
+    let w = yb, k = 0;
+    for (let n = 0; n < M.N; n++){ w += PHI[n][i] * UN[n]; k += CURV[n][i] * UN[n]; }
+    WY[i] = w; KAP[i] = Math.abs(k);
+  }
+  // steady swing envelope along the beam
+  envMaxNow = 0;
+  for (let i = 0; i < G; i++){
+    let re = base.re, im = 0;
+    for (let n = 0; n < M.N; n++){ re += PHI[n][i] * U.re[n]; im += PHI[n][i] * U.im[n]; }
+    ENV[i] = Math.hypot(re, im); envMaxNow = Math.max(envMaxNow, ENV[i]);
+  }
+  // drawing scale
+  view.pxPerM = view.Lpx / M.L;
+  if (S.scale === 'auto'){
+    // fit the swing of a full-magnitude drive, looking at nearby peaks so a resonance still looks big
+    const lo = S.fr / 2.5, hi = S.fr * 2.5;
+    let mx = 0;
+    for (let i = 0; i < FRF.n; i++) if (FRF.x[i] >= lo && FRF.x[i] <= hi) mx = Math.max(mx, FRF.amp[i]);
+    mx = Math.max(mx, S.mag > .02 ? envMaxNow / S.mag : 0, M.ref * .02);
+    view.exagTarget = view.Ymax * .8 / (mx * view.pxPerM);
+    view.exag += (view.exagTarget - view.exag) * (1 - Math.exp(-dt / .35));
+    if (!isFinite(view.exag) || view.exag <= 0) view.exag = view.exagTarget;
+  } else view.exag = S.exag;
+  view.pxPerM = view.Lpx / M.L;
+  const sc = view.pxPerM * view.exag;
+
+  // measured tip swing (a peak hold that fades over a couple of drive cycles)
+  const tipAbs = Math.abs(WY[G - 1]);
+  meas = Math.max(tipAbs, meas * Math.exp(-Math.max(dtS * Math.max(fDrive, .2) / 1.5, dt * 5)));
+  if (sweep && S.mag > .01){ trail.push([S.fr, meas]); if (trail.length > 1400) trail.shift(); }
+
+  let kmax = 0; for (let i = 0; i < G; i++) kmax = Math.max(kmax, KAP[i]);
+  heatNorm = Math.max(kmax, heatNorm * Math.exp(-dt / 1.2), 1e-12);
+
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawBackground();
+  drawBeam(sc, yb);
+  drawFRF();
+  drawCards(now / 1000);
+  drawReadout();
+  audioFrame(dt);
+  if (sliderDirty){ syncDriveBar(); sliderDirty = false; }
+  if (sweep && (frame.n = (frame.n || 0) + 1) % 4 === 0) syncDriveBar();
+  requestAnimationFrame(frame);
+}
+
+function drawBackground(){
+  ctx.fillStyle = '#07090e'; ctx.fillRect(0, 0, W, H);
+  const B = view.beam;
+  // faint blueprint grid behind the beam only
+  ctx.save();
+  rrect(B.x, B.y, B.w, B.h, 16); ctx.clip();
+  const g = ctx.createRadialGradient(B.x + B.w * .45, view.y0, 10, B.x + B.w * .45, view.y0, Math.max(B.w, B.h) * .75);
+  g.addColorStop(0, '#111827'); g.addColorStop(1, '#07090e');
+  ctx.fillStyle = g; ctx.fillRect(B.x, B.y, B.w, B.h);
+  ctx.strokeStyle = 'rgba(120,150,210,.06)'; ctx.lineWidth = 1;
+  const step = Math.max(24, Math.round(B.w / 24));
+  ctx.beginPath();
+  for (let x = view.x0; x < B.x + B.w; x += step){ ctx.moveTo(x + .5, B.y); ctx.lineTo(x + .5, B.y + B.h); }
+  for (let y = view.y0 % step; y < B.y + B.h; y += step){ if (y > B.y){ ctx.moveTo(B.x, y + .5); ctx.lineTo(B.x + B.w, y + .5); } }
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(160,180,230,.13)'; ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(view.x0, view.y0 + .5); ctx.lineTo(view.x0 + view.Lpx, view.y0 + .5); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawBeam(sc, yb){
+  const { x0, y0, Lpx } = view, B = view.beam;
+  const px = (i) => x0 + Lpx * i / (G - 1);
+  const yAt = (w) => y0 - disp(w * sc);
+  ctx.save();
+  rrect(B.x, B.y, B.w, B.h, 16); ctx.clip();
+
+  // envelope of the steady swing
+  if (S.env && S.mag > 0 && envMaxNow > 0){
+    ctx.beginPath();
+    for (let i = 0; i < G; i++) ctx.lineTo(px(i), y0 - disp(ENV[i] * sc));
+    for (let i = G - 1; i >= 0; i--) ctx.lineTo(px(i), y0 + disp(ENV[i] * sc));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,210,63,.07)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,210,63,.22)'; ctx.lineWidth = 1; ctx.stroke();
+    if (S.nodes){
+      ctx.fillStyle = 'rgba(255,230,150,.85)'; ctx.font = '600 10px ' + monoFont; ctx.textAlign = 'center';
+      for (let i = 3; i < G - 1; i++){
+        if (ENV[i] < ENV[i - 1] && ENV[i] <= ENV[i + 1] && ENV[i] < envMaxNow * .12){
+          ctx.beginPath(); ctx.arc(px(i), y0, 4, 0, TAU); ctx.strokeStyle = 'rgba(255,230,150,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+          ctx.fillText('node', px(i), y0 + 17);
+        }
+      }
+    }
+  }
+
+  // each mode's part, as faint colored curves
+  if (S.ghosts){
+    ctx.lineWidth = 1.5;
+    for (let n = 0; n < M.N; n++){
+      if (Math.abs(UN[n]) * 2 * sc < .6 && Math.hypot(U.re[n], U.im[n]) * 2 * sc < .6) continue;   // skip modes doing nothing
+      ctx.beginPath();
+      for (let i = 0; i < G; i++) ctx.lineTo(px(i), y0 - disp((yb + PHI[n][i] * UN[n]) * sc));
+      ctx.strokeStyle = modeCol(n, .55); ctx.stroke();
+    }
+  }
+
+  // the beam itself: glow, then a hot core colored by bending stress
+  const thick = clamp(B.h * .035, 5, 12);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); for (let i = 0; i < G; i++) ctx.lineTo(px(i), yAt(WY[i]));
+  ctx.strokeStyle = 'rgba(150,180,255,.08)'; ctx.lineWidth = thick * 4.5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(150,180,255,.12)'; ctx.lineWidth = thick * 2.2; ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.lineCap = 'butt';
+  for (let i = 0; i < G - 1; i++){
+    const t = S.heat ? KAP[i] / heatNorm : .15;
+    const c = heatRGB(S.heat ? t : .1);
+    ctx.beginPath(); ctx.moveTo(px(i), yAt(WY[i])); ctx.lineTo(px(i + 1) + .6, yAt(WY[i + 1]));
+    ctx.strokeStyle = 'rgb(' + c.join(',') + ')'; ctx.lineWidth = thick; ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.beginPath(); for (let i = 0; i < G; i++) ctx.lineTo(px(i), yAt(WY[i]) - thick * .18);
+  ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = Math.max(1, thick * .22); ctx.lineCap = 'round'; ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+
+  // the input: an arrow pushing the beam, or the clamp shaking
+  const Fnow = S.mag * Math.cos(theta);
+  if (S.input === 'force' && S.mag > 0){
+    const i = Math.round(S.pos * (G - 1)), ax = px(i), ay = yAt(WY[i]);
+    const la = Math.abs(Fnow) * Math.min(70, B.h * .2), up = Fnow >= 0;
+    // push up from below, or down from above; the head touches the beam
+    const off = thick * .5 + 3, hy = up ? ay + off : ay - off, ty = up ? hy + la + 8 : hy - la - 8, d = up ? 1 : -1;
+    ctx.strokeStyle = '#ffd23f'; ctx.fillStyle = '#ffd23f'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(255,210,63,.7)'; ctx.shadowBlur = 10;
+    if (la > 1){
+      ctx.beginPath(); ctx.moveTo(ax, ty); ctx.lineTo(ax, hy + d * 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ax, hy); ctx.lineTo(ax - 6, hy + d * 9); ctx.lineTo(ax + 6, hy + d * 9); ctx.closePath(); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+  // clamp block with hazard stripes
+  const cw = view.clampW, chh = B.h * .62, cx = x0 - cw - 2, cy = y0 - chh / 2 - disp(yb * sc);
+  ctx.save();
+  rrect(cx, cy, cw, chh, 6); ctx.clip();
+  ctx.fillStyle = '#1b2030'; ctx.fillRect(cx, cy, cw, chh);
+  ctx.strokeStyle = 'rgba(255,210,63,.55)'; ctx.lineWidth = 5;
+  ctx.beginPath(); for (let k = -chh; k < chh + cw; k += 14){ ctx.moveTo(cx, cy + k); ctx.lineTo(cx + cw, cy + k - cw); } ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = '#2c3346'; ctx.fillRect(x0 - 4, y0 - disp(yb * sc) - thick * 1.4, 6, thick * 2.8);
+  if (S.input === 'base' && S.mag > 0){
+    ctx.strokeStyle = 'rgba(255,210,63,.8)'; ctx.lineWidth = 2;
+    const ay = cy + chh + 10, l = 8 + 10 * Math.abs(Math.cos(theta));
+    ctx.beginPath(); ctx.moveTo(cx + cw / 2, ay); ctx.lineTo(cx + cw / 2, ay + l); ctx.moveTo(cx + cw / 2 - 5, ay + 5); ctx.lineTo(cx + cw / 2, ay); ctx.lineTo(cx + cw / 2 + 5, ay + 5); ctx.stroke();
+  }
+  // scale bar: how many real millimetres a chunk of the drawing is
+  ctx.font = '500 10px ' + monoFont; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(200,210,235,.55)';
+  const realPerPx = 1 / sc;
+  const target = 40 * realPerPx, p10 = Math.pow(10, Math.floor(Math.log10(target)));
+  const nice = [1, 2, 5, 10].map((k) => k * p10).find((v) => v >= target * .7) || p10;
+  const barPx = nice * sc;
+  const bx = B.x + B.w - barPx - 14, by = B.y + B.h - 14;
+  ctx.fillRect(bx, by, 1, -6); ctx.fillRect(bx + barPx, by, 1, -6); ctx.fillRect(bx, by - 3, barPx, 1);
+  ctx.textAlign = 'right';
+  ctx.fillText('swing ' + fmtLen(nice * 1000) + '  ·  drawn ×' + (+view.exag.toPrecision(2)), bx - 8, by);
+  ctx.restore();
+}
+
+const monoFont = '"JetBrains Mono", ui-monospace, Menlo, monospace';
+function frX(fr){ const R = view.frf; return R.x + 34 + (R.w - 44) * Math.log(fr / M.frMin) / Math.log(M.frMax / M.frMin); }
+function xFr(x){ const R = view.frf; return M.frMin * Math.pow(M.frMax / M.frMin, clamp((x - R.x - 34) / (R.w - 44), 0, 1)); }
+function ampY(a){ const R = view.frf; const t = Math.log(Math.max(a, FRF.bot) / FRF.bot) / Math.log(FRF.top / FRF.bot); return R.y + R.h - 18 - (R.h - 30) * clamp(t, 0, 1); }
+
+function drawFRF(){
+  const R = view.frf; if (R.h < 40) return;
+  ctx.save();
+  rrect(R.x, R.y, R.w, R.h, 14); ctx.fillStyle = 'rgba(255,255,255,.025)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(220,230,255,.07)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.clip();
+  const f1 = M.f[0];
+  // grid: decades of amplitude, nice frequencies
+  ctx.font = '500 9.5px ' + monoFont; ctx.fillStyle = 'rgba(180,190,215,.45)'; ctx.strokeStyle = 'rgba(180,190,215,.07)';
+  ctx.textAlign = 'left';
+  for (let e = Math.ceil(Math.log10(FRF.bot)); e <= Math.floor(Math.log10(FRF.top)); e++){
+    const y = ampY(Math.pow(10, e));
+    if (y < R.y + 10 || y > R.y + R.h - 14) continue;
+    ctx.beginPath(); ctx.moveTo(R.x + 34, y + .5); ctx.lineTo(R.x + R.w - 6, y + .5); ctx.stroke();
+    ctx.fillText(fmtLen(Math.pow(10, e) * 1000).replace(' ', ''), R.x + 4, y + 3);
+  }
+  ctx.textAlign = 'center';
+  const fLo = M.frMin * f1, fHi = M.frMax * f1;
+  let lastX = -99;
+  for (let e = Math.floor(Math.log10(fLo)); e <= Math.ceil(Math.log10(fHi)); e++){
+    for (const k of [1, 2, 5]){
+      const f = k * Math.pow(10, e); if (f < fLo || f > fHi) continue;
+      const x = frX(f / f1);
+      ctx.beginPath(); ctx.moveTo(x + .5, R.y + 6); ctx.lineTo(x + .5, R.y + R.h - 16); ctx.stroke();
+      if (x - lastX > 38){ ctx.fillText(axisHz(f), x, R.y + R.h - 5); lastX = x; }
+    }
+  }
+  // phase curve (lag behind the input, 0 to 360 degrees), faint
+  if (S.phase){
+    ctx.beginPath();
+    for (let i = 0; i < FRF.n; i++){
+      const p = FRF.ph[i];
+      ctx.lineTo(frX(FRF.x[i]), R.y + 8 + (R.h - 26) * p / TAU);
+    }
+    ctx.strokeStyle = 'rgba(140,220,255,.35)'; ctx.setLineDash([3, 4]); ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]);
+  }
+  // the response curve for the current magnitude
+  const mag = Math.max(S.mag, 1e-6);
+  ctx.beginPath();
+  for (let i = 0; i < FRF.n; i++) ctx.lineTo(frX(FRF.x[i]), ampY(FRF.amp[i] * mag));
+  const grad = ctx.createLinearGradient(frX(M.frMin), 0, frX(M.frMax), 0);
+  for (let n = 0; n < M.N; n++) grad.addColorStop(clamp((frX(Math.pow(BETA[n] / BETA[0], 2)) - R.x) / R.w, 0, 1), modeCol(n, 1));
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = grad; ctx.lineWidth = 5; ctx.globalAlpha = .18; ctx.stroke();
+  ctx.globalAlpha = 1; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+  // peaks
+  ctx.font = '700 10px ' + monoFont;
+  for (let n = 0; n < M.N; n++){
+    const fr = Math.pow(BETA[n] / BETA[0], 2);
+    const [re, im] = tipResponse(fr * M.w[0]);
+    const x = frX(fr), y = ampY(Math.hypot(re, im) * mag);
+    ctx.fillStyle = modeCol(n, 1);
+    ctx.fillText(String(n + 1), x, Math.max(R.y + 11, y - 7));
+  }
+  // what the beam is really doing (from the motion, not the formula)
+  if (trail.length){
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    for (const [fr, a] of trail){ ctx.fillRect(frX(fr) - .8, ampY(a) - .8, 1.6, 1.6); }
+  }
+  // the drive cursor
+  const cx = frX(S.fr);
+  ctx.strokeStyle = 'rgba(255,210,63,.75)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx, R.y + 4); ctx.lineTo(cx, R.y + R.h - 16); ctx.stroke();
+  const [re, im] = tipResponse(omega);
+  const cy = ampY(Math.hypot(re, im) * mag);
+  ctx.shadowColor = 'rgba(255,210,63,.9)'; ctx.shadowBlur = 12;
+  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, TAU); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(cx, ampY(meas), 6, 0, TAU); ctx.stroke();
+  ctx.fillStyle = 'rgba(180,190,215,.6)'; ctx.font = '600 9.5px ' + monoFont; ctx.textAlign = 'right';
+  ctx.fillText(S.input === 'base' ? 'TIP SWING (ABSOLUTE)' : 'TIP SWING', R.x + R.w - 8, R.y + 13);
+  ctx.restore();
+}
+
+function modeParts(out){
+  let sum = 0;
+  for (let n = 0; n < NM; n++){
+    if (n >= M.N){ out[n] = 0; continue; }
+    const ss = Math.hypot(U.re[n], U.im[n]) * Math.abs(TIPV[n]);
+    const tr = Math.hypot(TR.x[n], TR.v[n] / M.wd[n]) * Math.abs(TIPV[n]);
+    out[n] = ss + tr; sum += out[n];
+  }
+  return sum;
+}
+const PARTS = new Float64Array(NM);
+let cardRects = [];
+function drawCards(t){
+  const R = view.cards; cardRects = [];
+  if (R.h < 44) return;
+  const N = M.N;
+  const rows = (R.w / N < 70 && N > 4) ? 2 : 1, cols = Math.ceil(N / rows);
+  const gap = 6, cw = (R.w - gap * (cols - 1)) / cols, ch = (R.h - gap * (rows - 1)) / rows;
+  const sum = modeParts(PARTS) || 1;
+  let dom = 0; for (let n = 1; n < N; n++) if (PARTS[n] > PARTS[dom]) dom = n;
+  for (let n = 0; n < N; n++){
+    const r = Math.floor(n / cols), c = n % cols;
+    const x = R.x + c * (cw + gap), y = R.y + r * (ch + gap);
+    cardRects.push([x, y, cw, ch, n]);
+    const share = PARTS[n] / sum;
+    lastBars[n] += (share - lastBars[n]) * .2;
+    rrect(x, y, cw, ch, 12);
+    ctx.fillStyle = n === dom && sum > 1e-15 ? modeCol(n, .1) : 'rgba(255,255,255,.03)'; ctx.fill();
+    ctx.strokeStyle = n === dom && sum > 1e-15 ? modeCol(n, .55) : 'rgba(220,230,255,.07)'; ctx.lineWidth = 1; ctx.stroke();
+    // little animated mode shape
+    const px0 = x + 8, pw = cw - 16, py = y + ch * .42, amp = Math.min(ch * .2, 18);
+    const s = Math.cos(t * TAU * (.55 + n * .12));
+    ctx.beginPath();
+    for (let i = 0; i < G; i += 3){ const v = PHI[n][i] / Math.abs(TIPV[n]); ctx.lineTo(px0 + pw * i / (G - 1), py - v * amp * s); }
+    ctx.strokeStyle = modeCol(n, .9); ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.fillStyle = 'rgba(200,210,235,.25)'; ctx.fillRect(x + 6, py - amp - 2, 2, amp * 2 + 4);
+    // labels
+    ctx.textAlign = 'left'; ctx.fillStyle = modeCol(n, 1); ctx.font = '800 ' + Math.min(15, ch * .2) + 'px "Big Shoulders Display", sans-serif';
+    ctx.fillText(String(n + 1), x + 8, y + Math.min(17, ch * .24));
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(225,230,245,.8)'; ctx.font = '500 ' + (cw < 64 ? 8.5 : 9.5) + 'px ' + monoFont;
+    ctx.fillText(fmtHz(M.f[n]).replace(' ', cw < 64 ? '' : ' '), x + cw - 6, y + Math.min(16, ch * .23));
+    // participation bar
+    const bw = cw - 16, by = y + ch - 12;
+    ctx.fillStyle = 'rgba(255,255,255,.07)'; rrect(x + 8, by, bw, 5, 2.5); ctx.fill();
+    ctx.fillStyle = modeCol(n, .95); rrect(x + 8, by, Math.max(0, bw * clamp(lastBars[n], 0, 1)), 5, 2.5); ctx.fill();
+    if (ch > 64){ ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(200,210,235,.55)'; ctx.font = '500 9px ' + monoFont; ctx.fillText(Math.round(lastBars[n] * 100) + '%', x + 8, by - 4); }
+  }
+}
+
+function drawReadout(){
+  const B = view.beam;
+  const [re, im] = tipResponse(omega);
+  const sum = modeParts(PARTS) || 1;
+  let dom = 0; for (let n = 1; n < M.N; n++) if (PARTS[n] > PARTS[dom]) dom = n;
+  let lag = (-Math.atan2(im, re)) * 180 / Math.PI; lag = ((lag % 360) + 360) % 360;
+  const input = S.input === 'base'
+    ? fmtSI(M.Amax * S.mag, 'm/s²') + ' (' + +(M.Amax * S.mag / 9.81).toPrecision(2) + ' g)'
+    : fmtSI(M.Fmax * S.mag, 'N') + (S.pos >= 1 ? ' at tip' : ' at ' + Math.round(S.pos * 100) + '%');
+  const fDrive = omega / TAU;
+  const slow = S.slow === 'auto' ? Math.min(1, 1 / Math.max(fDrive, .5)) : +S.slow;
+  const lines = [
+    fmtHz(fDrive) + ' · ' + input,
+    'tip ±' + fmtLen(Math.hypot(re, im) * S.mag * 1000) + ' · lag ' + Math.round(lag) + '°',
+    sum > 1e-15 && S.mag + Math.abs(TR.v[0]) > 0 ? 'mostly mode ' + (dom + 1) + ' · ' + Math.round(PARTS[dom] / sum * 100) + '%' : 'at rest',
+    slow >= 1 ? 'real time' : 'slow motion 1/' + +(1 / slow).toPrecision(2)
+  ];
+  if (M.L * view.exag > 0 && meas > M.L * .15) lines.push('past small-bend theory!');
+  ctx.font = '500 ' + (W < 420 ? 10.5 : 11.5) + 'px ' + monoFont; ctx.textAlign = 'left';
+  let y = B.y + 18;
+  for (const [i, l] of lines.entries()){
+    ctx.fillStyle = i === 0 ? 'rgba(255,225,130,.95)' : i === 4 ? 'rgba(255,120,90,.95)' : 'rgba(210,218,238,.75)';
+    ctx.fillText(l, B.x + 12, y); y += 15;
+  }
+}
+
+/* ---------- touch ---------- */
+const pointers = new Map();
+function hit(r, x, y){ return r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
+canvas.addEventListener('pointerdown', (e) => {
+  wakeAudio(); dismissHint();
+  const x = e.clientX, y = e.clientY;
+  if (hit(view.frf, x, y)){
+    pointers.set(e.pointerId, { kind: 'frf' }); canvas.setPointerCapture(e.pointerId);
+    stopSweep(); setFr(xFr(x)); return;
+  }
+  for (const [cx, cy, cw, ch, n] of cardRects){
+    if (x >= cx && x <= cx + cw && y >= cy && y <= cy + ch){ snapToMode(n); pulseCard = n; return; }
+  }
+  if (hit(view.beam, x, y) && !drag){
+    const xi = clamp((x - view.x0) / view.Lpx, .06, 1);
+    if (x < view.x0 - 4) return;
+    const sc = view.pxPerM * view.exag;
+    const i = Math.round(xi * (G - 1));
+    const beamY = view.y0 - disp(WY[i] * sc);
+    if (Math.abs(y - beamY) > Math.max(60, view.beam.h * .25)) return;
+    drag = { id: e.pointerId, xi, shape: heldShape(xi), w: WY[i] - baseNow(), x0: x, y0: y, moved: 0, t: performance.now() };
+    // the held shape is measured at the touch point, so scale the target to that point
+    drag.w = (undisp(view.y0 - y) / sc - baseNow());
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { kind: 'beam' });
+  }
+});
+canvas.addEventListener('pointermove', (e) => {
+  const p = pointers.get(e.pointerId); if (!p) return;
+  if (p.kind === 'frf'){ setFr(xFr(e.clientX)); return; }
+  if (p.kind === 'beam' && drag && drag.id === e.pointerId){
+    const sc = view.pxPerM * view.exag;
+    drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0));
+    drag.w = undisp(view.y0 - e.clientY) / sc - baseNow();
+  }
+});
+function endPointer(e){
+  const p = pointers.get(e.pointerId); if (!p) return;
+  pointers.delete(e.pointerId);
+  if (p.kind === 'beam' && drag && drag.id === e.pointerId){
+    const quick = drag.moved < 8 && performance.now() - drag.t < 350, xi = drag.xi;
+    drag = null;
+    if (quick) tap(xi, 1);
+  }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+let pulseCard = -1;
+
+/* ---------- drive bar ---------- */
+const frInput = $('#d-fr'), magInput = $('#d-mag');
+let sliderDirty = true;
+function frToSlider(fr){ return Math.round(1000 * Math.log(fr / M.frMin) / Math.log(M.frMax / M.frMin)); }
+function setFr(fr){
+  S.fr = clamp(fr, M.frMin, M.frMax); save();
+  if (S.build !== 'ring' && !drag) resetRing();
+  computeDrive(S.build === 'ring'); sliderDirty = true;
+}
+frInput.addEventListener('input', () => { stopSweep(); setFr(M.frMin * Math.pow(M.frMax / M.frMin, +frInput.value / 1000)); dismissHint(); wakeAudio(); });
+magInput.addEventListener('input', () => { S.mag = +magInput.value; save(); computeDrive(S.build === 'ring'); sliderDirty = true; wakeAudio(); });
+function syncDriveBar(){
+  frInput.value = frToSlider(S.fr);
+  $('#o-fr').textContent = fmtHz(S.fr * M.f[0]);
+  magInput.value = S.mag;
+  $('#o-mag').textContent = S.input === 'base' ? fmtSI(M.Amax * S.mag, 'm/s²') : fmtSI(M.Fmax * S.mag, 'N');
+}
+
+/* ---------- sound ----------
+   A real beam under a steady sine only moves at the drive frequency, so one voice follows the drive
+   (loud when the tip swings a lot). Plucks and taps ring each mode at its own natural frequency, so
+   each mode also has a voice that follows its ring-down. Pitch Auto moves everything by whole
+   octaves so the first mode lands between 55 and 110 Hz; True keeps real pitches. */
+let AC = null, master = null, filt = null, verbSend = null, voices = [];
+const RING_A = new Float64Array(NM), RING_PREV = new Float64Array(NM);
+function wakeAudio(){
+  if (!S.sound) return;
+  if (!AC){
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    AC = new C();
+    master = AC.createGain(); master.gain.value = S.volume;
+    filt = AC.createBiquadFilter(); filt.type = 'lowpass'; filt.Q.value = .7;
+    const comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    filt.connect(master); master.connect(comp); comp.connect(AC.destination);
+    // a short plate reverb from shaped noise
+    const len = Math.round(AC.sampleRate * 2.2), ir = AC.createBuffer(2, len, AC.sampleRate);
+    for (let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+    const conv = AC.createConvolver(); conv.buffer = ir;
+    verbSend = AC.createGain(); verbSend.gain.value = S.reverb * .8;
+    filt.connect(verbSend); verbSend.connect(conv); conv.connect(comp);
+    for (let k = 0; k <= NM; k++){
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = S.voice; o.frequency.value = 110; g.gain.value = 0;
+      o.connect(g); g.connect(filt); o.start();
+      voices.push({ o, g });
+    }
+  }
+  if (AC.state === 'suspended') AC.resume();
+}
+function octShift(){
+  if (S.oct === 'auto') return Math.pow(2, Math.floor(Math.log2(110 / M.f[0])));
+  return Math.pow(2, +S.oct);
+}
+function setVoice(i, f, gain){
+  const v = voices[i], t = AC.currentTime;
+  if (!(f > 20 && f < Math.min(16000, AC.sampleRate * .45))) gain = 0;
+  if (gain > 0 || v.on) v.o.frequency.setTargetAtTime(clamp(f, 20, 16000), t, .015);
+  v.g.gain.setTargetAtTime(gain, t, .04);
+  v.on = gain > 0;
+}
+function audioFrame(dt){
+  // each mode's ring as heard: jumps up when it is plucked or hit, then dies away at its real rate
+  for (let n = 0; n < NM; n++){
+    const a = n < M.N ? Math.hypot(TR.x[n], TR.v[n] / M.wd[n]) * Math.abs(TIPV[n]) : 0;
+    if (drag) RING_A[n] = 0;
+    else if (a > RING_PREV[n] * 1.0001 + 1e-18) RING_A[n] = Math.max(RING_A[n], a);
+    else RING_A[n] *= Math.exp(-M.z * (M.w[n] || 0) * dt);
+    if (a === 0) RING_A[n] = 0;
+    RING_PREV[n] = a;
+  }
+  if (!AC || AC.state !== 'running') return;
+  const on = S.sound ? 1 : 0;
+  const k = octShift();
+  filt.frequency.setTargetAtTime(300 * Math.pow(60, S.tone), AC.currentTime, .05);
+  const loud = (a) => Math.min(1, .55 * Math.sqrt(a / M.ref));
+  const [re, im] = tipResponse(omega);
+  setVoice(0, omega / TAU * k, on * S.sndDrive * .32 * loud(Math.hypot(re, im) * S.mag));
+  for (let n = 0; n < NM; n++){
+    const a = n < M.N ? RING_A[n] * Math.sqrt(M.w[n] / M.w[0]) : 0;
+    setVoice(n + 1, M.f[n] * k, on * S.sndRing * .26 * loud(a));
+  }
+}
+function setSound(on){
+  S.sound = on; save();
+  $('#btnSound').setAttribute('aria-pressed', String(on));
+  $('#icoSound').innerHTML = on ? '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>' : '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/>';
+  if (on) wakeAudio(); else if (AC) voices.forEach((v) => v.g.gain.setTargetAtTime(0, AC.currentTime, .03));
+}
+document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) AC.suspend(); else if (S.sound) AC.resume(); });
+
+/* ---------- sheet ---------- */
+const sheet = $('#sheet');
+let tab = 'beam';
+const TABS = ['beam', 'drive', 'look', 'sound'];
+function showTab(name){
+  tab = name;
+  TABS.forEach((n) => { $('#tab-' + n).setAttribute('aria-selected', String(n === name)); $('#pane-' + n).hidden = n !== name; });
+  $('#sheetBody').scrollTop = 0;
+}
+function openSheet(name){ showTab(name || tab); sheet.classList.add('open'); $('#btnSheet').setAttribute('aria-expanded', 'true'); }
+function closeSheet(){ sheet.classList.remove('open'); $('#btnSheet').setAttribute('aria-expanded', 'false'); }
+TABS.forEach((n) => $('#tab-' + n).addEventListener('click', () => showTab(n)));
+$('#btnClose').addEventListener('click', closeSheet);
+$('#btnSheet').addEventListener('click', () => sheet.classList.contains('open') ? closeSheet() : openSheet());
+
+const controls = {};
+const logTo = (p, v) => Math.round(1000 * Math.log(v / p[2]) / Math.log(p[3] / p[2]));
+const logFrom = (p, s) => p[2] * Math.pow(p[3] / p[2], s / 1000);
+function buildControls(){
+  const panes = { beam: $('#pane-beam'), drive: $('#pane-drive'), look: $('#pane-look'), sound: $('#pane-sound') };
+  const addChoice = (pane, [key, label, opts]) => {
+    const h = document.createElement('h3'); h.textContent = label;
+    const box = document.createElement('div'); box.className = 'chips';
+    Object.entries(opts).forEach(([k, l]) => {
+      const b = document.createElement('button'); b.textContent = l; b.dataset.v = k;
+      b.addEventListener('click', () => set(key, k));
+      box.appendChild(b);
+    });
+    controls[key] = { chips: box };
+    pane.append(h, box);
+  };
+  const addParam = (pane, p) => {
+    const [key, label, min, max, step] = p, lg = p[8];
+    const row = document.createElement('div'); row.className = 'row';
+    const id = 'p-' + key;
+    row.innerHTML = '<label for="' + id + '">' + label + '</label><input type="range" id="' + id + '" min="' + (lg ? 0 : min) + '" max="' + (lg ? 1000 : max) + '" step="' + (lg ? 1 : step) + '"><output></output>';
+    const input = row.querySelector('input');
+    input.addEventListener('input', () => set(key, lg ? +logFrom(p, +input.value).toPrecision(3) : +input.value));
+    controls[key] = { input, out: row.querySelector('output'), fmt: p[7], p, row };
+    pane.appendChild(row);
+  };
+  const addToggle = (pane, [key, label]) => {
+    let box = pane.querySelector('.chips.toggles');
+    if (!box){ const h = document.createElement('h3'); h.textContent = 'Show'; box = document.createElement('div'); box.className = 'chips toggles'; pane.append(h, box); }
+    const b = document.createElement('button'); b.textContent = label;
+    b.addEventListener('click', () => set(key, !S[key]));
+    box.appendChild(b);
+    controls[key] = { toggle: b };
+  };
+  // Beam
+  CHOICES.filter((c) => c[3] === 'beam').forEach((c) => addChoice(panes.beam, c));
+  const hb = document.createElement('h3'); hb.textContent = 'Size and damping'; panes.beam.appendChild(hb);
+  PARAMS.filter((p) => p[6] === 'beam').forEach((p) => addParam(panes.beam, p));
+  const ml = document.createElement('div'); ml.className = 'modelist'; ml.id = 'modeList';
+  const hm = document.createElement('h3'); hm.textContent = 'Natural frequencies'; panes.beam.append(hm, ml);
+  const nb = document.createElement('p'); nb.className = 'small';
+  nb.innerHTML = 'Euler-Bernoulli beam, clamped at the wall and free at the tip: <code>f<sub>n</sub> = (β<sub>n</sub>L)² / 2πL² · √(EI/ρA)</code> with β<sub>n</sub>L = 1.875, 4.694, 7.855, 10.996… Width doesn’t change the frequencies, only how hard it is to push. Your beam and settings are kept on this device.';
+  panes.beam.appendChild(nb);
+  const act = document.createElement('div'); act.className = 'actions';
+  act.innerHTML = '<button id="btnReset">Reset to preset</button>';
+  panes.beam.appendChild(act);
+  act.querySelector('button').addEventListener('click', () => applyPreset(S.preset));
+  // Input
+  CHOICES.filter((c) => c[3] === 'drive' && c[0] === 'input').forEach((c) => addChoice(panes.drive, c));
+  const hd = document.createElement('h3'); hd.textContent = 'Where and how fast'; panes.drive.appendChild(hd);
+  PARAMS.filter((p) => p[6] === 'drive').forEach((p) => addParam(panes.drive, p));
+  CHOICES.filter((c) => c[3] === 'drive' && c[0] !== 'input').forEach((c) => addChoice(panes.drive, c));
+  const nd = document.createElement('p'); nd.className = 'small';
+  nd.textContent = 'Frequency and Magnitude live in the bar at the bottom. Full magnitude is the push (or clamp shake) that would bend the tip 2% of the length if held still. Sweep (S) glides the frequency across every peak and leaves white dots where the beam really swung. Tap a mode card, or press 1 to 8, to drive right at that resonance. "Ring in" lets the beam take its time to build up or settle after a change, as a real one does.';
+  panes.drive.appendChild(nd);
+  // Look
+  CHOICES.filter((c) => c[3] === 'look').forEach((c) => addChoice(panes.look, c));
+  PARAMS.filter((p) => p[6] === 'look').forEach((p) => addParam(panes.look, p));
+  TOGGLES.filter((t) => t[2] === 'look').forEach((t) => addToggle(panes.look, t));
+  const nl = document.createElement('p'); nl.className = 'small';
+  nl.textContent = 'Auto fit scales the drawing so a full-magnitude drive near the nearest peak fills the view; the bar in the corner says how real millimetres map to the drawing. Stress glow colors the beam by bending stress, hottest where it bends hardest. Auto slow motion shows the drive at about one swing a second. Keys: F fullscreen, H hide controls.';
+  panes.look.appendChild(nl);
+  // Sound
+  CHOICES.filter((c) => c[3] === 'sound').forEach((c) => addChoice(panes.sound, c));
+  PARAMS.filter((p) => p[6] === 'sound').forEach((p) => addParam(panes.sound, p));
+  const ns = document.createElement('p'); ns.className = 'small';
+  ns.textContent = 'The drive tone plays the input frequency, as loud as the tip is swinging. Ringing plays each mode at its natural frequency while it rings after a pluck or tap. Pitch Auto shifts everything by whole octaves so the first mode sits in a comfortable range; True plays the real frequencies (if you can hear them).';
+  panes.sound.appendChild(ns);
+
+  const list = $('#presetList');
+  PRESETS.forEach((pr) => {
+    const b = document.createElement('button'); b.className = 'preset'; b.dataset.id = pr.id;
+    b.innerHTML = '<b>' + pr.name + '</b><span>' + pr.blurb + '</span>';
+    b.addEventListener('click', () => { applyPreset(pr.id); wakeAudio(); setTimeout(() => tap(1, 1), 80); });
+    list.appendChild(b);
+  });
+}
+const MODEL_KEYS = new Set(['length', 'thick', 'width', 'zeta', 'modes', 'material', 'pos', 'input']);
+function set(key, val){
+  S[key] = val;
+  if (BEAM_KEYS.includes(key)) S.preset = 'custom';
+  save();
+  if (MODEL_KEYS.has(key)){
+    if (key !== 'pos' && key !== 'input') resetRing();
+    rebuild(); sliderDirty = true;
+  }
+  if (AC){
+    if (key === 'volume') master.gain.setTargetAtTime(val, AC.currentTime, .03);
+    if (key === 'reverb') verbSend.gain.setTargetAtTime(val * .8, AC.currentTime, .03);
+    if (key === 'voice') voices.forEach((v) => { v.o.type = val; });
+  }
+  syncControls();
+}
+function syncControls(){
+  for (const [key, c] of Object.entries(controls)){
+    if (c.input){ c.input.value = c.p[8] ? logTo(c.p, S[key]) : S[key]; c.out.textContent = c.fmt(S[key]); }
+    else if (c.toggle) c.toggle.setAttribute('aria-pressed', String(!!S[key]));
+    else c.chips.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(S[key]))));
+  }
+  controls.pos.row.classList.toggle('off', S.input === 'base');
+  controls.exag.row.classList.toggle('off', S.scale !== 'fixed');
+  document.querySelectorAll('.preset').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === S.preset)));
+  const pr = PRESETS.find((p) => p.id === S.preset);
+  $('#presetName').textContent = pr ? pr.name : 'Your beam';
+  $('#modeList').innerHTML = M.f.slice(0, M.N).map((f, n) =>
+    '<b style="color:' + modeCol(n, 1) + '">Mode ' + (n + 1) + '</b><span>' + fmtHz(f) + '</span><span>×' + (f / M.f[0]).toFixed(2) + '</span>').join('');
+  sliderDirty = true;
+}
+function applyPreset(id){
+  const pr = PRESETS.find((p) => p.id === id) || PRESETS[0];
+  for (const k of BEAM_KEYS) S[k] = DEFAULTS[k];
+  Object.assign(S, pr.set, { preset: pr.id });
+  save(); resetRing(); stopSweep(); rebuild(); syncControls();
+}
+
+/* ---------- dock ---------- */
+$('#btnSweep').addEventListener('click', () => { sweep ? stopSweep() : startSweep(); dismissHint(); });
+$('#btnKick').addEventListener('click', () => { tap(1, Math.random() < .5 ? 1 : -1); dismissHint(); });
+$('#btnSound').addEventListener('click', () => setSound(!S.sound));
+const fsOK = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+$('#btnFull').hidden = !fsOK;
+function toggleFull(){
+  if (!fsOK) return;
+  const el = document.documentElement;
+  if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+}
+$('#btnFull').addEventListener('click', toggleFull);
+function setUiHidden(h){
+  document.body.classList.toggle('ui-hidden', h);
+  $('#btnShow').hidden = !h;
+  if (h) closeSheet();
+  layout();
+}
+$('#btnHide').addEventListener('click', () => setUiHidden(true));
+$('#btnShow').addEventListener('click', () => setUiHidden(false));
+
+let hintTimer = setTimeout(dismissHint, 10000);
+function dismissHint(){ clearTimeout(hintTimer); $('#hint').classList.add('gone'); }
+
+// Keys: Space taps the tip, S sweeps, 1–8 drive at a resonance, arrows nudge frequency (left/right)
+// and magnitude (up/down), F fullscreen, H hides the controls.
+addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest && e.target.closest('input')) return;
+  const k = e.key.toLowerCase();
+  if (k === ' ' && !(e.target.closest && e.target.closest('button'))){ e.preventDefault(); tap(1, Math.random() < .5 ? 1 : -1); }
+  else if (k === 's'){ sweep ? stopSweep() : startSweep(); }
+  else if (k === 'h') setUiHidden(!document.body.classList.contains('ui-hidden'));
+  else if (k === 'f') toggleFull();
+  else if (k === 'escape') closeSheet();
+  else if (k >= '1' && k <= '8' && +k <= M.N){ wakeAudio(); snapToMode(+k - 1); }
+  else if (k === 'arrowright' || k === 'arrowleft'){ e.preventDefault(); stopSweep(); setFr(S.fr * Math.pow(e.shiftKey ? 1.1 : 1.01, k === 'arrowright' ? 1 : -1)); }
+  else if (k === 'arrowup' || k === 'arrowdown'){ e.preventDefault(); S.mag = clamp(S.mag + (k === 'arrowup' ? .05 : -.05), 0, 1); save(); computeDrive(S.build === 'ring'); sliderDirty = true; }
+  else return;
+  dismissHint();
+});
+
+addEventListener('resize', resize);
+rebuild();
+buildControls();
+setSound(S.sound !== false);
+syncControls();
+resize();
+syncDriveBar();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
