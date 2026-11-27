@@ -19,7 +19,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 <!-- Each app's name on its tile is set in that app's own typeface, so the tile looks like the app it opens. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&family=Michroma&family=Fraunces:ital,opsz,wght@1,9..144,600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&family=Michroma&family=Fraunces:ital,opsz,wght@1,9..144,600&family=Big+Shoulders+Display:wght@800&display=swap">
 <style>
 /* Layout: a quiet, native-feeling page (system type, graphite wall) holding one dark window per app.
    Each window runs a small live preview drawn in that app's own colors; the apps carry the personality. */
@@ -99,6 +99,8 @@ body{
 .label h2.t-tone span{color:#05d9e8;text-shadow:0 0 8px rgba(5,217,232,.75)}
 .label h2.t-tide{font:400 18px/1.15 "Michroma","Avenir Next",system-ui,sans-serif;letter-spacing:.1em;color:#dff3f7}
 .label h2.t-dab{font:italic 600 27px/1 "Fraunces","Iowan Old Style",Georgia,serif;letter-spacing:.01em;color:#ffe3ea}
+.label h2.t-cant{font:800 25px/1 "Big Shoulders Display","Arial Narrow",Impact,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#f4f6fb}
+.label h2.t-cant span{color:#ffd23f;text-shadow:0 0 10px rgba(255,210,63,.45)}
 .label h2.t-orrery{font:600 23px/1.1 "Fredoka","Avenir Next",system-ui,sans-serif;letter-spacing:.01em}
 
 .foot{margin-top:28px;font-size:14px;color:var(--muted)}
@@ -135,6 +137,7 @@ body{
         <li><a class="tile" href="overtone.html"><div class="label"><h2>Overtone</h2></div></a></li>
         <li><a class="tile" href="far-tide.html"><div class="label"><h2>Far Tide</h2></div></a></li>
         <li><a class="tile" href="dab.html"><div class="label"><h2>Dab</h2></div></a></li>
+        <li><a class="tile" href="cantilever.html"><div class="label"><h2>Cantilever</h2></div></a></li>
       </ul>
     </noscript>
   </main>
@@ -283,6 +286,15 @@ const APPS = [
     accent: '#ff9db0',
     titleClass: 't-dab',
     art: 'dab'
+  },
+  {
+    name: 'Cantilever',
+    href: 'cantilever.html',
+    blurb: 'A beam clamped to a wall, with its real vibration modes. Push it with any force at any frequency and watch it bend into each mode shape as you cross a resonance peak, glowing where the stress is highest. Pluck it, sweep through every peak, and hear each mode ring.',
+    ground: '#07090e',
+    accent: '#ffd23f',
+    titleClass: 't-cant',
+    art: 'cantilever'
   }
 ];
 
@@ -1249,6 +1261,83 @@ ARTS.dab = {
   }
 };
 
+// Cantilever: a beam clamped to a hazard-striped wall, driven at each of its first three resonances in turn.
+// It bends into that mode shape, glowing hottest where it bends hardest, inside a faint swing envelope,
+// while a little response curve along the bottom shows the cursor sitting on the matching peak.
+ARTS.cantilever = {
+  B: [1.8751, 4.6941, 7.8548], SG: [.7341, 1.0185, .9992], ratio: [1, 6.267, 17.55],
+  init(s){
+    const n = 48;
+    s.shape = [0, 1, 2].map((k) => {
+      const p = [];
+      for (let i = 0; i <= n; i++){ const b = this.B[k] * i / n; p.push((Math.cosh(b) - Math.cos(b) - this.SG[k] * (Math.sinh(b) - Math.sin(b))) / 2 * (k % 2 ? -1 : 1)); }
+      const c = p.map((v, i) => i === 0 || i === n ? 0 : Math.abs(p[i + 1] - 2 * v + p[i - 1]));
+      c[0] = c[1] * 1.3; c[n] = 0;
+      const mx = Math.max(...c);
+      return { p, c: c.map((v) => v / mx) };
+    });
+    // a three-peak response curve on a log axis
+    s.frf = [];
+    for (let i = 0; i <= 120; i++){
+      const r = Math.exp(Math.log(.35) + (Math.log(28) - Math.log(.35)) * i / 120);
+      let re = 0, im = 0;
+      this.ratio.forEach((wn, k) => { const a = wn * wn - r * r, b = 2 * .012 * wn * r, d = a * a + b * b, g = 1; re += g * a / d; im -= g * b / d; });
+      s.frf.push([r, Math.log(Math.hypot(re, im) * Math.pow(r, 1.6))]);   // tilted so all three peaks stand out
+    }
+    const ys = s.frf.map((q) => q[1]); s.lo = Math.min(...ys); s.hi = Math.max(...ys);
+  },
+  heat(t){
+    const st = [[0, [70, 92, 130]], [.35, [120, 110, 210]], [.6, [255, 80, 60]], [.82, [255, 170, 40]], [1, [255, 248, 200]]];
+    for (let i = 1; i < st.length; i++) if (t <= st[i][0]){ const f = (t - st[i - 1][0]) / (st[i][0] - st[i - 1][0]); return 'rgb(' + [0, 1, 2].map((k) => Math.round(st[i - 1][1][k] + (st[i][1][k] - st[i - 1][1][k]) * f)).join(',') + ')'; }
+    return 'rgb(255,248,200)';
+  },
+  frame(ctx, s, w, h, t){
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = s.ground; ctx.fillRect(0, 0, w, h);
+    const per = 4.2, k = Math.floor(t / per) % 3, u = (t % per) / per;
+    const ease = Math.min(1, u / .18) * Math.min(1, (1 - u) / .14);
+    const x0 = w * .14, L = w * .78, y0 = h * .4, A = h * .21 * ease * (k ? 1.25 : 1);
+    // blueprint grid
+    ctx.strokeStyle = 'rgba(120,150,210,.07)'; ctx.lineWidth = 1; ctx.beginPath();
+    const st = Math.max(14, w / 22);
+    for (let x = x0; x < w; x += st){ ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); }
+    for (let y = y0 % st; y < h; y += st){ ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); }
+    ctx.stroke();
+    const sh = s.shape[k], n = sh.p.length - 1, osc = Math.cos(t * Math.PI * 2 * (.75 + k * .2));
+    const X = (i) => x0 + L * i / n;
+    // envelope
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) ctx.lineTo(X(i), y0 - Math.abs(sh.p[i]) * A);
+    for (let i = n; i >= 0; i--) ctx.lineTo(X(i), y0 + Math.abs(sh.p[i]) * A);
+    ctx.closePath(); ctx.fillStyle = 'rgba(255,210,63,.07)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,210,63,.2)'; ctx.stroke();
+    // beam glow then stress-colored core
+    const T = Math.max(3, h * .03);
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    ctx.beginPath(); for (let i = 0; i <= n; i++) ctx.lineTo(X(i), y0 - sh.p[i] * A * osc);
+    ctx.strokeStyle = 'rgba(150,180,255,.1)'; ctx.lineWidth = T * 4; ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over'; ctx.lineCap = 'butt';
+    for (let i = 0; i < n; i++){
+      ctx.beginPath(); ctx.moveTo(X(i), y0 - sh.p[i] * A * osc); ctx.lineTo(X(i + 1) + .5, y0 - sh.p[i + 1] * A * osc);
+      ctx.strokeStyle = this.heat(Math.min(1, sh.c[i] * (.25 + .75 * Math.abs(osc)) * ease + .05)); ctx.lineWidth = T; ctx.stroke();
+    }
+    // clamp
+    const cw = w * .07, chh = h * .5;
+    ctx.save(); ctx.beginPath(); ctx.rect(x0 - cw - 2, y0 - chh / 2, cw, chh); ctx.clip();
+    ctx.fillStyle = '#1b2030'; ctx.fillRect(x0 - cw - 2, y0 - chh / 2, cw, chh);
+    ctx.strokeStyle = 'rgba(255,210,63,.55)'; ctx.lineWidth = 3.5; ctx.beginPath();
+    for (let q = -chh; q < chh + cw; q += 10){ ctx.moveTo(x0 - cw - 2, y0 - chh / 2 + q); ctx.lineTo(x0 - 2, y0 - chh / 2 + q - cw); }
+    ctx.stroke(); ctx.restore();
+    // little response curve with the cursor on peak k
+    const fx = (r) => w * .08 + w * .84 * Math.log(r / .35) / Math.log(28 / .35), fy = (v) => h * .95 - h * .17 * (v - s.lo) / (s.hi - s.lo);
+    ctx.beginPath(); s.frf.forEach(([r, v]) => ctx.lineTo(fx(r), fy(v)));
+    ctx.strokeStyle = 'rgba(255,170,90,.55)'; ctx.lineWidth = 1.4; ctx.stroke();
+    const target = fx(this.ratio[k]);
+    s.cx = s.cx == null ? target : s.cx + (target - s.cx) * .08;
+    ctx.strokeStyle = 'rgba(255,210,63,.8)'; ctx.beginPath(); ctx.moveTo(s.cx, h * .74); ctx.lineTo(s.cx, h * .97); ctx.stroke();
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(s.cx, h * .78, 2.6, 0, 7); ctx.fill();
+  }
+};
+
 // Far Tide: dark water, a soft star, three ports circling it, and one small freighter crossing between them
 // on a curved path with a wake behind it and a ripple where it lands.
 ARTS.tide = {
@@ -1312,6 +1401,7 @@ for (const app of APPS){
   h2.textContent = app.name;
   if (app.titleClass === 't-beam') h2.innerHTML = 'Beam<span>line</span>';
   if (app.titleClass === 't-tone') h2.innerHTML = 'Over<span>tone</span>';
+  if (app.titleClass === 't-cant') h2.innerHTML = 'Canti<span>lever</span>';
   if (app.titleClass) h2.className = app.titleClass;
   const p = document.createElement('p');
   p.textContent = app.blurb;
