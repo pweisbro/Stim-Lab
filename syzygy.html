@@ -1,0 +1,1398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06060f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Syzygy">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Syzygy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Space+Mono:wght@400;700&display=swap">
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+<style>
+/* Layout: one full-screen canvas is the solar system seen from above. Over it float the date (top left),
+   the alignment readout and the time bar (bottom, always in reach), a pill dock and one settings sheet.
+   Single dark theme: the planets glow, the sky stays dark. */
+:root{
+  color-scheme: dark;
+  --void:#06060f;
+  --glass:rgba(15,14,30,.74);
+  --line:rgba(210,200,255,.12);
+  --text:#efedf8;
+  --muted:#9893b0;
+  --accent:#c6b4ff;
+  --accent-ink:#17112e;
+  --gold:#ffd98a;
+  --font-display:'Cinzel','Trajan Pro',Georgia,serif;
+  --font-mono:'Space Mono',ui-monospace,Menlo,Consolas,monospace;
+  --font-body:-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
+}
+html{box-sizing:border-box;height:100%;overflow:hidden;background:var(--void)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  height:100%;overflow:hidden;margin:0;
+  background:var(--void);color:var(--text);
+  font-family:var(--font-body);font-size:14px;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;overscroll-behavior:none;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+.brand{
+  position:fixed;z-index:5;pointer-events:none;
+  top:calc(12px + env(safe-area-inset-top, 0px));
+  left:calc(16px + env(safe-area-inset-left, 0px));
+  right:calc(70px + env(safe-area-inset-right, 0px));
+}
+.brand h1{margin:0;font:700 1.05rem/1 var(--font-display);letter-spacing:.32em;color:var(--accent);text-shadow:0 0 14px rgba(198,180,255,.45)}
+.brand .date{margin:6px 0 0;font:500 1.55rem/1.05 var(--font-display);letter-spacing:.04em;color:#f6f2ff}
+.brand .sub{margin:4px 0 0;font:400 .72rem/1.3 var(--font-mono);letter-spacing:.06em;color:var(--muted)}
+.brand .sub b{color:var(--gold);font-weight:700}
+
+.hint{
+  position:fixed;z-index:5;left:50%;transform:translateX(-50%);
+  top:calc(96px + env(safe-area-inset-top, 0px));
+  width:max-content;max-width:calc(100vw - 32px);
+  padding:8px 14px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  font-size:.84rem;font-weight:600;text-align:center;pointer-events:none;
+  transition:opacity .6s;
+}
+.hint.gone{opacity:0}
+
+/* bottom stack: readout, time bar, dock */
+.stack{
+  position:fixed;z-index:6;left:50%;transform:translateX(-50%);
+  bottom:calc(70px + env(safe-area-inset-bottom, 0px));
+  width:min(560px,calc(100vw - 16px));
+  display:flex;flex-direction:column;gap:6px;
+}
+.panel{
+  background:var(--glass);border:1px solid var(--line);border-radius:18px;
+  -webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);
+}
+.readout{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:4px;transition:border-color .4s,box-shadow .4s}
+.readout.aligned{border-color:rgba(255,217,138,.6);box-shadow:0 0 24px rgba(255,217,138,.18)}
+.readout .mid{min-width:0;padding:4px 2px;text-align:center;cursor:pointer;border:0;background:transparent;border-radius:12px}
+.readout .who{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;font-size:.78rem;font-weight:600;color:var(--muted)}
+.readout .who i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:0}
+.readout .big{font:700 1.15rem/1.25 var(--font-mono);color:var(--text)}
+.readout.aligned .big{color:var(--gold)}
+.readout .next{font:400 .74rem/1.3 var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.readout .next b{color:var(--text);font-weight:700}
+.iconbtn{width:44px;height:44px;border:0;border-radius:999px;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--text)}
+.iconbtn:hover{background:rgba(255,255,255,.07)}
+.iconbtn:disabled{opacity:.3;cursor:default}
+
+.timebar{display:flex;align-items:center;gap:2px;padding:4px}
+.timebar .speed{flex:1;min-width:0;height:40px;border:0;border-radius:999px;background:rgba(255,255,255,.05);cursor:pointer;
+  font:700 .8rem/1 var(--font-mono);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.timebar .now{height:40px;border:1px solid var(--line);border-radius:999px;background:transparent;cursor:pointer;padding:0 12px;font-weight:700;font-size:.8rem}
+.timebar .now.away{border-color:var(--accent);color:var(--accent)}
+.timebar button[aria-pressed="true"]{color:var(--accent)}
+.datepick{position:relative;width:44px;height:44px;display:grid;place-items:center;border-radius:999px}
+.datepick:hover{background:rgba(255,255,255,.07)}
+.datepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-size:16px}
+.datepick input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;cursor:pointer}
+
+.dock{
+  position:fixed;z-index:6;left:50%;transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+  display:flex;gap:2px;padding:4px;
+  background:var(--glass);border:1px solid var(--line);border-radius:999px;
+  -webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);
+}
+.dock button,.dock .home,.ghost{
+  width:44px;height:44px;border:0;border-radius:999px;background:transparent;
+  display:grid;place-items:center;cursor:pointer;color:var(--text);
+}
+.dock button:hover,.dock .home:hover{background:rgba(255,255,255,.07)}
+/* back to the Stim Lab homepage (a home-screen web app has no back button) */
+.dock .home{text-decoration:none}
+.dock .sep{width:1px;margin:10px 3px;background:var(--line)}
+@media (max-width:400px){ .dock button,.dock .home{width:40px} .dock .sep{margin:10px 1px} }
+.dock button[aria-pressed="true"],.dock button[aria-expanded="true"]{color:var(--accent)}
+.dock [hidden]{display:none}
+svg.i{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ghost{
+  position:fixed;z-index:6;
+  right:calc(14px + env(safe-area-inset-right, 0px));
+  top:calc(14px + env(safe-area-inset-top, 0px));
+  background:var(--glass);border:1px solid var(--line);opacity:.4;
+}
+.ghost:hover{opacity:1}
+.ghost[hidden]{display:none}
+.ui-hidden .brand,.ui-hidden .dock,.ui-hidden .hint,.ui-hidden .sheet,.ui-hidden .stack{opacity:0;pointer-events:none}
+
+/* The sheet: bottom sheet on phones, a floating side panel on wider screens */
+.sheet{
+  position:fixed;z-index:7;
+  left:calc(8px + env(safe-area-inset-left, 0px));right:calc(8px + env(safe-area-inset-right, 0px));
+  bottom:calc(70px + env(safe-area-inset-bottom, 0px));
+  max-height:min(64vh, 600px);display:flex;flex-direction:column;
+  background:rgba(15,14,30,.92);border:1px solid var(--line);border-radius:22px;
+  -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);
+  box-shadow:0 18px 50px rgba(0,0,0,.5);
+  transform:translateY(16px);opacity:0;pointer-events:none;transition:transform .2s ease-out,opacity .2s;
+}
+.sheet.open{transform:none;opacity:1;pointer-events:auto}
+@media (min-width:760px){
+  .sheet{left:auto;right:calc(16px + env(safe-area-inset-right, 0px));top:calc(16px + env(safe-area-inset-top, 0px));bottom:calc(80px + env(safe-area-inset-bottom, 0px));width:370px;max-height:none}
+  /* keep the readout and time bar clear of the side panel */
+  .sheet-open .stack{left:calc((100vw - 390px) / 2);width:min(560px,calc(100vw - 406px))}
+  .sheet-open .hint{left:calc((100vw - 390px) / 2)}
+}
+.sheet-head{display:flex;align-items:center;gap:4px;padding:8px 8px 4px 10px}
+.tabs{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+.tabs button{border:0;background:transparent;padding:8px 11px;border-radius:999px;font-weight:700;font-size:.84rem;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected="true"]{background:rgba(255,255,255,.1);color:var(--text)}
+.sheet-head .x{width:38px;height:38px;border:0;border-radius:999px;background:transparent;display:grid;place-items:center;cursor:pointer}
+.sheet-body{overflow:auto;padding:4px 14px 16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.sheet-body section[hidden]{display:none}
+.sheet h3{margin:14px 0 6px;font:700 .7rem/1.2 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sheet h3:first-child{margin-top:6px}
+
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.preset{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:14px;padding:9px 12px;text-align:left;cursor:pointer}
+.preset b{display:block;font:700 .92rem/1.15 var(--font-display);letter-spacing:.04em}
+.preset span{display:block;margin-top:3px;font-size:.74rem;color:var(--muted);line-height:1.3}
+.preset[aria-pressed="true"]{border-color:var(--accent);background:rgba(198,180,255,.1)}
+
+.row{display:grid;grid-template-columns:100px 1fr 70px;align-items:center;gap:8px;min-height:36px}
+.row label{font-weight:600;font-size:.84rem}
+.row output{font:400 .76rem/1 var(--font-mono);color:var(--muted);text-align:right;white-space:nowrap}
+.row.off{opacity:.4}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:transparent;margin:0;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);margin-top:-9px;box-shadow:0 0 0 4px rgba(198,180,255,.15),0 1px 4px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px}
+.chips button{border:1px solid var(--line);background:rgba(255,255,255,.04);padding:7px 11px;border-radius:999px;font-weight:600;font-size:.8rem;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chips.planets button i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.chips.planets button[aria-pressed="true"]{background:rgba(198,180,255,.18);color:var(--text)}
+.chips button:disabled{opacity:.35;cursor:default}
+.small{color:var(--muted);font-size:.78rem;line-height:1.45;margin:8px 0 0}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.actions button{border:1px solid var(--line);background:rgba(255,255,255,.05);padding:9px 14px;border-radius:999px;font-weight:700;font-size:.82rem;cursor:pointer}
+
+.events{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.events li button{width:100%;display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;border:1px solid transparent;background:rgba(255,255,255,.035);border-radius:12px;padding:8px 11px;cursor:pointer}
+.events li button:hover{border-color:var(--line)}
+.events li.past button{opacity:.6}
+.events b{font:700 .86rem/1.2 var(--font-mono)}
+.events .ago{font:400 .74rem/1.2 var(--font-mono);color:var(--muted);text-align:right}
+.events .what{grid-column:1/-1;font-size:.76rem;color:var(--muted)}
+.events .span{color:var(--gold)}
+.events .here{font:700 .66rem/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);padding:8px 2px 4px}
+.status{font:400 .76rem/1.4 var(--font-mono);color:var(--muted);padding:6px 2px}
+
+@media (prefers-reduced-motion:reduce){ .hint,.sheet{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="The planets seen from above, circling the Sun on their real timing. Tap a planet to track it, drag one around its orbit to wind time." role="img"></canvas>
+
+<div class="brand">
+  <h1>SYZYGY</h1>
+  <p class="date" id="dateText">&nbsp;</p>
+  <p class="sub" id="subText">&nbsp;</p>
+</div>
+
+<div class="hint" id="hint">Tap a planet to track it, drag one to wind time</div>
+
+<button class="ghost" id="btnShow" aria-label="Show controls" title="Show controls (H)" hidden>
+  <svg class="i" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+</button>
+
+<div class="stack" id="stack">
+  <div class="panel readout" id="readout">
+    <button class="iconbtn" id="btnPrev" aria-label="Previous alignment" title="Previous alignment (,)">
+      <svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <button class="mid" id="btnReadout" aria-label="Show upcoming alignments">
+      <div class="who" id="who"></div>
+      <div class="big" id="spanText">&nbsp;</div>
+      <div class="next" id="nextText">&nbsp;</div>
+    </button>
+    <button class="iconbtn" id="btnNext" aria-label="Next alignment" title="Next alignment (.)">
+      <svg class="i" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+  <div class="panel timebar">
+    <button class="iconbtn" id="btnRev" aria-pressed="false" aria-label="Run time backwards" title="Backwards (B)">
+      <svg class="i" viewBox="0 0 24 24"><path d="M11 6l-7 6 7 6zM20 6l-7 6 7 6z"/></svg>
+    </button>
+    <button class="iconbtn" id="btnPlay" aria-label="Pause" title="Play or pause (Space)">
+      <svg class="i" viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14M16 5v14"/></svg>
+    </button>
+    <button class="speed" id="btnSpeed" title="Speed ([ and ])">1 month / s</button>
+    <button class="now" id="btnNow" title="Back to today (N)">Now</button>
+    <label class="datepick" title="Jump to a date" aria-label="Jump to a date">
+      <svg class="i" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+      <input type="date" id="dateIn" min="1000-01-01" max="2999-12-31">
+    </label>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-label="Syzygy settings">
+  <div class="sheet-head">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-track" aria-selected="true">Track</button>
+      <button role="tab" id="tab-list" aria-selected="false">Upcoming</button>
+      <button role="tab" id="tab-look" aria-selected="false">Look</button>
+      <button role="tab" id="tab-sound" aria-selected="false">Sound</button>
+    </div>
+    <button class="x" id="btnClose" aria-label="Close"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="sheet-body">
+    <section id="pane-track">
+      <h3>Alignments to watch</h3><div class="presets" id="presetList"></div>
+      <h3>Planets in the line-up</h3><div class="chips planets" id="planetChips"></div>
+      <h3>Seen from</h3><div class="chips" id="viewChips"></div>
+      <h3>Counts as lined up</h3><div class="chips" id="lineChips"></div>
+      <div class="row"><label for="p-within">Within</label><input type="range" id="p-within" min="0" max="1000" step="1"><output id="o-within"></output></div>
+      <p class="small" id="trackNote"></p>
+    </section>
+    <section id="pane-list" hidden>
+      <div class="status" id="listStatus"></div>
+      <ul class="events" id="eventList"></ul>
+      <div class="actions"><button id="btnMore">Look further ahead</button></div>
+    </section>
+    <section id="pane-look" hidden></section>
+    <section id="pane-sound" hidden></section>
+  </div>
+</div>
+
+<nav class="dock" aria-label="Syzygy">
+  <a class="home" href="./" aria-label="Back to Stim Lab" title="Stim Lab">
+    <svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+  </a>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="btnSheet" aria-expanded="false" aria-label="Planets and alignments" title="Planets and alignments">
+    <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="12" r="6.5" opacity=".5"/><circle cx="12" cy="12" r="10" opacity=".35"/><circle cx="18.5" cy="12" r="1.6" fill="currentColor"/><circle cx="21.5" cy="12" r="1.2" fill="currentColor"/></svg>
+  </button>
+  <button id="btnLook" aria-label="Look" title="Look (C)">
+    <svg class="i" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.3 0 1.8-1 1.4-2-.5-1.1.2-2.3 1.5-2.3H17a4 4 0 0 0 4-4C21 7 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10.5" cy="7" r="1.2" fill="currentColor"/><circle cx="15.5" cy="7.5" r="1.2" fill="currentColor"/></svg>
+  </button>
+  <button id="btnSound" aria-pressed="false" aria-label="Sound" title="Sound (M)">
+    <svg class="i" viewBox="0 0 24 24" id="soundIcon"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+  </button>
+  <button id="btnFit" aria-label="Fit the view" title="Fit the view (R)">
+    <svg class="i" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/><circle cx="12" cy="12" r="2.5"/></svg>
+  </button>
+  <button id="btnFull" aria-label="Fullscreen" title="Fullscreen (F)">
+    <svg class="i" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+  <button id="btnHide" aria-label="Hide controls" title="Hide controls (H)">
+    <svg class="i" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+  </button>
+</nav>
+
+<script>
+/* ==== ASTRO CORE (shared by the page and tests) ====
+   Planet positions from JPL's approximate Keplerian elements (Standish, valid 3000 BC to 3000 AD,
+   good to a few arcminutes for the inner planets and better than a degree for the giants).
+   Each row: a (AU), e, I, L, long. perihelion, long. node (deg), then the same per Julian century,
+   then the extra mean-anomaly terms b, c, s, f for Jupiter to Pluto. */
+const BODIES = [
+  { key:'mercury', name:'Mercury', color:'#c7bccf', size:3.2,
+    el:[0.38709843,0.20563661,7.00559432,252.25166724,77.45771895,48.33961819],
+    rt:[0,0.00002123,-0.00590158,149472.67486623,0.15940013,-0.12214182] },
+  { key:'venus', name:'Venus', color:'#ffe0a3', size:4.6,
+    el:[0.72332102,0.00676399,3.39777545,181.97970850,131.76755713,76.67261496],
+    rt:[-0.00000026,-0.00005107,0.00043494,58517.81560260,0.05679648,-0.27274174] },
+  { key:'earth', name:'Earth', color:'#72c6ff', size:4.8,
+    el:[1.00000018,0.01673163,-0.00054346,100.46691572,102.93005885,-5.11260389],
+    rt:[-0.00000003,-0.00003661,-0.01337178,35999.37306329,0.31795260,-0.24123856] },
+  { key:'mars', name:'Mars', color:'#ff7d5c', size:3.8,
+    el:[1.52371243,0.09336511,1.85181869,-4.56813164,-23.91744784,49.71320984],
+    rt:[0.00000097,0.00009149,-0.00724757,19140.29934243,0.45223625,-0.26852431] },
+  { key:'jupiter', name:'Jupiter', color:'#ffc690', size:7.2,
+    el:[5.20248019,0.04853590,1.29861416,34.33479152,14.27495244,100.29282654],
+    rt:[-0.00002864,0.00018026,-0.00322699,3034.90371757,0.18199196,0.13024619],
+    x:[-0.00012452,0.06064060,-0.35635438,38.35125000] },
+  { key:'saturn', name:'Saturn', color:'#f2dc9b', size:6.2, ring:true,
+    el:[9.54149883,0.05550825,2.49424102,50.07571329,92.86136063,113.63998702],
+    rt:[-0.00003065,-0.00032044,0.00451969,1222.11494724,0.54179478,-0.25015002],
+    x:[0.00025899,-0.13434469,0.87320147,38.35125000] },
+  { key:'uranus', name:'Uranus', color:'#a2f0ea', size:5.2,
+    el:[19.18797948,0.04685740,0.77298127,314.20276625,172.43404441,73.96250215],
+    rt:[-0.00020455,-0.00001550,-0.00180155,428.49512595,0.09266985,0.05739699],
+    x:[0.00058331,-0.97731848,0.17689245,7.67025000] },
+  { key:'neptune', name:'Neptune', color:'#7b93ff', size:5.1,
+    el:[30.06952752,0.00895439,1.77005520,304.22289287,46.68158724,131.78635853],
+    rt:[0.00006447,0.00000818,0.00022400,218.46515314,0.01009938,-0.00606302],
+    x:[-0.00041348,0.68346318,-0.10162547,7.67025000] },
+  { key:'pluto', name:'Pluto', color:'#dcbfae', size:2.6, dwarf:true,
+    el:[39.48686035,0.24885238,17.14104260,238.96535011,224.09702598,110.30167986],
+    rt:[0.00449751,0.00006016,0.00000501,145.18042903,-0.00968827,-0.00809981],
+    x:[-0.01262724,0,0,0] }
+];
+const EARTH = 2, J2000 = 2451545, DEG = Math.PI / 180;
+BODIES.forEach((b) => { b.n = b.rt[3] / 36525; b.period = 360 / b.n; });   // mean motion, deg per day
+
+// Heliocentric ecliptic position (AU) of body i at Julian date jd.
+function helio(i, jd, out){
+  const b = BODIES[i], T = (jd - J2000) / 36525, el = b.el, rt = b.rt;
+  const a = el[0] + rt[0] * T, e = el[1] + rt[1] * T, I = (el[2] + rt[2] * T) * DEG;
+  const L = el[3] + rt[3] * T, wb = el[4] + rt[4] * T, Om = (el[5] + rt[5] * T) * DEG;
+  let M = L - wb;
+  if (b.x) M += b.x[0] * T * T + b.x[1] * Math.cos(b.x[3] * T * DEG) + b.x[2] * Math.sin(b.x[3] * T * DEG);
+  M = ((M + 180) % 360 + 360) % 360 - 180;
+  M *= DEG;
+  let E = M + e * Math.sin(M);
+  for (let k = 0; k < 6; k++){ const d = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E)); E -= d; if (Math.abs(d) < 1e-9) break; }
+  const xp = a * (Math.cos(E) - e), yp = a * Math.sqrt(1 - e * e) * Math.sin(E);
+  const w = wb * DEG - Om, cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(Om), sO = Math.sin(Om), cI = Math.cos(I), sI = Math.sin(I);
+  out = out || [0, 0, 0];
+  out[0] = (cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp;
+  out[1] = (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp;
+  out[2] = (sw * sI) * xp + (cw * sI) * yp;
+  return out;
+}
+const wrap360 = (x) => ((x % 360) + 360) % 360;
+const wrap180 = (x) => wrap360(x + 180) - 180;
+const _p = [0, 0, 0], _e = [0, 0, 0];
+function helioLon(i, jd){ helio(i, jd, _p); return wrap360(Math.atan2(_p[1], _p[0]) / DEG); }
+// Ecliptic longitude as seen from Earth (the Sun is index -1).
+function geoLon(i, jd){
+  helio(EARTH, jd, _e);
+  if (i < 0) return wrap360(Math.atan2(-_e[1], -_e[0]) / DEG);
+  helio(i, jd, _p);
+  return wrap360(Math.atan2(_p[1] - _e[1], _p[0] - _e[0]) / DEG);
+}
+// Smallest arc holding every angle. With line=true, opposite directions count as the same line.
+function spanOf(a, line){
+  const n = a.length; if (n < 2) return 0;
+  const v = new Array(n);
+  for (let k = 0; k < n; k++) v[k] = wrap360(line ? a[k] * 2 : a[k]);
+  v.sort((p, q) => p - q);
+  let gap = v[0] + 360 - v[n - 1];
+  for (let k = 1; k < n; k++) gap = Math.max(gap, v[k] - v[k - 1]);
+  const s = 360 - gap;
+  return line ? s / 2 : s;
+}
+// The bodies that count for a setup (from Earth, Earth itself drops out).
+function members(cfg){ return cfg.chosen.filter((i) => !(cfg.view === 'earth' && i === EARTH)); }
+function anglesAt(cfg, jd, list){
+  const m = list || members(cfg);
+  return m.map((i) => cfg.view === 'earth' ? geoLon(i, jd) : helioLon(i, jd));
+}
+function spanAt(cfg, jd, list){ return spanOf(anglesAt(cfg, jd, list), cfg.line); }
+// Sampling step: a small slice of the fastest relative cycle in the set.
+function stepFor(cfg){
+  const m = members(cfg);
+  if (m.length < 2) return 30;
+  let rel;
+  if (cfg.view === 'earth'){
+    // seen from Earth every planet loops back each year, and inner planets swing fast
+    rel = Math.max(...m.map((i) => BODIES[i].n)) + BODIES[EARTH].n * 1.6;
+  } else {
+    const ns = m.map((i) => BODIES[i].n);
+    rel = Math.max(...ns) - Math.min(...ns);
+  }
+  if (cfg.line) rel *= 2;
+  return Math.max(0.02, Math.min(20, 360 / rel / 90));
+}
+// Golden-section search for the lowest span in [a, b].
+function refine(cfg, a, b, list){
+  const g = 0.6180339887;
+  let c = b - g * (b - a), d = a + g * (b - a), fc = spanAt(cfg, c, list), fd = spanAt(cfg, d, list);
+  for (let k = 0; k < 48 && b - a > 1e-4; k++){
+    if (fc < fd){ b = d; d = c; fd = fc; c = b - g * (b - a); fc = spanAt(cfg, c, list); }
+    else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = spanAt(cfg, d, list); }
+  }
+  const t = (a + b) / 2;
+  return { jd: t, span: spanAt(cfg, t, list) };
+}
+// Walk through time from jd0 in direction dir, collecting moments when the span dips under cfg.within.
+// Works in slices so the page never freezes; returns a generator that yields progress (0..1).
+function* searchGen(cfg, jd0, dir, count, horizon, found){
+  const list = members(cfg), step = stepFor(cfg), h = step * dir;
+  if (list.length < 2) return;
+  const lim = Math.min(cfg.within * 1.6 + 2, 180);
+  // The span can't shrink faster than this (deg/day), so far from an alignment we can leap ahead safely.
+  const nmax = Math.max(...list.map((i) => BODIES[i].n));
+  const rate = cfg.view === 'earth' ? (list.some((i) => i < EARTH) ? 4 : 1.6) : 1.65 * nmax;
+  const merge = step * 30, end = jd0 + horizon * dir;
+  let t1 = jd0, s1 = spanAt(cfg, t1, list), t0 = t1 - h, s0 = spanAt(cfg, t0, list), n = 0;
+  while (dir > 0 ? t1 < end : t1 > end){
+    if (s1 > lim + 1){
+      const leap = Math.floor((s1 - lim) / rate / step);
+      if (leap > 2){
+        t1 += h * (leap - 1); s1 = spanAt(cfg, t1, list); t0 = t1 - h; s0 = spanAt(cfg, t0, list);
+        continue;
+      }
+    }
+    const t2 = t1 + h, s2 = spanAt(cfg, t2, list);
+    if (s1 <= s0 && s1 < s2 && s1 < lim){
+      const r = refine(cfg, Math.min(t0, t2), Math.max(t0, t2), list);
+      if (r.span <= cfg.within && (dir > 0 ? r.jd > jd0 : r.jd < jd0)){
+        const prev = found[found.length - 1];
+        if (prev && Math.abs(prev.jd - r.jd) < merge){ if (r.span < prev.span) found[found.length - 1] = r; }
+        else { if (found.length >= count) return; found.push(r); }
+      }
+    }
+    t0 = t1; s0 = s1; t1 = t2; s1 = s2;
+    if (++n % 3000 === 0) yield Math.abs(t1 - jd0) / horizon;
+  }
+}
+function searchSync(cfg, jd0, dir, count, horizon){
+  const found = [], g = searchGen(cfg, jd0, dir, count, horizon, found);
+  while (!g.next().done);
+  return found;
+}
+/* ==== END ASTRO CORE ==== */
+
+/* ==================================================================
+   Syzygy: the planets on their real timing, and when they line up.
+   Positions come from the core above. "Lined up" means the smallest arc holding every tracked planet's
+   direction, seen from the Sun (heliocentric) or from Earth (as in the sky), is under the Within angle.
+   With "Either side", opposite directions count too (a straight line through the Sun or through Earth).
+   ================================================================== */
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const DAY_MS = 864e5;
+const jdFromMs = (ms) => ms / DAY_MS + 2440587.5;
+const msFromJd = (jd) => (jd - 2440587.5) * DAY_MS;
+const nowJd = () => jdFromMs(Date.now());
+const JD_MIN = jdFromMs(Date.UTC(1000, 0, 1)), JD_MAX = jdFromMs(Date.UTC(2999, 11, 31));
+
+/* ---------- settings: one table per kind of control ---------- */
+// Sliders. To add a setting, add a row here and read S[key] where it's used.
+const PARAMS = [
+  { key:'size',   tab:'look',  label:'Planet size', min:.5, max:2.2, step:.05, def:1,  fmt:(v) => v.toFixed(2) + '×' },
+  { key:'glow',   tab:'look',  label:'Glow',        min:0,  max:1.6, step:.05, def:1,  fmt:(v) => Math.round(v * 100) + '%' },
+  { key:'trail',  tab:'look',  label:'Trails',      min:0,  max:.6,  step:.01, def:.16, fmt:(v) => v ? Math.round(v * 100) + '% orbit' : 'off' },
+  { key:'orbits', tab:'look',  label:'Orbit lines', min:0,  max:1,   step:.05, def:.55, fmt:(v) => Math.round(v * 100) + '%' },
+  { key:'stars',  tab:'look',  label:'Stars',       min:0,  max:1,   step:.05, def:.6, fmt:(v) => Math.round(v * 100) + '%' },
+  { key:'spiroGap', tab:'look', label:'Spiro every', min:1, max:60,  step:1,   def:6,  fmt:(v) => v + (v === 1 ? ' day' : ' days') },
+  { key:'spiroInk', tab:'look', label:'Spiro ink',  min:.05, max:1,  step:.05, def:.4, fmt:(v) => Math.round(v * 100) + '%' },
+  { key:'vol',    tab:'sound', label:'Volume',      min:0,  max:1,   step:.01, def:.6, fmt:(v) => Math.round(v * 100) + '%' },
+  { key:'drone',  tab:'sound', label:'Drone',       min:0,  max:1,   step:.01, def:.35, fmt:(v) => v ? Math.round(v * 100) + '%' : 'off' },
+  { key:'base',   tab:'sound', label:'Lowest note', min:24, max:57,  step:1,   def:33, fmt:(v) => noteName(v) },
+  { key:'spread', tab:'sound', label:'Pitch spread', min:1, max:5,   step:.1,  def:3.4, fmt:(v) => v.toFixed(1) + ' oct' },
+  { key:'bright', tab:'sound', label:'Brightness',  min:0,  max:1,   step:.01, def:.5, fmt:(v) => Math.round(v * 100) + '%' },
+  { key:'ring',   tab:'sound', label:'Chime ring',  min:.4, max:8,   step:.1,  def:3.5, fmt:(v) => v.toFixed(1) + ' s' },
+  { key:'reverb', tab:'sound', label:'Reverb',      min:0,  max:1,   step:.01, def:.45, fmt:(v) => Math.round(v * 100) + '%' }
+];
+// Chip rows.
+const CHOICES = [
+  { key:'scale', tab:'look', label:'Distances', def:'even', opts:[['even', 'Evenly spaced'], ['true', 'True to scale']] },
+  { key:'voice', tab:'sound', label:'Voice', def:'glass', opts:[['glass', 'Glass'], ['warm', 'Warm'], ['choir', 'Choir'], ['bell', 'Bell']] },
+  { key:'tuning', tab:'sound', label:'Tuning', def:'penta', opts:[['free', 'True ratios'], ['penta', 'Pentatonic'], ['just', 'Just major']] }
+];
+// Switches.
+const TOGGLES = [
+  { key:'labels', tab:'look', label:'Names', def:true },
+  { key:'fan',    tab:'look', label:'Alignment fan', def:true },
+  { key:'sight',  tab:'look', label:'Sight lines from Earth', def:true },
+  { key:'sky',    tab:'look', label:'Sky strip from Earth', def:true },
+  { key:'spiro',  tab:'look', label:'Spirograph (first two planets)', def:false },
+  { key:'pluto',  tab:'look', label:'Pluto', def:false },
+  { key:'chime',  tab:'sound', label:'Chime when they line up', def:true }
+];
+const SPEEDS = [
+  [1 / 86400, 'Real time'], [1 / 24, '1 hour / s'], [1, '1 day / s'], [7, '1 week / s'],
+  [30.4375, '1 month / s'], [91.3, '3 months / s'], [365.25, '1 year / s'], [3652.5, '10 years / s']
+];
+const PRESETS = [
+  { id:'mars', name:'Mars opposition', blurb:'Earth overtakes Mars: closest and brightest', chosen:[2, 3], view:'sun', line:false, within:2 },
+  { id:'great', name:'Great conjunction', blurb:'Jupiter meets Saturn in our sky every 20 years', chosen:[4, 5], view:'earth', line:false, within:1.5 },
+  { id:'rose', name:'Venus rose', blurb:'Venus and Earth meet five times in eight years', chosen:[1, 2], view:'sun', line:false, within:1, spiro:true, speed:5 },
+  { id:'parade', name:'Planet parade', blurb:'All five bright planets on one side of the sky', chosen:[0, 1, 3, 4, 5], view:'earth', line:false, within:120 },
+  { id:'inner', name:'Inner four', blurb:'Mercury, Venus, Earth and Mars in one fan', chosen:[0, 1, 2, 3], view:'sun', line:false, within:20 },
+  { id:'giants', name:'Giants on a line', blurb:'Jupiter to Neptune on one line through the Sun', chosen:[4, 5, 6, 7], view:'sun', line:true, within:20 },
+  { id:'all', name:'All eight', blurb:'Every planet on one line through the Sun', chosen:[0, 1, 2, 3, 4, 5, 6, 7], view:'sun', line:true, within:30 }
+];
+function defaults(){
+  const S = { preset:'mars', chosen:[2, 3], view:'sun', line:false, within:2, speed:4, playing:true, dir:1 };
+  PARAMS.forEach((p) => S[p.key] = p.def);
+  CHOICES.forEach((c) => S[c.key] = c.def);
+  TOGGLES.forEach((t) => S[t.key] = t.def);
+  S.sound = true;
+  return S;
+}
+const STORE = 'syzygy';
+let S = defaults();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && typeof saved === 'object') for (const k in S) if (k in saved && typeof saved[k] === typeof S[k]) S[k] = saved[k];
+} catch (e) {}
+S.chosen = S.chosen.filter((i) => Number.isInteger(i) && BODIES[i] && (S.pluto || i !== 8));
+if (S.chosen.length < 2) S.chosen = [2, 3];
+S.speed = clamp(S.speed | 0, 0, SPEEDS.length - 1);
+let saveTimer = 0;
+function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }, 200); }
+
+/* ---------- time ---------- */
+let jd = nowJd(), lastJd = jd;
+let glide = null;   // { from, to, t0, dur }
+function setJd(v){ jd = clamp(v, JD_MIN, JD_MAX); }
+function glideTo(target, pause){
+  target = clamp(target, JD_MIN, JD_MAX);
+  const span = Math.abs(target - jd);
+  glide = { from: jd, to: target, t0: performance.now(), dur: clamp(500 + Math.log10(1 + span) * 330, 500, 1900) };
+  if (pause) setPlaying(false);
+}
+const fmtDate = (j, withTime) => {
+  const d = new Date(msFromJd(j));
+  const s = d.toLocaleDateString(undefined, { weekday: withTime ? 'short' : undefined, day: 'numeric', month: 'short', year: 'numeric' });
+  return withTime ? s + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : s;
+};
+function fmtGap(days){
+  const a = Math.abs(days), past = days < 0;
+  let s;
+  if (a < 1 / 24) s = 'under an hour';
+  else if (a < 1.5) s = Math.round(a * 24) + ' hours';
+  else if (a < 60) s = Math.round(a) + ' days';
+  else if (a < 730) s = Math.round(a / 30.44) + ' months';
+  else if (a < 36525) s = (a / 365.25).toFixed(a < 3652 ? 1 : 0) + ' years';
+  else s = Math.round(a / 365.25).toLocaleString() + ' years';
+  return past ? s + ' ago' : 'in ' + s;
+}
+
+/* ---------- alignment search, kept around the current time ---------- */
+// events: sorted list found between winLo and winHi. A new search runs when the setup changes or time leaves the window.
+let events = [], winLo = 0, winHi = 0, searchJob = null, searchToken = 0, aheadCount = 10, searchNote = '';
+const cfg = () => ({ chosen: S.chosen, view: S.view, line: S.line, within: S.within });
+function startSearch(){
+  const token = ++searchToken, c = cfg(), t0 = jd;
+  const list = members(c);
+  events = []; winLo = t0; winHi = t0;
+  if (list.length < 2){ searchJob = null; searchNote = 'Pick at least two planets' + (S.view === 'earth' ? ' besides Earth' : '') + '.'; renderList(); return; }
+  const horizon = 36525 * 10;   // up to a thousand years each way
+  const ahead = [], behind = [];
+  const gA = searchGen(c, t0, 1, aheadCount, horizon, ahead), gB = searchGen(c, t0, -1, 4, horizon, behind);
+  let doneA = false, doneB = false;
+  searchNote = 'Looking…';
+  searchJob = { token };
+  renderList();
+  const tick = () => {
+    if (token !== searchToken) return;
+    const until = performance.now() + 10;
+    while (performance.now() < until && !(doneA && doneB)){
+      if (!doneA && gA.next().done) doneA = true;
+      else if (!doneB && gB.next().done) doneB = true;
+    }
+    events = behind.slice().reverse().concat(ahead);
+    winLo = behind.length >= 4 ? behind[behind.length - 1].jd : t0 - horizon;
+    winHi = ahead.length >= aheadCount ? ahead[ahead.length - 1].jd : t0 + horizon;
+    if (doneA && doneB){
+      searchJob = null;
+      searchNote = ahead.length ? '' : 'Not within ' + fmtAngle(S.within) + ' in the next thousand years. Try a wider angle.';
+      renderList(); renderReadout(true);
+      return;
+    }
+    renderReadout(true);
+    setTimeout(tick, 0);
+  };
+  tick();
+}
+function maybeResearch(){
+  if (searchJob || glide || dragging) return;
+  if (jd > winHi || jd < winLo) startSearch();
+}
+const nextEvent = () => events.find((e) => e.jd > jd + 1e-5);
+const prevEvent = () => { for (let k = events.length - 1; k >= 0; k--) if (events[k].jd < jd - 1e-5) return events[k]; };
+
+/* ---------- describing an alignment ---------- */
+const fmtAngle = (a) => a < 10 ? a.toFixed(1) + '°' : Math.round(a) + '°';
+function describe(j){
+  const c = cfg(), list = members(c);
+  const ang = anglesAt(c, j, list);
+  const span = spanOf(ang, c.line), same = spanOf(ang, false);
+  const two = list.length === 2, oneSide = !c.line || same <= c.within + 1e-6 || same < 90;
+  let what;
+  if (c.view === 'sun') what = two ? (oneSide ? 'conjunction, same side of the Sun' : 'opposition, either side of the Sun') : (oneSide ? 'one side of the Sun' : 'one line through the Sun');
+  else what = two ? (oneSide ? 'together in the sky' : 'opposite in the sky') : (oneSide ? 'one side of the sky' : 'one line across the sky');
+  if (c.view === 'earth'){
+    const sun = geoLon(-1, j), near = Math.min(...ang.map((a) => Math.min(Math.abs(wrap180(a - sun)), c.line ? Math.abs(wrap180(a - sun + 180)) : 999)));
+    const mid = circMean(ang);
+    if (near < 12) what += ', close to the Sun (lost in its glare)';
+    else what += wrap180(mid - sun) > 0 ? ', evening sky' : ', morning sky';
+  }
+  return { span, what };
+}
+function circMean(a){ let x = 0, y = 0; a.forEach((v) => { x += Math.cos(v * DEG); y += Math.sin(v * DEG); }); return wrap360(Math.atan2(y, x) / DEG); }
+
+/* ---------- canvas & view ---------- */
+const cv = $('#stage'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, cx = 0, cy = 0, fit = 1;
+const view = { zoom: 1, px: 0, py: 0 };
+let stars = null;
+function layout(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const hidden = document.body.classList.contains('ui-hidden');
+  const top = hidden ? 10 : $('.brand').getBoundingClientRect().bottom + 6;
+  const bot = hidden ? H - 10 : $('#stack').getBoundingClientRect().top - (S.view === 'earth' && S.sky ? 62 : 8);
+  const sheetW = W >= 760 && $('#sheet').classList.contains('open') ? 390 : 0;
+  cx = (W - sheetW) / 2; cy = (top + bot) / 2;
+  const R = Math.max(60, Math.min((W - sheetW) / 2 - 14, (bot - top) / 2));
+  fit = R / outerReach();
+  makeStars();
+}
+// How far out the view has to reach: the outermost tracked (or shown) planet.
+function shownBodies(){ return BODIES.map((b, i) => i).filter((i) => i < 8 || S.pluto); }
+function ringR(i){ const list = shownBodies(), k = list.indexOf(i); return k < 0 ? 1 : .16 + .84 * k / (list.length - 1); }
+function outerReach(){
+  if (S.scale === 'even') return 1.04;
+  const far = Math.max(...S.chosen.map((i) => BODIES[i].el[0] * (1 + BODIES[i].el[1])));
+  return far * 1.06;
+}
+function makeStars(){
+  stars = document.createElement('canvas');
+  stars.width = cv.width; stars.height = cv.height;
+  const g = stars.getContext('2d');
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  // faint milky haze in the far background
+  const hz = g.createRadialGradient(stars.width * .78, stars.height * .2, 0, stars.width * .78, stars.height * .2, stars.width * .9);
+  hz.addColorStop(0, 'rgba(90,70,160,.10)'); hz.addColorStop(1, 'rgba(90,70,160,0)');
+  g.fillStyle = hz; g.fillRect(0, 0, stars.width, stars.height);
+  const n = Math.round(W * H / 1700);
+  for (let k = 0; k < n; k++){
+    const x = rnd() * stars.width, y = rnd() * stars.height, m = Math.pow(rnd(), 3);
+    g.fillStyle = 'rgba(' + (200 + rnd() * 55 | 0) + ',' + (200 + rnd() * 40 | 0) + ',255,' + (.15 + m * .75).toFixed(2) + ')';
+    g.beginPath(); g.arc(x, y, (.35 + m * 1.1) * DPR, 0, 7); g.fill();
+  }
+}
+// World units: AU for true scale, ring units (outer ring = 1) for even spacing.
+const scale = () => fit * view.zoom;
+const toScreen = (wx, wy) => [cx + view.px + wx * scale(), cy + view.py - wy * scale()];
+const _h = [0, 0, 0];
+function worldPos(i, j){
+  if (S.scale === 'even'){ const a = helioLon(i, j) * DEG, r = ringR(i); return [r * Math.cos(a), r * Math.sin(a)]; }
+  helio(i, j, _h); return [_h[0], _h[1]];
+}
+// Orbit outlines for true scale, rebuilt when the date moves by more than a few decades.
+let orbitCache = { jd: -1e9, paths: [] };
+function orbitPaths(){
+  if (Math.abs(jd - orbitCache.jd) < 3650 * 3) return orbitCache.paths;
+  const paths = BODIES.map((b, i) => {
+    const pts = [], n = 160;
+    for (let k = 0; k < n; k++) { const p = helio(i, jd + b.period * k / n, [0, 0, 0]); pts.push([p[0], p[1]]); }
+    return pts;
+  });
+  orbitCache = { jd, paths };
+  return paths;
+}
+
+/* ---------- drawing ---------- */
+let flash = 0, flashAng = 0;
+function draw(){
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#06060f'; ctx.fillRect(0, 0, W, H);
+  if (S.stars > 0 && stars){ ctx.globalAlpha = S.stars; ctx.drawImage(stars, 0, 0, W, H); ctx.globalAlpha = 1; }
+
+  const list = shownBodies(), sc = scale();
+  const [sx, sy] = toScreen(0, 0);
+  const pos = {};
+  list.forEach((i) => pos[i] = toScreen(...worldPos(i, jd)));
+  const tracked = new Set(members(cfg()));
+  const c = cfg(), d = describe(jd), aligned = members(c).length >= 2 && d.span <= S.within;
+
+  // orbits
+  if (S.orbits > 0){
+    ctx.lineWidth = 1;
+    const paths = S.scale === 'true' ? orbitPaths() : null;
+    list.forEach((i) => {
+      const on = S.chosen.includes(i);
+      ctx.strokeStyle = on ? rgba(BODIES[i].color, .32 * S.orbits + .06) : 'rgba(190,180,240,' + (.16 * S.orbits).toFixed(3) + ')';
+      ctx.beginPath();
+      if (paths){ paths[i].forEach((p, k) => { const q = toScreen(p[0], p[1]); k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); }
+      else ctx.arc(sx, sy, ringR(i) * sc, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  }
+
+  // spirograph lines between the first two planets
+  if (S.spiro && spiroSegs.length){
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(198,180,255,' + (S.spiroInk * .55).toFixed(3) + ')';
+    ctx.beginPath();
+    for (const s of spiroSegs){ const a = toScreen(s[0], s[1]), b = toScreen(s[2], s[3]); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // alignment fan from the Sun (or from Earth), narrowing as they line up
+  const ang = anglesAt(c, jd);
+  const fromE = S.view === 'earth', origin = fromE ? pos[EARTH] : [sx, sy];
+  if (S.fan && ang.length >= 2){
+    const reach = Math.max(...members(c).map((i) => Math.hypot(pos[i][0] - origin[0], pos[i][1] - origin[1]))) + 30 * S.size;
+    const arcs = fanArcs(ang, S.line);
+    const hot = aligned ? 1 : clamp(1 - (d.span - S.within) / (S.within * 4 + 20), 0, 1);
+    arcs.forEach(([a0, a1]) => {
+      const g = ctx.createRadialGradient(origin[0], origin[1], 0, origin[0], origin[1], reach);
+      const col = aligned ? '255,217,138' : '198,180,255';
+      g.addColorStop(0, 'rgba(' + col + ',' + (.05 + .2 * hot).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(' + col + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(origin[0], origin[1]);
+      ctx.arc(origin[0], origin[1], reach, -a1 * DEG, -a0 * DEG);
+      ctx.closePath(); ctx.fill();
+    });
+    if (aligned || flash > 0){
+      // the line they share, glowing
+      const m = S.line ? lineMean(ang) : circMean(ang), L = Math.max(W, H) * 1.2;
+      const k = Math.max(aligned ? .7 : 0, flash);
+      ctx.globalCompositeOperation = 'lighter';
+      for (const [wd, al] of [[10, .06], [3, .22], [1.2, .7]]){
+        ctx.strokeStyle = 'rgba(255,217,138,' + (al * k).toFixed(3) + ')'; ctx.lineWidth = wd;
+        ctx.beginPath();
+        ctx.moveTo(origin[0] - (S.line ? Math.cos(m * DEG) * L : 0), origin[1] + (S.line ? Math.sin(m * DEG) * L : 0));
+        ctx.lineTo(origin[0] + Math.cos(m * DEG) * L, origin[1] - Math.sin(m * DEG) * L);
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  // sight lines from Earth, in the true direction of each tracked planet and the Sun
+  if (fromE && S.sight){
+    const e = pos[EARTH], L = Math.max(W, H) * 1.5;
+    ctx.setLineDash([3, 5]); ctx.lineWidth = 1;
+    members(c).forEach((i) => {
+      const a = geoLon(i, jd) * DEG;
+      ctx.strokeStyle = rgba(BODIES[i].color, .5);
+      ctx.beginPath(); ctx.moveTo(e[0], e[1]); ctx.lineTo(e[0] + Math.cos(a) * L, e[1] - Math.sin(a) * L); ctx.stroke();
+    });
+    const a = geoLon(-1, jd) * DEG;
+    ctx.strokeStyle = 'rgba(255,214,150,.35)';
+    ctx.beginPath(); ctx.moveTo(e[0], e[1]); ctx.lineTo(e[0] + Math.cos(a) * L, e[1] - Math.sin(a) * L); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // the Sun
+  const sr = (S.scale === 'true' ? 7 : 9) * Math.sqrt(S.size);
+  const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr * 6 * (.4 + S.glow * .6));
+  sg.addColorStop(0, 'rgba(255,240,200,.95)'); sg.addColorStop(.18, 'rgba(255,196,110,.5)'); sg.addColorStop(1, 'rgba(255,150,80,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, sr * 6, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff3d6'; ctx.beginPath(); ctx.arc(sx, sy, sr, 0, 7); ctx.fill();
+
+  // trails: a fading arc behind each planet, the same share of every orbit
+  if (S.trail > 0){
+    ctx.lineCap = 'round';
+    list.forEach((i) => {
+      const b = BODIES[i], n = 28, back = b.period * S.trail, on = S.chosen.includes(i);
+      let prev = pos[i];
+      for (let k = 1; k <= n; k++){
+        const p = toScreen(...worldPos(i, jd - back * k / n * S.dir));
+        ctx.strokeStyle = rgba(b.color, (on ? .5 : .25) * (1 - k / n));
+        ctx.lineWidth = Math.max(1, b.size * S.size * .55 * (1 - k / n * .7));
+        ctx.beginPath(); ctx.moveTo(prev[0], prev[1]); ctx.lineTo(p[0], p[1]); ctx.stroke();
+        prev = p;
+      }
+    });
+    ctx.lineCap = 'butt';
+  }
+
+  // planets
+  ctx.font = '400 11px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+  ctx.textAlign = 'center';
+  list.forEach((i) => {
+    const b = BODIES[i], [x, y] = pos[i], r = b.size * S.size, on = S.chosen.includes(i), cnt = tracked.has(i);
+    if (S.glow > 0){
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * (3 + 2 * S.glow));
+      g.addColorStop(0, rgba(b.color, (on ? .55 : .3) * Math.min(1, S.glow)));
+      g.addColorStop(1, rgba(b.color, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * (3 + 2 * S.glow), 0, 7); ctx.fill();
+    }
+    if (b.ring){
+      ctx.strokeStyle = rgba(b.color, .75); ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.ellipse(x, y, r * 1.9, r * .7, -.35, 0, 7); ctx.stroke();
+    }
+    // soft shading: lit from the Sun's side
+    const la = Math.atan2(sy - y, sx - x);
+    const pg = ctx.createRadialGradient(x + Math.cos(la) * r * .45, y + Math.sin(la) * r * .45, r * .1, x, y, r * 1.1);
+    pg.addColorStop(0, '#fff'); pg.addColorStop(.35, b.color); pg.addColorStop(1, shade(b.color, .45));
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    if (on){
+      ctx.strokeStyle = cnt ? (aligned ? 'rgba(255,217,138,.9)' : 'rgba(198,180,255,.75)') : 'rgba(198,180,255,.3)';
+      ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(x, y, r + 4, 0, 7); ctx.stroke();
+    }
+    if (S.labels){
+      ctx.fillStyle = on ? 'rgba(239,237,248,.92)' : 'rgba(170,165,200,.6)';
+      ctx.fillText(b.name, x, y + r + (on ? 17 : 14));
+    }
+  });
+
+  if (fromE && S.sky && !document.body.classList.contains('ui-hidden')) drawSky();
+}
+function fanArcs(ang, line){
+  // returns [start, end] arcs (deg, counterclockwise) covering the angles; two opposite arcs for a line
+  const v = ang.map((a) => wrap360(line ? a * 2 : a)).sort((p, q) => p - q);
+  let gi = v.length - 1, gap = v[0] + 360 - v[v.length - 1];
+  for (let k = 1; k < v.length; k++) if (v[k] - v[k - 1] > gap){ gap = v[k] - v[k - 1]; gi = k - 1; }
+  let s0 = v[(gi + 1) % v.length], s1 = s0 + (360 - gap);
+  const pad = 1.2;
+  if (!line) return [[s0 - pad, s1 + pad]];
+  s0 /= 2; s1 /= 2;
+  return [[s0 - pad, s1 + pad], [s0 + 180 - pad, s1 + 180 + pad]];
+}
+function lineMean(a){ return circMean(a.map((v) => v * 2)) / 2; }
+function rgba(hex, a){ const n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + clamp(a, 0, 1).toFixed(3) + ')'; }
+function shade(hex, f){ const n = parseInt(hex.slice(1), 16); return 'rgb(' + ((n >> 16 & 255) * f | 0) + ',' + ((n >> 8 & 255) * f | 0) + ',' + ((n & 255) * f | 0) + ')'; }
+
+// The sky from Earth: the ecliptic laid flat, with the Sun in the middle, evening sky to the left (east).
+function drawSky(){
+  const st = $('#stack').getBoundingClientRect();
+  const w = Math.min(st.width, 640), x0 = W / 2 - w / 2, y = st.top - 32, h = 44;
+  const sun = geoLon(-1, jd), X = (lon) => x0 + w / 2 - wrap180(lon - sun) / 180 * (w / 2);
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x0, y - h / 2, w, h, 14) : ctx.rect(x0, y - h / 2, w, h); ctx.clip();
+  const g = ctx.createLinearGradient(x0, 0, x0 + w, 0);
+  g.addColorStop(0, 'rgba(14,14,34,.78)'); g.addColorStop(.42, 'rgba(60,40,70,.78)'); g.addColorStop(.5, 'rgba(120,80,60,.85)');
+  g.addColorStop(.58, 'rgba(60,40,70,.78)'); g.addColorStop(1, 'rgba(14,14,34,.78)');
+  ctx.fillStyle = g; ctx.fillRect(x0, y - h / 2, w, h);
+  ctx.strokeStyle = 'rgba(210,200,255,.18)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, y + 4); ctx.lineTo(x0 + w, y + 4); ctx.stroke();
+  ctx.font = '400 9px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+  ctx.fillStyle = 'rgba(200,195,230,.55)'; ctx.textAlign = 'left'; ctx.fillText('EVENING SKY', x0 + 10, y - h / 2 + 12);
+  ctx.textAlign = 'right'; ctx.fillText('MORNING SKY', x0 + w - 10, y - h / 2 + 12);
+  // the Sun's glare
+  const sg = ctx.createRadialGradient(X(sun), y + 4, 0, X(sun), y + 4, 26);
+  sg.addColorStop(0, 'rgba(255,240,200,.95)'); sg.addColorStop(.3, 'rgba(255,190,110,.4)'); sg.addColorStop(1, 'rgba(255,170,90,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(X(sun), y + 4, 26, 0, 7); ctx.fill();
+  // tracked span bracket
+  const c = cfg(), m = members(c);
+  if (m.length >= 2 && !S.line){
+    const a = m.map((i) => geoLon(i, jd)), xs = a.map(X);
+    const lo = Math.min(...xs), hi = Math.max(...xs);
+    if (hi - lo < w * .98){
+      const al = describe(jd).span <= S.within;
+      ctx.fillStyle = al ? 'rgba(255,217,138,.16)' : 'rgba(198,180,255,.1)';
+      ctx.fillRect(lo - 5, y - 8, hi - lo + 10, 24);
+    }
+  }
+  ctx.textAlign = 'center';
+  const tags = [];
+  shownBodies().forEach((i) => {
+    if (i === EARTH) return;
+    const b = BODIES[i], x = X(geoLon(i, jd)), on = m.includes(i);
+    ctx.fillStyle = rgba(b.color, on ? 1 : .45);
+    ctx.beginPath(); ctx.arc(x, y + 4, on ? 3.6 : 2.4, 0, 7); ctx.fill();
+    if (on) tags.push([x, b.name.slice(0, 3).toUpperCase()]);
+  });
+  // names below the line, stepping above it when two would overlap
+  tags.sort((a, b) => a[0] - b[0]);
+  const lastX = [-1e9, -1e9];
+  ctx.fillStyle = 'rgba(239,237,248,.85)';
+  tags.forEach(([x, t]) => {
+    const row = x - lastX[0] >= 26 ? 0 : x - lastX[1] >= 26 ? 1 : -1;
+    if (row < 0) return;   // no room: the dot stays, the name drops
+    lastX[row] = x;
+    ctx.fillText(t, x, row ? y - 5 : y + 18);
+  });
+  ctx.restore();
+}
+
+/* ---------- spirograph ---------- */
+let spiroSegs = [], spiroKey = '', spiroNext = null;
+function spiroPair(){ const m = S.chosen.slice().sort((a, b) => a - b); return m.length >= 2 ? [m[0], m[1]] : null; }
+function spiroReset(){ spiroSegs = []; spiroNext = null; }
+function spiroStep(from, to){
+  if (!S.spiro) return;
+  const pair = spiroPair(); if (!pair) return;
+  const key = pair.join() + S.scale + (S.pluto ? 'p' : '');
+  if (key !== spiroKey){ spiroKey = key; spiroReset(); }
+  const gap = S.spiroGap, dir = to >= from ? 1 : -1;
+  if (spiroNext == null || Math.abs(spiroNext - from) > gap * 2) spiroNext = (dir > 0 ? Math.ceil(from / gap) : Math.floor(from / gap)) * gap;
+  let n = 0;
+  while ((dir > 0 ? spiroNext <= to : spiroNext >= to) && n++ < 400){
+    const a = worldPos(pair[0], spiroNext), b = worldPos(pair[1], spiroNext);
+    spiroSegs.push([a[0], a[1], b[0], b[1]]);
+    spiroNext += gap * dir;
+  }
+  if (spiroSegs.length > 6000) spiroSegs.splice(0, spiroSegs.length - 6000);
+}
+
+/* ---------- readout ---------- */
+let lastReadout = 0;
+function renderReadout(force){
+  const now = performance.now();
+  if (!force && now - lastReadout < 90) return;
+  lastReadout = now;
+  const near = Math.abs(jd - nowJd()) < 1 / 1440 * 2;
+  $('#dateText').textContent = fmtDate(jd);
+  const showTime = SPEEDS[S.speed][0] <= 1 || !S.playing;
+  $('#btnNow').classList.toggle('away', !near);
+  const c = cfg(), m = members(c);
+  $('#who').innerHTML = m.map((i) => '<span><i style="background:' + BODIES[i].color + '"></i>' + BODIES[i].name + '</span>').join('');
+  const ro = $('#readout');
+  if (m.length < 2){
+    $('#spanText').textContent = 'Pick two planets';
+    $('#nextText').textContent = S.view === 'earth' ? 'From Earth, Earth itself doesn’t count' : 'Tap planets or open the planets list';
+    ro.classList.remove('aligned');
+    $('#subText').textContent = '';
+    return;
+  }
+  const d = describe(jd), al = d.span <= S.within;
+  ro.classList.toggle('aligned', al);
+  const word = S.line ? 'off one line' : (m.length === 2 ? 'apart' : 'spread');
+  $('#spanText').textContent = al ? 'Lined up · ' + fmtAngle(d.span) + ' ' + word : fmtAngle(d.span) + ' ' + word;
+  const nx = nextEvent();
+  if (nx) $('#nextText').innerHTML = 'Next: <b>' + fmtDate(nx.jd) + '</b> · ' + fmtGap(nx.jd - jd);
+  else $('#nextText').textContent = searchJob ? 'Looking ahead…' : 'None within ' + fmtAngle(S.within) + ' for 1,000 years';
+  $('#btnNext').disabled = !nx; $('#btnPrev').disabled = !prevEvent();
+  const tm = showTime ? new Date(msFromJd(jd)).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) + ' · ' : '';
+  $('#subText').innerHTML = tm + (S.view === 'earth' ? 'FROM EARTH' : 'FROM THE SUN') + ' · WITHIN ' + fmtAngle(S.within) + (S.playing ? '' : ' · <b>PAUSED</b>');
+  if ($('#pane-list').hidden === false && now - lastListRender > 1000) renderList();
+}
+let lastListRender = 0;
+function renderList(){
+  lastListRender = performance.now();
+  $('#listStatus').textContent = searchNote || (S.view === 'earth' ? 'Seen from Earth' : 'Seen from the Sun') + ', within ' + fmtAngle(S.within) + '. Tap one to go there.';
+  const ul = $('#eventList'); ul.innerHTML = '';
+  let marked = false;
+  const mark = () => { if (marked) return; marked = true; const li = document.createElement('li'); li.className = 'here'; li.textContent = '▸ ' + fmtDate(jd); ul.appendChild(li); };
+  events.forEach((e) => {
+    if (e.jd > jd) mark();
+    const li = document.createElement('li');
+    if (e.jd < jd) li.className = 'past';
+    const b = document.createElement('button');
+    const d = describe(e.jd);
+    b.innerHTML = '<b>' + fmtDate(e.jd) + '</b><span class="ago">' + fmtGap(e.jd - jd) + '</span><span class="what"><span class="span">' + fmtAngle(e.span) + '</span> · ' + d.what + '</span>';
+    b.addEventListener('click', () => { glideTo(e.jd, true); });
+    li.appendChild(b); ul.appendChild(li);
+  });
+  mark();
+  $('#btnMore').hidden = !!searchJob || events.filter((e) => e.jd > jd).length < aheadCount - 1;
+}
+$('#btnMore').addEventListener('click', () => { aheadCount += 10; startSearch(); });
+
+/* ---------- controls ---------- */
+function setPlaying(p){
+  S.playing = p; save();
+  $('#playIcon').innerHTML = p ? '<path d="M8 5v14M16 5v14"/>' : '<path d="M7 4.5v15l12-7.5z"/>';
+  $('#btnPlay').setAttribute('aria-label', p ? 'Pause' : 'Play');
+  renderReadout(true);
+}
+function setSpeed(k){
+  S.speed = clamp(k, 0, SPEEDS.length - 1); save();
+  $('#btnSpeed').textContent = (S.dir < 0 ? '−' : '') + SPEEDS[S.speed][1];
+  renderReadout(true);
+}
+function setDir(d){ S.dir = d; $('#btnRev').setAttribute('aria-pressed', d < 0); setSpeed(S.speed); }
+$('#btnPlay').addEventListener('click', () => { setPlaying(!S.playing); unlockAudio(); dismissHint(); });
+$('#btnSpeed').addEventListener('click', () => setSpeed((S.speed + 1) % SPEEDS.length));
+$('#btnRev').addEventListener('click', () => { setDir(-S.dir); if (!S.playing) setPlaying(true); });
+$('#btnNow').addEventListener('click', () => { glideTo(nowJd()); });
+$('#btnNext').addEventListener('click', () => { const e = nextEvent(); if (e) glideTo(e.jd, true); });
+$('#btnPrev').addEventListener('click', () => { const e = prevEvent(); if (e) glideTo(e.jd, true); });
+$('#btnReadout').addEventListener('click', () => openSheet('list'));
+$('#dateIn').addEventListener('change', (ev) => {
+  const v = ev.target.value; if (!v) return;
+  const [y, mo, da] = v.split('-').map(Number);
+  const d = new Date(Date.UTC(2000, mo - 1, da, 12)); d.setUTCFullYear(y);
+  glideTo(jdFromMs(d.getTime()), true);
+});
+$('#dateIn').addEventListener('focus', () => {
+  const d = new Date(msFromJd(jd)), y = d.getUTCFullYear();
+  if (y >= 1000 && y <= 2999) $('#dateIn').value = String(y).padStart(4, '0') + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+});
+
+/* ---------- sheet ---------- */
+const TABS = ['track', 'list', 'look', 'sound'];
+let tab = 'track';
+function openSheet(t){
+  if (t) tab = t;
+  TABS.forEach((k) => { $('#tab-' + k).setAttribute('aria-selected', k === tab); $('#pane-' + k).hidden = k !== tab; });
+  $('#sheet').classList.add('open');
+  document.body.classList.add('sheet-open');
+  $('#btnSheet').setAttribute('aria-expanded', 'true');
+  if (tab === 'list') renderList();
+  layout();
+}
+function closeSheet(){ $('#sheet').classList.remove('open'); document.body.classList.remove('sheet-open'); $('#btnSheet').setAttribute('aria-expanded', 'false'); layout(); }
+TABS.forEach((k) => $('#tab-' + k).addEventListener('click', () => openSheet(k)));
+$('#btnClose').addEventListener('click', closeSheet);
+$('#btnSheet').addEventListener('click', () => $('#sheet').classList.contains('open') ? closeSheet() : openSheet(tab === 'look' || tab === 'sound' ? 'track' : tab));
+$('#btnLook').addEventListener('click', () => $('#sheet').classList.contains('open') && tab === 'look' ? closeSheet() : openSheet('look'));
+
+// Track pane
+function buildTrack(){
+  const pl = $('#presetList'); pl.innerHTML = '';
+  PRESETS.forEach((p) => {
+    const b = document.createElement('button');
+    b.className = 'preset'; b.setAttribute('aria-pressed', S.preset === p.id);
+    b.innerHTML = '<b>' + p.name + '</b><span>' + p.blurb + '</span>';
+    b.addEventListener('click', () => applyPreset(p));
+    pl.appendChild(b);
+  });
+  const pc = $('#planetChips'); pc.innerHTML = '';
+  shownBodies().forEach((i) => {
+    const b = document.createElement('button');
+    b.setAttribute('aria-pressed', S.chosen.includes(i));
+    b.innerHTML = '<i style="background:' + BODIES[i].color + '"></i>' + BODIES[i].name;
+    b.disabled = S.view === 'earth' && i === EARTH;
+    b.addEventListener('click', () => toggleBody(i));
+    pc.appendChild(b);
+  });
+  chipRow($('#viewChips'), [['sun', 'The Sun'], ['earth', 'Earth (our sky)']], S.view, (v) => { S.view = v; changed(); });
+  chipRow($('#lineChips'), [['same', 'Same side'], ['line', 'Either side (a line)']], S.line ? 'line' : 'same', (v) => { S.line = v === 'line'; changed(); });
+  $('#p-within').value = Math.round(withinToSlider(S.within));
+  $('#o-within').textContent = fmtAngle(S.within);
+  $('#trackNote').textContent = S.view === 'earth'
+    ? 'From Earth, the angle is how far apart they look in the sky along the Sun’s path. Earth itself drops out.'
+    : 'From the Sun, the angle is how far apart they are around their orbits. Earth and Mars lined up on the same side is Mars at opposition.';
+}
+function chipRow(el, opts, cur, on){
+  el.innerHTML = '';
+  opts.forEach(([v, label]) => {
+    const b = document.createElement('button'); b.textContent = label; b.setAttribute('aria-pressed', v === cur);
+    b.addEventListener('click', () => on(v)); el.appendChild(b);
+  });
+}
+const withinToSlider = (w) => Math.log(w / .2) / Math.log(180 / .2) * 1000;
+const sliderToWithin = (v) => { const w = .2 * Math.pow(180 / .2, v / 1000); return w < 10 ? Math.round(w * 10) / 10 : Math.round(w); };
+$('#p-within').addEventListener('input', (e) => { S.within = sliderToWithin(+e.target.value); $('#o-within').textContent = fmtAngle(S.within); S.preset = ''; changedSoon(); });
+function applyPreset(p){
+  S.preset = p.id; S.chosen = p.chosen.slice(); S.view = p.view; S.line = p.line; S.within = p.within;
+  if (p.spiro != null){ S.spiro = p.spiro; buildLook(); }
+  if (p.speed != null) setSpeed(p.speed);
+  spiroReset(); changed(true);
+}
+function toggleBody(i){
+  if (S.view === 'earth' && i === EARTH) return;
+  const k = S.chosen.indexOf(i);
+  if (k >= 0) S.chosen.splice(k, 1); else S.chosen.push(i);
+  S.chosen.sort((a, b) => a - b);
+  S.preset = '';
+  spiroReset(); changed();
+}
+let changeTimer = 0;
+function changedSoon(){ clearTimeout(changeTimer); changeTimer = setTimeout(() => changed(), 220); }
+function changed(keepPreset){
+  const match = PRESETS.find((p) => p.chosen.join() === S.chosen.join() && p.view === S.view && p.line === S.line && p.within === S.within);
+  S.preset = match ? match.id : '';
+  save(); buildTrack(); layout(); startSearch(); renderReadout(true); syncVoices();
+}
+
+// Look & Sound panes, built from the tables
+function buildPane(which){
+  const pane = $('#pane-' + which); pane.innerHTML = '';
+  const h = (t) => { const e = document.createElement('h3'); e.textContent = t; pane.appendChild(e); };
+  CHOICES.filter((c) => c.tab === which).forEach((c) => {
+    h(c.label); const row = document.createElement('div'); row.className = 'chips'; pane.appendChild(row);
+    chipRow(row, c.opts, S[c.key], (v) => { S[c.key] = v; save(); buildPane(which); onSetting(c.key); });
+  });
+  h(which === 'look' ? 'Picture' : 'Voice');
+  PARAMS.filter((p) => p.tab === which).forEach((p) => {
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = '<label for="p-' + p.key + '">' + p.label + '</label><input type="range" id="p-' + p.key + '" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '"><output></output>';
+    const inp = row.querySelector('input'), out = row.querySelector('output');
+    inp.value = S[p.key]; out.textContent = p.fmt(S[p.key]);
+    inp.addEventListener('input', () => { S[p.key] = +inp.value; out.textContent = p.fmt(S[p.key]); save(); onSetting(p.key); });
+    pane.appendChild(row);
+  });
+  h('Show');
+  const row = document.createElement('div'); row.className = 'chips'; pane.appendChild(row);
+  if (which === 'sound'){
+    const b = document.createElement('button'); b.textContent = 'Sound on'; b.setAttribute('aria-pressed', S.sound);
+    b.addEventListener('click', () => setSound(!S.sound)); row.appendChild(b);
+  }
+  TOGGLES.filter((t) => t.tab === which).forEach((t) => {
+    const b = document.createElement('button'); b.textContent = t.label; b.setAttribute('aria-pressed', S[t.key]);
+    b.addEventListener('click', () => { S[t.key] = !S[t.key]; save(); b.setAttribute('aria-pressed', S[t.key]); onSetting(t.key); });
+    row.appendChild(b);
+  });
+  if (which === 'look'){
+    const a = document.createElement('div'); a.className = 'actions';
+    const clr = document.createElement('button'); clr.textContent = 'Clear spirograph'; clr.addEventListener('click', spiroReset);
+    const rst = document.createElement('button'); rst.textContent = 'Reset look';
+    rst.addEventListener('click', () => { const d = defaults(); [...PARAMS, ...CHOICES, ...TOGGLES].filter((x) => x.tab === 'look').forEach((x) => S[x.key] = d[x.key]); save(); buildPane('look'); onSetting('scale'); });
+    a.append(clr, rst); pane.appendChild(a);
+    const p = document.createElement('p'); p.className = 'small';
+    p.innerHTML = 'Evenly spaced keeps every planet in view; true to scale shows real distances and stretched orbits (the view fits the outermost planet you track). Keys: Space play, [ ] speed, B backwards, N now, , . previous and next alignment, ← → a day (Shift: a month), R fit, F fullscreen, H hide, C look.';
+    pane.appendChild(p);
+  } else {
+    const p = document.createElement('p'); p.className = 'small';
+    p.textContent = 'Each tracked planet hums a note set by how fast it orbits (faster is higher), louder as they close in, and they chime together at the moment they line up.';
+    pane.appendChild(p);
+  }
+}
+function buildLook(){ buildPane('look'); }
+function onSetting(k){
+  if (k === 'scale' || k === 'pluto'){
+    if (k === 'pluto' && !S.pluto){ S.chosen = S.chosen.filter((i) => i !== 8); if (S.chosen.length < 2) S.chosen = [2, 3]; changed(); }
+    spiroReset(); orbitCache.jd = -1e9; buildTrack(); layout();
+  }
+  if (k === 'sky') layout();
+  if (k === 'spiro') spiroReset();
+  if (['vol', 'reverb', 'voice', 'bright', 'base', 'spread', 'tuning', 'drone'].includes(k)) syncVoices(true);
+}
+
+/* ---------- pointer: tap a planet to track it, drag one to wind time, drag space to pan, pinch to zoom ---------- */
+const pointers = new Map();
+let dragging = null, pinch = null;
+function hitBody(x, y){
+  let best = -1, bd = 26;
+  shownBodies().forEach((i) => { const p = toScreen(...worldPos(i, jd)); const d = Math.hypot(p[0] - x, p[1] - y); if (d < bd + BODIES[i].size * S.size * .5){ bd = d; best = i; } });
+  return best;
+}
+cv.addEventListener('pointerdown', (e) => {
+  unlockAudio(); dismissHint();
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2){
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), zoom: view.zoom, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, px: view.px, py: view.py };
+    dragging = null; return;
+  }
+  const i = hitBody(e.clientX, e.clientY);
+  dragging = { id: e.pointerId, body: i, x0: e.clientX, y0: e.clientY, px: view.px, py: view.py, moved: false, wasPlaying: S.playing };
+  if (i >= 0) glide = null;
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size >= 2){
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    zoomAt(pinch.mx, pinch.my, clamp(pinch.zoom * d / pinch.d, .3, 60), pinch);
+    view.px += mx - pinch.mx; view.py += my - pinch.my;
+    return;
+  }
+  if (!dragging || dragging.id !== e.pointerId) return;
+  if (!dragging.moved && Math.hypot(e.clientX - dragging.x0, e.clientY - dragging.y0) > 7){
+    dragging.moved = true;
+    if (dragging.body >= 0){ dragging.wasPlaying = S.playing; if (S.playing) setPlaying(false); }
+  }
+  if (!dragging.moved) return;
+  if (dragging.body >= 0){
+    // wind time so the planet follows the finger around its orbit
+    const [sx, sy] = toScreen(0, 0);
+    const want = wrap360(Math.atan2(sy - e.clientY, e.clientX - sx) / DEG);
+    const b = BODIES[dragging.body];
+    for (let k = 0; k < 3; k++){
+      const dl = wrap180(want - helioLon(dragging.body, jd));
+      const before = jd;
+      setJd(jd + dl / b.n);
+      spiroStep(before, jd);
+    }
+  } else {
+    view.px = dragging.px + e.clientX - dragging.x0; view.py = dragging.py + e.clientY - dragging.y0;
+  }
+});
+function endPointer(e){
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  if (pinch){ if (pointers.size < 2) pinch = null; dragging = null; return; }
+  if (dragging && dragging.id === e.pointerId){
+    if (!dragging.moved && dragging.body >= 0) toggleBody(dragging.body);
+    if (dragging.moved && dragging.body >= 0) startSearchIfOut();
+    dragging = null;
+  }
+}
+function startSearchIfOut(){ if (jd > winHi || jd < winLo) startSearch(); renderReadout(true); }
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+function zoomAt(x, y, z, base){
+  base = base || { zoom: view.zoom, px: view.px, py: view.py };
+  const k = z / base.zoom;
+  view.px = (base.px - (x - cx)) * k + (x - cx);
+  view.py = (base.py - (y - cy)) * k + (y - cy);
+  view.zoom = z;
+}
+cv.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, clamp(view.zoom * Math.exp(-e.deltaY * .0015), .3, 60)); }, { passive: false });
+function resetView(){ view.zoom = 1; view.px = 0; view.py = 0; layout(); }
+$('#btnFit').addEventListener('click', resetView);
+
+/* ---------- dock ---------- */
+const fsOK = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+$('#btnFull').hidden = !fsOK;
+function toggleFull(){
+  if (!fsOK) return;
+  const el = document.documentElement;
+  if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+}
+$('#btnFull').addEventListener('click', toggleFull);
+function setUiHidden(h){
+  document.body.classList.toggle('ui-hidden', h);
+  $('#btnShow').hidden = !h;
+  if (h) closeSheet();
+  layout();
+}
+$('#btnHide').addEventListener('click', () => setUiHidden(true));
+$('#btnShow').addEventListener('click', () => setUiHidden(false));
+$('#btnSound').addEventListener('click', () => setSound(!S.sound));
+let hintTimer = setTimeout(dismissHint, 9000);
+function dismissHint(){ clearTimeout(hintTimer); $('#hint').classList.add('gone'); }
+
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (k === ' '){ e.preventDefault(); setPlaying(!S.playing); unlockAudio(); }
+  else if (k === '[') setSpeed(S.speed - 1);
+  else if (k === ']') setSpeed(S.speed + 1);
+  else if (k === 'b' || k === 'B') setDir(-S.dir);
+  else if (k === 'n' || k === 'N') glideTo(nowJd());
+  else if (k === '.' || k === '>'){ const ev = nextEvent(); if (ev) glideTo(ev.jd, true); }
+  else if (k === ',' || k === '<'){ const ev = prevEvent(); if (ev) glideTo(ev.jd, true); }
+  else if (k === 'ArrowRight' || k === 'ArrowLeft'){ if (e.target.type === 'range') return; e.preventDefault(); setPlaying(false); setJd(jd + (k === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 30.4375 : 1)); startSearchIfOut(); }
+  else if (k === 'r' || k === 'R') resetView();
+  else if (k === 'f' || k === 'F') toggleFull();
+  else if (k === 'h' || k === 'H') setUiHidden(!document.body.classList.contains('ui-hidden'));
+  else if (k === 'c' || k === 'C') $('#sheet').classList.contains('open') && tab === 'look' ? closeSheet() : openSheet('look');
+  else if (k === 'm' || k === 'M') setSound(!S.sound);
+  else if (k === 'Escape') closeSheet();
+});
+
+/* ---------- sound: each tracked planet a voice pitched by its orbital speed ---------- */
+let AC = null, master = null, wet = null, dry = null, filt = null, voices = new Map();
+function unlockAudio(){
+  if (!S.sound) return;
+  if (!AC){
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    AC = new C();
+    master = AC.createGain(); master.gain.value = 0;
+    const comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    filt = AC.createBiquadFilter(); filt.type = 'lowpass'; filt.Q.value = .5;
+    dry = AC.createGain(); wet = AC.createGain();
+    const conv = AC.createConvolver(); conv.buffer = impulse(3.2);
+    filt.connect(dry); filt.connect(conv); conv.connect(wet);
+    dry.connect(master); wet.connect(master); master.connect(comp); comp.connect(AC.destination);
+  }
+  if (AC.state === 'suspended') AC.resume();
+  syncVoices(true);
+}
+function impulse(sec){
+  const n = Math.round(AC.sampleRate * sec), b = AC.createBuffer(2, n, AC.sampleRate);
+  for (let ch = 0; ch < 2; ch++){ const d = b.getChannelData(ch); for (let k = 0; k < n; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / n, 3.2); }
+  return b;
+}
+function setSound(on){
+  S.sound = on; save();
+  $('#btnSound').setAttribute('aria-pressed', on);
+  $('#soundIcon').innerHTML = on ? '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>' : '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/>';
+  if (on) unlockAudio(); else syncVoices(true);
+  if (!$('#pane-sound').hidden) buildPane('sound');
+}
+const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+function noteName(m){ return ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][m % 12] + (Math.floor(m / 12) - 1); }
+// Kepler's music: Neptune (slowest) sits on the lowest note, Mercury (fastest) at the top of the spread.
+function pitchOf(i){
+  const lo = Math.log2(BODIES[8].n), hi = Math.log2(BODIES[0].n);
+  const semis = (Math.log2(BODIES[i].n) - lo) / (hi - lo) * S.spread * 12;
+  let m = S.base + semis;
+  if (S.tuning !== 'free'){
+    const steps = S.tuning === 'penta' ? [0, 2, 4, 7, 9] : [0, 2, 4, 5, 7, 9, 11];
+    const oct = Math.floor(semis / 12), r = semis - oct * 12;
+    let best = 0; steps.concat(12).forEach((s) => { if (Math.abs(s - r) < Math.abs(best - r)) best = s; });
+    m = S.base + oct * 12 + best;
+    if (S.tuning === 'just'){ const just = { 0: 1, 2: 9 / 8, 4: 5 / 4, 5: 4 / 3, 7: 3 / 2, 9: 5 / 3, 11: 15 / 8, 12: 2 }; return midiHz(S.base) * Math.pow(2, oct) * just[best]; }
+  }
+  return midiHz(m);
+}
+const WAVES = { glass: 'sine', warm: 'triangle', choir: 'sawtooth', bell: 'sine' };
+function syncVoices(rebuild){
+  if (!AC) return;
+  const t = AC.currentTime, on = S.sound;
+  master.gain.setTargetAtTime(on ? S.vol * .5 : 0, t, .08);
+  wet.gain.setTargetAtTime(S.reverb * .9, t, .1); dry.gain.setTargetAtTime(1 - S.reverb * .45, t, .1);
+  filt.frequency.setTargetAtTime(500 + Math.pow(S.bright, 2) * 9000, t, .1);
+  const want = new Set(on && S.drone > 0 ? members(cfg()) : []);
+  for (const [i, v] of voices){
+    if (!want.has(i) || rebuild){ v.g.gain.setTargetAtTime(0, t, .15); const o = v.o; setTimeout(() => o.forEach((x) => { try { x.stop(); } catch (e) {} }), 900); voices.delete(i); }
+  }
+  want.forEach((i) => {
+    if (voices.has(i)) return;
+    const f = pitchOf(i), g = AC.createGain(), pan = AC.createStereoPanner ? AC.createStereoPanner() : null;
+    g.gain.value = 0;
+    const o = [0, 1].map((k) => { const x = AC.createOscillator(); x.type = WAVES[S.voice]; x.frequency.value = f * (k ? 1.004 : 1); x.connect(g); x.start(); return x; });
+    if (S.voice === 'glass' || S.voice === 'bell'){ o[1].frequency.value = f * 2.001; }
+    if (pan){ g.connect(pan); pan.connect(filt); } else g.connect(filt);
+    voices.set(i, { o, g, pan });
+  });
+}
+// Each frame: drone voices swell as the tracked planets close in, and pan with each planet's direction.
+function updateDrone(span){
+  if (!AC || !S.sound || !voices.size) return;
+  const t = AC.currentTime, close = clamp(1 - span / Math.max(S.within * 5, 30), 0, 1);
+  const n = voices.size, lvl = S.drone * (.05 + .3 * close * close) / Math.sqrt(n) * (S.voice === 'choir' ? .35 : 1);
+  for (const [i, v] of voices){
+    v.g.gain.setTargetAtTime(lvl, t, .12);
+    if (v.pan) v.pan.pan.setTargetAtTime(Math.cos(helioLon(i, jd) * DEG) * .7, t, .2);
+  }
+}
+function chime(){
+  if (!AC || !S.sound || !S.chime) return;
+  const t0 = AC.currentTime + .02, m = members(cfg());
+  const parts = S.voice === 'bell' ? [[1, 1], [2.76, .45], [5.4, .25], [8.93, .12]] : S.voice === 'choir' ? [[1, 1], [2, .4], [3, .25]] : S.voice === 'warm' ? [[1, 1], [2, .3]] : [[1, 1], [2.01, .35], [4.02, .12]];
+  m.forEach((i, k) => {
+    const f = pitchOf(i) * 2, t = t0 + k * .07;
+    const g = AC.createGain(); g.connect(filt);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.32 / Math.sqrt(m.length), t + .012); g.gain.exponentialRampToValueAtTime(.0005, t + S.ring);
+    parts.forEach(([r, a]) => {
+      const o = AC.createOscillator(), og = AC.createGain();
+      o.type = 'sine'; o.frequency.value = f * r; og.gain.value = a * (r > 1 ? (.3 + S.bright) : 1);
+      o.connect(og); og.connect(g); o.start(t); o.stop(t + S.ring + .1);
+    });
+  });
+}
+
+/* ---------- main loop ---------- */
+let lastT = 0;
+function frame(now){
+  const dt = Math.min(.1, lastT ? (now - lastT) / 1000 : 1 / 60); lastT = now;
+  lastJd = jd;
+  if (glide){
+    const u = clamp((now - glide.t0) / glide.dur, 0, 1), e = u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+    jd = glide.from + (glide.to - glide.from) * e;
+    if (u >= 1){
+      jd = glide.to; glide = null; startSearchIfOut();
+      const hit = events.find((ev) => Math.abs(ev.jd - jd) < 1e-3);
+      if (hit){ flash = 1; chime(); }
+    }
+  } else if (S.playing && !dragging?.moved){
+    const real = SPEEDS[S.speed][0] === 1 / 86400 && S.dir > 0 && Math.abs(jd - nowJd()) < 1 / 1440;
+    setJd(real ? nowJd() : jd + SPEEDS[S.speed][0] * dt * S.dir);
+    spiroStep(lastJd, jd);
+    // passing an alignment: flash and chime
+    const lo = Math.min(lastJd, jd), hi = Math.max(lastJd, jd);
+    if (events.some((ev) => ev.jd > lo && ev.jd <= hi)){ flash = 1; chime(); }
+    if (jd <= JD_MIN || jd >= JD_MAX) setPlaying(false);
+  }
+  flash = Math.max(0, flash - dt * .7);
+  maybeResearch();
+  draw();
+  const m = members(cfg());
+  updateDrone(m.length >= 2 ? spanAt(cfg(), jd, m) : 180);
+  renderReadout();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- start ---------- */
+buildTrack(); buildPane('look'); buildPane('sound');
+setPlaying(S.playing); setDir(S.dir); setSound(S.sound);
+addEventListener('resize', layout);
+document.fonts && document.fonts.ready.then(layout);
+layout();
+startSearch();
+requestAnimationFrame(frame);
+document.addEventListener('visibilitychange', () => { if (AC) document.hidden ? AC.suspend() : (S.sound && AC.resume()); });
+</script>
+</body>
+</html>
