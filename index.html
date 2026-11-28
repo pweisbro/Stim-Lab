@@ -19,7 +19,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 <!-- Each app's name on its tile is set in that app's own typeface, so the tile looks like the app it opens. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&family=Michroma&family=Fraunces:ital,opsz,wght@1,9..144,600&family=Big+Shoulders+Display:wght@800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Syne:wght@800&family=Fredoka:wght@600&family=Silkscreen&family=Unbounded:wght@700&family=IBM+Plex+Mono:wght@500&family=Caveat:wght@700&family=Chakra+Petch:wght@700&family=Righteous&family=Teko:wght@700&family=Chewy&family=Orbitron:wght@800&family=Michroma&family=Fraunces:ital,opsz,wght@1,9..144,600&family=Big+Shoulders+Display:wght@800&family=Cinzel:wght@600&display=swap">
 <style>
 /* Layout: a quiet, native-feeling page (system type, graphite wall) holding one dark window per app.
    Each window runs a small live preview drawn in that app's own colors; the apps carry the personality. */
@@ -101,6 +101,7 @@ body{
 .label h2.t-dab{font:italic 600 27px/1 "Fraunces","Iowan Old Style",Georgia,serif;letter-spacing:.01em;color:#ffe3ea}
 .label h2.t-cant{font:800 25px/1 "Big Shoulders Display","Arial Narrow",Impact,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#f4f6fb}
 .label h2.t-cant span{color:#ffd23f;text-shadow:0 0 10px rgba(255,210,63,.45)}
+.label h2.t-syz{font:600 21px/1.1 "Cinzel","Trajan Pro",Georgia,serif;letter-spacing:.24em;color:#c6b4ff;text-shadow:0 0 12px rgba(198,180,255,.45)}
 .label h2.t-orrery{font:600 23px/1.1 "Fredoka","Avenir Next",system-ui,sans-serif;letter-spacing:.01em}
 
 .foot{margin-top:28px;font-size:14px;color:var(--muted)}
@@ -138,6 +139,7 @@ body{
         <li><a class="tile" href="far-tide.html"><div class="label"><h2>Far Tide</h2></div></a></li>
         <li><a class="tile" href="dab.html"><div class="label"><h2>Dab</h2></div></a></li>
         <li><a class="tile" href="cantilever.html"><div class="label"><h2>Cantilever</h2></div></a></li>
+        <li><a class="tile" href="syzygy.html"><div class="label"><h2>Syzygy</h2></div></a></li>
       </ul>
     </noscript>
   </main>
@@ -295,6 +297,15 @@ const APPS = [
     accent: '#ffd23f',
     titleClass: 't-cant',
     art: 'cantilever'
+  },
+  {
+    name: 'Syzygy',
+    href: 'syzygy.html',
+    blurb: 'Watch the planets circle the Sun on their real timing and find out when they line up. Track any of them, see how far apart they are right now, and jump to the next Mars opposition, great conjunction or planet parade, from the Sun or as seen in our sky. Drag a planet to wind time, and hear them chime together as they align.',
+    ground: '#06060f',
+    accent: '#c6b4ff',
+    titleClass: 't-syz',
+    art: 'syzygy'
   }
 ];
 
@@ -1335,6 +1346,51 @@ ARTS.cantilever = {
     s.cx = s.cx == null ? target : s.cx + (target - s.cx) * .08;
     ctx.strokeStyle = 'rgba(255,210,63,.8)'; ctx.beginPath(); ctx.moveTo(s.cx, h * .74); ctx.lineTo(s.cx, h * .97); ctx.stroke();
     ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(s.cx, h * .78, 2.6, 0, 7); ctx.fill();
+  }
+};
+
+// Syzygy: Venus and Earth on their real periods, drawing the five-petal rose with a line every few days;
+// a gold line flashes through the Sun each time they line up. The outer planets drift on their slower orbits.
+ARTS.syzygy = {
+  P: [['#c7bccf', .2408, .16, 1.6], ['#ffe0a3', .6152, .3, 2.6], ['#72c6ff', 1, .44, 2.8], ['#ff7d5c', 1.881, .58, 2.2], ['#ffc690', 11.86, .76, 3.6], ['#f2dc9b', 29.46, .92, 3.2]],
+  init(s){ s.ph = this.P.map((p, k) => k * 1.7 + .4); },
+  frame(ctx, s, w, h, t){
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = s.ground; ctx.fillRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2, R = Math.min(w * .46, h * .47), yrSec = 1.4, loop = 15;
+    const u = t % loop, yrs = Math.min(8, u / yrSec), fade = u > loop - 2 ? (loop - u) / 2 : 1;
+    const T0 = Math.floor(t / loop) * loop / yrSec;   // years at the start of this loop
+    const pos = (k, y) => { const p = this.P[k], a = s.ph[k] + y / p[1] * Math.PI * 2; return [cx + Math.cos(a) * R * p[2], cy - Math.sin(a) * R * p[2] * .62]; };
+    // orbits, squashed a little for a gentle tilt
+    ctx.lineWidth = 1;
+    this.P.forEach((p, k) => { ctx.strokeStyle = k === 1 || k === 2 ? 'rgba(198,180,255,.22)' : 'rgba(190,180,240,.1)'; ctx.beginPath(); ctx.ellipse(cx, cy, R * p[2], R * p[2] * .62, 0, 0, 7); ctx.stroke(); });
+    // the rose
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(198,180,255,' + (.24 * fade).toFixed(3) + ')';
+    ctx.beginPath();
+    for (let y = 0; y <= yrs; y += 6 / 365.25){ const a = pos(1, T0 + y), b = pos(2, T0 + y); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+    ctx.stroke();
+    // a gold flash through the Sun when Venus and Earth line up
+    const now = T0 + yrs, syn = 1 / (1 / .6152 - 1), d = ((s.ph[1] - s.ph[2]) / (Math.PI * 2) + now / .6152 - now) % 1;
+    const near = Math.min(d < 0 ? d + 1 : d, 1 - (d < 0 ? d + 1 : d)) * syn * 365;   // days from the nearest conjunction
+    if (near < 40 && yrs < 8){
+      const e = pos(2, now), k = 1 - near / 40;
+      ctx.strokeStyle = 'rgba(255,217,138,' + (.75 * k).toFixed(3) + ')'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + (e[0] - cx) * 2.4, cy + (e[1] - cy) * 2.4); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    // the Sun
+    const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * .3);
+    sg.addColorStop(0, 'rgba(255,240,200,.95)'); sg.addColorStop(.2, 'rgba(255,196,110,.45)'); sg.addColorStop(1, 'rgba(255,150,80,0)');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(cx, cy, R * .3, 0, 7); ctx.fill();
+    // planets
+    this.P.forEach((p, k) => {
+      const [x, y] = pos(k, now), r = p[3] * Math.max(1, R / 110);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+      g.addColorStop(0, rgba(p[0], .5)); g.addColorStop(1, rgba(p[0], 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 4, 0, 7); ctx.fill();
+      ctx.fillStyle = p[0]; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    });
   }
 };
 
